@@ -153,19 +153,19 @@ class winreg():
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('winreg')
-        hKey = self.dce_transport._get_key_handle(keyName, bind=True)
+        #hKey = self.dce_transport._get_key_handle(keyName, bind=True)
 
-        if valueType == "REG_SZ":
-            valueType = rrp.REG_SZ
-        elif valueType == "REG_DWORD":
-            valueType = rrp.REG_DWORD
-        elif valueType == "REG_BINARY":
-            valueType = rrp.REG_BINARY
-        else:
-            print_bad("Invalid value type")
-            return
+        # if valueType == "REG_SZ":
+        #     valueType = rrp.REG_SZ
+        # elif valueType == "REG_DWORD":
+        #     valueType = rrp.REG_DWORD
+        # elif valueType == "REG_BINARY":
+        #     valueType = rrp.REG_BINARY
+        # else:
+        #     print_bad("Invalid value type")
+        #     return
         
-        self.dce_transport._reg_add(hKey, valueName, valueData, valueType)
+        self.dce_transport._reg_add(keyName, valueName, valueData, valueType)
 
 
 
