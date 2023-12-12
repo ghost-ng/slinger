@@ -76,13 +76,13 @@ class DCETransport:
             raise Exception("Unrecognized endpoint uuid for bind operations")
         
         if bind_uuid == self.current_bind and not self.bind_override:
-            print_info(f"Already bound to {plaintext} rpc endpoint")
+            print_debug(f"Already bound to {plaintext} rpc endpoint")
             return
         else:
             self.dce.bind(bind_uuid)
             self.bind_override = False
             self.current_bind = bind_uuid
-            print_info(f"Successful bind to {plaintext} rpc endpoint")
+            print_debug(f"Successful bind to {plaintext} rpc endpoint")
 
     def _connect(self, named_pipe):
         self.pipe = "\\" + named_pipe
@@ -104,7 +104,8 @@ class DCETransport:
             self.rrpshouldStop = False
             self.rrpstarted = True
         else:
-            response = self._start_service('RemoteRegistry')
+            print_info("Trying to start RemoteRegistry service")
+            response = self._start_service('RemoteRegistry', bind=False)
             self.rrpstarted = True
             self.rrpshouldStop = True
             print_good("Remote Registry service started")
@@ -249,7 +250,7 @@ class DCETransport:
         self.dce.set_auth_level(RPC_C_AUTHN_LEVEL_PKT_PRIVACY)
         self.bind_override = True
         self._bind(tsch.MSRPC_UUID_TSCHS)
-        print(f"Deleting Task: {abs_path}")
+        print_info(f"Deleting Task: {abs_path}")
         response = tsch.hSchRpcDelete(self.dce, abs_path)
         return response
 
@@ -281,11 +282,12 @@ class DCETransport:
 
     
 
-    def _start_service(self, service_name):
+    def _start_service(self, service_name, bind=True):
         if not self.is_connected:
             raise Exception("Not connected to remote host")
-        self.bind_override = True
-        self._bind(scmr.MSRPC_UUID_SCMR)
+        if bind:        # this is needed, do not remove - again........
+            self.bind_override = True
+            self._bind(scmr.MSRPC_UUID_SCMR)
         ans = scmr.hROpenSCManagerW(self.dce)
         self.scManagerHandle = ans['lpScHandle']
         try:
@@ -356,7 +358,7 @@ class DCETransport:
             rootKey = keyName.split('\\')[0]
             subKey = '\\'.join(keyName.split('\\')[1:])
         except Exception as e:
-            print(str(e))
+            print_debug(str(e))
             raise Exception('Error parsing keyName %s' % keyName)
         if rootKey.upper() == 'HKLM':
             ans = rrp.hOpenLocalMachine(self.dce)
@@ -398,7 +400,7 @@ class DCETransport:
             raise Exception("Not connected to remote host")
         #self._connect('winreg')
         
-        self.bind_override = True
+        #self.bind_override = True
         self._bind(rrp.MSRPC_UUID_RRP)
         #print(type(keyName))
 
@@ -435,12 +437,11 @@ class DCETransport:
                     break
         return key_value
 
-    def _reg_add(self, keyName, valueName, valueType, valueData, bind=True):
+    def _reg_add(self, keyName, valueName, valueData, valueType, bind=True):
         if not self.is_connected:
             raise Exception("Not connected to remote host")
-        if bind:
-            #self.bind_override = True
-            self._bind(rrp.MSRPC_UUID_RRP)
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
         hRootKey, subKey = self._get_root_key(keyName)
         ans2 = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
                                        samDesired=READ_CONTROL | rrp.KEY_SET_VALUE | rrp.KEY_CREATE_SUB_KEY)
