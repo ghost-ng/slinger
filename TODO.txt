@@ -1,0 +1,27 @@
+file system
+- recursive ls
+
+
+task scheduler
+- all in one
+
+
+registry
+- reg delete
+- uptime
+- processes
+
+service control
+
+- sc delete
+- sc add
+
+
+factor encoding
+if sys.stdout.encoding is None:
+        # Output is redirected to a file
+        sys.stdout = codecs.getwriter('utf8')(sys.stdout)
+
+- properly disconnect dce
+- move None checks for transport to function
+- clean up unused imports
