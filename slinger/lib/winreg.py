@@ -36,7 +36,7 @@ def extract_reg_values(input_text, keys):
 
 class winreg():
     def __init__(self):
-        print_good("WinReg Module Loaded!")
+        print_debug("WinReg Module Loaded!")
         self.registry_used = False
         self.winreg_already_setup = False
         self.reg_tcpip = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\"
@@ -59,9 +59,9 @@ class winreg():
         print_info("Enumerating keys...")
         hKey = self.dce_transport._get_key_handle(keyName, bind=True)
 
-        print(keyName)
+        print_std(keyName)
         ans = self.dce_transport._get_key_values(hKey, bind=True)
-        print(ans)
+        print_std(ans)
 
     def setup_remote_registry(self):
 
@@ -75,6 +75,7 @@ class winreg():
             print_good("Remote Registry service started")
             
         except Exception as e:
+            print_debug(str(e))
             if "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
                 print_warning("RemoteRegistry Service already running")
                 self.winreg_already_setup = True
@@ -93,6 +94,7 @@ class winreg():
             else:
                 print_bad("Failed to stop Remote Registry service")
         except Exception as e:
+            print_debug(str(e))
             if "ERROR_SERVICE_NOT_ACTIVE" in str(e):
                 print_warning("RemoteRegistry Service already stopped")
                 return
@@ -105,7 +107,7 @@ class winreg():
         subkeys = self.dce_transport._enum_subkeys(keyName, bind=True)
         if not return_list:
             if subkeys:
-                print('\n'.join(subkeys))
+                print_std('\n'.join(subkeys))
         else:
             return subkeys
 
@@ -128,7 +130,7 @@ class winreg():
         subkeys = self.enum_subkeys(self.reg_interface, return_list=True)
 
         interface_keys = reduce_slashes(subkeys[0::])
-        #print(interface_keys)
+        #print_std(interface_keys)
         keys_to_search = ["DhcpNameServer", "DhcpIPAddress", "DhcpSubnetMaskOpt", "DhcpDefaultGateway", "DhcpDomain"]
 
         for iface in interface_keys:
@@ -137,7 +139,7 @@ class winreg():
             ans = self.dce_transport._get_key_values(hKey, hex_dump=False)
             values = extract_reg_values(ans, keys_to_search)
             _iface = iface.split("\\")[-1]
-            print(iface_banner.format(interface=_iface, **values))
+            print_std(iface_banner.format(interface=_iface, **values))
 
     def hostname(self):
         self.registry_used = True
@@ -147,7 +149,7 @@ class winreg():
         hKey = self.dce_transport._get_key_handle(self.reg_tcpip, bind=True)
         ans = self.dce_transport._get_key_values(hKey)
         values = extract_reg_values(ans, ["Hostname"])
-        print("Hostname:\t" + values["Hostname"])
+        print_std("Hostname:\t" + values["Hostname"])
 
     def add_reg_value(self, keyName, valueName, valueData, valueType="REG_SZ"):
         if self.dce_transport is None:

@@ -1,7 +1,7 @@
 from slinger.utils.printlib import *
 from slinger.slingerclient import SlingerClient
 from slinger.utils.common import *
-
+from slinger.var.config import set_config_value, show_config
 from slinger.utils.cli import setup_cli_parser, get_prompt, get_commands, CommandCompleter, setup_completer
 import shlex, argparse, sys, os, traceback, pty, termios
 from prompt_toolkit import PromptSession
@@ -53,7 +53,7 @@ def main():
     parser.add_argument('--kerberos', action='store_true', help='Use Kerberos for authentication')
 
     if len(sys.argv) == 1:
-        print(banner_art)
+        print_std(banner_art)
         parser.print_help()
         sys.exit(1)
 
@@ -75,6 +75,7 @@ def main():
         elif "Errno 113" in str(e):
             print_bad("Connection error: No route to host.  Verify the host is up and the port is open.")
         else:
+            print_debug(str(e))
             print_bad(f"Error: {e}: {sys.exc_info()}")
         sys.exit()
     parser = setup_cli_parser(slingerClient)
@@ -98,8 +99,9 @@ def main():
                 split = shlex.split(user_input)
                 args = parser.parse_args(split)
             except (argparse.ArgumentError, ValueError):
+                print_debug(str(e))
                 print_warning("Failed to parse command. Try quoting your arguments.")
-                print(sys.exc_info())
+                print_std(sys.exc_info())
                 continue
             except KeyboardInterrupt:
                 try:
@@ -110,17 +112,30 @@ def main():
                         break
                     continue
                 except KeyboardInterrupt:
-                    print()
+                    print_std()
                     continue
             except SystemExit:
                 continue
             except Exception as e:
+                print_debug(str(e))
                 print_bad(f"Error: {e}: {sys.exc_info()}")
                 continue
             except argparse.ArgumentError as e:
                 pass
             if args.command is None or args.command == "":
                 continue
+
+#############################################################
+#############################################################
+#############################################################
+
+            elif args.command == "set":
+                if args.varname and args.value:
+                    set_config_value(args.varname, args.value)
+                else:
+                    print_warning("Invalid arguments.  Usage: set <key> <value>")
+            elif args.command == "config":
+                show_config()
             elif args.command == "info":
                 slingerClient.info()
             elif args.command == '#shell':
@@ -137,7 +152,8 @@ def main():
                         os.chdir(new_dir)
                         print_info(f"Changed local directory to {new_dir}")
                     except Exception as e:
-                        print(f"Failed to change local directory to {new_dir}: {e}")
+                        print_debug(str(e))
+                        print_std(f"Failed to change local directory to {new_dir}: {e}")
                 else:
                     print_info("Running Local Command: " + local_command)
                     run_local_command(local_command)
@@ -247,7 +263,7 @@ def main():
                         local_path = args.local_path if args.local_path else os.getcwd()
                         slingerClient.mget(remote_path, local_path, args.r, args.p, args.d)
                     else:
-                        print(f"Remote directory {remote_path} does not exist.")
+                        print_std(f"Remote directory {remote_path} does not exist.")
             elif args.command == "rm":
                 if slingerClient.check_if_connected():
                     if slingerClient.file_exists(args.remote_path):
@@ -290,7 +306,7 @@ def main():
                     slingerClient.enum_subkeys(args.key)
                 elif args.value:
                     slingerClient.enum_key_value(args.key)
-                else:
+                elif args.key:
                     try:
                         slingerClient.enum_key_value(args.key)
                         slingerClient.enum_subkeys(args.key)
@@ -309,14 +325,13 @@ def main():
                 #parser.print_help()
         except Exception as e:
             print_bad(f"Error: {e}: {sys.exc_info()}")
-            traceback_str = ''.join(traceback.format_list(traceback.extract_tb(e.__traceback__)))
-            print(f"An error occurred: {e}")
-            print(traceback_str)
+            print_std(f"An error occurred: {e}")
+            print_debug(str(e))
 
 
     slingerClient.exit()
 
 if __name__ == "__main__":
-    print(banner_art)
+    print_std(banner_art)
     
     main()

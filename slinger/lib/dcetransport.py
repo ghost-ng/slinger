@@ -208,7 +208,7 @@ class DCETransport:
         self.bind_override = True
         self._bind(tsch.MSRPC_UUID_TSCHS)
         abs_path = os.path.normpath(folder_path + "\\" + task_name).replace(r'\\', chr(92)) 
-        print(f"Retrieving Task: {abs_path}")
+        print_std(f"Retrieving Task: {abs_path}")
         response = tsch.hSchRpcRetrieveTask(self.dce, abs_path)
 
         return response
@@ -225,7 +225,7 @@ class DCETransport:
         sddl = ''  # Security descriptor definition language string (empty string for default permissions)
         abs_path = folder_path + "\\" + task_name
         abs_path = abs_path .replace(r'\\', chr(92))
-        print(f"Creating Task: {abs_path}")
+        print_std(f"Creating Task: {abs_path}")
         # Register the task
         # tsch.hSchRpcRegisterTask(dce, '\\%s' % tmpName, xml, tsch.TASK_CREATE, NULL, tsch.TASK_LOGON_NONE)
             
@@ -240,7 +240,7 @@ class DCETransport:
         self._bind(tsch.MSRPC_UUID_TSCHS)
         #abs_path = folder_path + "\\" + task_name
         #abs_path = abs_path .replace(r'\\', chr(92))
-        print(f"Running Task: {abs_path}")
+        print_std(f"Running Task: {abs_path}")
         response = tsch.hSchRpcRun(self.dce, abs_path)
         return response
 
@@ -376,9 +376,8 @@ class DCETransport:
     def _enum_subkeys(self, keyName, bind=True):
         if not self.is_connected:
             raise Exception("Not connected to remote host")
-        if bind:
-            self.bind_override = True
-            self._bind(rrp.MSRPC_UUID_RRP)
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
         hRootKey, subKey = self._get_root_key(keyName)
         ans2 = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
                                 samDesired=rrp.MAXIMUM_ALLOWED | rrp.KEY_ENUMERATE_SUB_KEYS | rrp.KEY_QUERY_VALUE)
@@ -386,8 +385,10 @@ class DCETransport:
         subkeys = []
         while True:
             try:
+                #self.bind_override = True
+                #self._bind(rrp.MSRPC_UUID_RRP)
                 key = rrp.hBaseRegEnumKey(self.dce, ans2['phkResult'], i)
-                #print(keyName + '\\' + key['lpNameOut'][:-1])
+                #print_std(keyName + '\\' + key['lpNameOut'][:-1])
                 subkeys.append(keyName + '\\' + key['lpNameOut'][:-1])
                 i += 1
             except Exception as e:
@@ -400,9 +401,9 @@ class DCETransport:
             raise Exception("Not connected to remote host")
         #self._connect('winreg')
         
-        #self.bind_override = True
+        self.bind_override = True
         self._bind(rrp.MSRPC_UUID_RRP)
-        #print(type(keyName))
+        #print_std(type(keyName))
 
         hRootKey, subKey = self._get_root_key(keyName)
         ans = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
@@ -426,14 +427,15 @@ class DCETransport:
                     lp_value_name = '(Default)'
                 lp_type = ans4['lpType']
                 lp_data = b''.join(ans4['lpData'])
-                #print('\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t', end=' ')
+                #print_std('\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t', end=' ')
                 res = '\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t'
-                #print(res, end='')
+                #print_std(res, end='')
                 res = res + parse_lp_data(lp_type, lp_data, hex_dump=hex_dump)
                 key_value = key_value + res + '\n'
                 i += 1
             except rrp.DCERPCSessionError as e:
                 if e.get_error_code() == ERROR_NO_MORE_ITEMS:
+                    print_debug(str(e))
                     break
         return key_value
 
@@ -464,10 +466,10 @@ class DCETransport:
         )
 
         if ans3['ErrorCode'] == 0:
-            print('Successfully set key %s\\%s of type %s to value %s' % (
+            print_std('Successfully set key %s\\%s of type %s to value %s' % (
                 keyName, valueName, valueType, valueData
             ))
         else:
-            print('Error 0x%08x while setting key %s\\%s of type %s to value %s' % (
+            print_std('Error 0x%08x while setting key %s\\%s of type %s to value %s' % (
                 ans3['ErrorCode'], keyName, valueName, valueType, valueData
             ))

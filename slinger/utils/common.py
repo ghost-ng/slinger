@@ -4,6 +4,7 @@ import datetime
 import xml.etree.ElementTree as ET
 import re
 from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr
+from ..utils.printlib import *
 
 # dictionarty of UUID endpoints to plaintext names
 uuid_endpoints = {
@@ -13,6 +14,18 @@ uuid_endpoints = {
     scmr.MSRPC_UUID_SCMR: "scmr",
     rrp.MSRPC_UUID_RRP: "rrp"
 }
+
+def convert_to_bool(value):
+    # Define strings that should be interpreted as True
+    true_values = {"t", "tr", "true", "yes", "y", "1"}
+
+    # Check if the value is a string and convert it to lowercase for comparison
+    if isinstance(value, str):
+        value = value.lower()
+        return value in true_values
+
+    # For non-string values, use the standard bool conversion
+    return bool(value)
 
 def reduce_slashes(paths):
     """
@@ -37,13 +50,13 @@ def run_local_command(command):
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     if stdout:
-        print(stdout.decode())
+        print_std(stdout.decode())
     if stderr:
-        print(stderr.decode())
+        print_std(stderr.decode())
 
 def enum_struct(obj):
     for k,v in obj.__dict__.items():
-        print(k ,v)
+        print_std(k ,v)
         if hasattr(v,'__dict__'):
             enum_struct(v)
 
@@ -74,7 +87,7 @@ def xml_escape(data):
 def validate_xml(xml_string):
     try:
         ET.fromstring(xml_string)
-        print("XML is valid")
+        print_std("XML is valid")
     except ET.ParseError as e:
-        print(e)
+        print_std(e)
         return False
