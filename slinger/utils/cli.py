@@ -16,7 +16,7 @@ def extract_commands_and_args(cmd_parser):
 class CustomArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if 'invalid choice' in message:
-            print_std('Invalid command entered. Type help for a list of commands.')
+            print_log('Invalid command entered. Type help for a list of commands.')
         #super().error(message)
 
 

@@ -1,7 +1,6 @@
 from slinger.utils.printlib import *
 from slinger.slingerclient import SlingerClient
 from slinger.utils.common import *
-from slinger.var.config import set_config_value, show_config
 from slinger.utils.cli import setup_cli_parser, get_prompt, get_commands, CommandCompleter, setup_completer
 import shlex, argparse, sys, os, traceback, pty, termios
 from prompt_toolkit import PromptSession
@@ -53,7 +52,7 @@ def main():
     parser.add_argument('--kerberos', action='store_true', help='Use Kerberos for authentication')
 
     if len(sys.argv) == 1:
-        print_std(banner_art)
+        print(banner_art)
         parser.print_help()
         sys.exit(1)
 
@@ -101,7 +100,7 @@ def main():
             except (argparse.ArgumentError, ValueError):
                 print_debug(str(e))
                 print_warning("Failed to parse command. Try quoting your arguments.")
-                print_std(sys.exc_info())
+                print_log(sys.exc_info())
                 continue
             except KeyboardInterrupt:
                 try:
@@ -112,7 +111,7 @@ def main():
                         break
                     continue
                 except KeyboardInterrupt:
-                    print_std()
+                    print()
                     continue
             except SystemExit:
                 continue
@@ -153,7 +152,7 @@ def main():
                         print_info(f"Changed local directory to {new_dir}")
                     except Exception as e:
                         print_debug(str(e))
-                        print_std(f"Failed to change local directory to {new_dir}: {e}")
+                        print_log(f"Failed to change local directory to {new_dir}: {e}")
                 else:
                     print_info("Running Local Command: " + local_command)
                     run_local_command(local_command)
@@ -263,7 +262,7 @@ def main():
                         local_path = args.local_path if args.local_path else os.getcwd()
                         slingerClient.mget(remote_path, local_path, args.r, args.p, args.d)
                     else:
-                        print_std(f"Remote directory {remote_path} does not exist.")
+                        print_log(f"Remote directory {remote_path} does not exist.")
             elif args.command == "rm":
                 if slingerClient.check_if_connected():
                     if slingerClient.file_exists(args.remote_path):
@@ -325,13 +324,13 @@ def main():
                 #parser.print_help()
         except Exception as e:
             print_bad(f"Error: {e}: {sys.exc_info()}")
-            print_std(f"An error occurred: {e}")
+            print_log(f"An error occurred: {e}")
             print_debug(str(e))
 
 
     slingerClient.exit()
 
 if __name__ == "__main__":
-    print_std(banner_art)
+    print_log(banner_art)
     
     main()
