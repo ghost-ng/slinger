@@ -16,7 +16,7 @@ def extract_commands_and_args(cmd_parser):
 class CustomArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if 'invalid choice' in message:
-            print('Invalid command entered. Type help for a list of commands.')
+            print_std('Invalid command entered. Type help for a list of commands.')
         #super().error(message)
 
 
@@ -182,6 +182,13 @@ def setup_cli_parser(client):
     parser_regset.add_argument('-t', '--type', help='Specify the registry type to set', default="REG_SZ", required=False)
     parser_ifconfig = subparsers.add_parser('ifconfig', help='Display network interfaces', aliases=["ipconfig", "enuminterfaces"], description='Display network interfaces on the remote server', epilog='Example Usage: ifconfig')
     parser_hostname = subparsers.add_parser('hostname', help='Display hostname', description='Display the hostname of the remote server', epilog='Example Usage: hostname')
+    
+    parser_setvar = subparsers.add_parser('set', help='Set a variable', description='Set a variable for use in the application', epilog='Example Usage: set varname value')
+    parser_setvar.add_argument('varname', help='Set the debug variable to True or False')
+    parser_setvar.add_argument('value', help='Set the mode variable to True or False')
+    
+    parser_setvar = subparsers.add_parser('config', help='Show the current config', description='Show the current config', epilog='Example Usage: config')
+    
     return parser
 
 # A function to extract all possible commands and arguments from argparse
