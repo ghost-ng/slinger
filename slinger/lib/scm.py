@@ -1,5 +1,5 @@
-from ..utils.printlib import *
-from .dcetransport import *
+from slinger.utils.printlib import *
+from slinger.lib.dcetransport import *
 import traceback
 from tabulate import tabulate
 import traceback
@@ -38,7 +38,7 @@ class scm():
         if type(service_arg) is int:
             print_info("Looking up service ID...")
             count = 1
-            #print_std("Searching through %d services" % len(self.services_list))
+            #print_log("Searching through %d services" % len(self.services_list))
             for service in self.services_list:
                 #print_info("Checking service %d" % count)
                 if count == service_arg:
@@ -60,7 +60,7 @@ class scm():
                 if response['ErrorCode'] == 0:
                     print_good("Service started successfully")
                 else:
-                    print_std(f"Error starting service '{service_name}': {response['ErrorCode']}")
+                    print_log(f"Error starting service '{service_name}': {response['ErrorCode']}")
             except Exception as e:
                 if "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
                     print_warning("Service already running")
@@ -82,7 +82,7 @@ class scm():
         if type(service_arg) is int:
             print_info("Looking up service ID...")
             count = 1
-            #print_std("Searching through %d services" % len(self.services_list))
+            #print_log("Searching through %d services" % len(self.services_list))
             for service in self.services_list:
                 #print_info("Checking service %d" % count)
                 if count == service_arg:
@@ -103,7 +103,7 @@ class scm():
             if response['ErrorCode'] == 0:
                 print_good("Service stopped successfully")
             else:
-                print_std(f"Error stopping service '{service_name}': {response['ErrorCode']}")
+                print_log(f"Error stopping service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
             print_bad("Unable to stop service: " + service_name)
             print_bad("An error occurred:")
@@ -128,10 +128,10 @@ class scm():
                 new_list = self.services_list
             
             # Print the DataFrame using tabulate
-            print_std(tabulate(new_list, headers=['ID','Service Name', 'Display Name', 'State'], tablefmt='psql'))
-            print_std("Total Services: %d" % len(self.services_list))
+            print_log(tabulate(new_list, headers=['ID','Service Name', 'Display Name', 'State'], tablefmt='psql'))
+            print_log("Total Services: %d" % len(self.services_list))
             if new_list:
-                print_std("Filtered Services: %d" % len(new_list))
+                print_log("Filtered Services: %d" % len(new_list))
             return
         count = 1
         self.services_list = []
@@ -166,10 +166,10 @@ class scm():
         else:
             new_list = self.services_list
 
-        print_std(tabulate(new_list, headers=['ID','Service Name', 'Display Name', 'State'], tablefmt='psql'))
+        print_log(tabulate(new_list, headers=['ID','Service Name', 'Display Name', 'State'], tablefmt='psql'))
         print_info("Total Services: %d" % len(self.services_list))
         if new_list:
-            print_std("Filtered Services: %d" % len(new_list))
+            print_log("Filtered Services: %d" % len(new_list))
         
 
     def view_service_details(self, service_arg):
@@ -182,7 +182,7 @@ class scm():
         if type(service_arg) is int:
             print_info("Looking up service ID...")
             count = 1
-            #print_std("Searching through %d services" % len(self.services_list))
+            #print_log("Searching through %d services" % len(self.services_list))
             for service in self.services_list:
                 #print_info("Checking service %d" % count)
                 if count == service_arg:
@@ -201,70 +201,70 @@ class scm():
                 print_info("Chosen Service: " + service_name)
             resp, resp2 = self.dce_transport._get_service_details(service_name)
             if resp['ErrorCode'] == 0:
-                print_std("TYPE              : %2d - " % resp['lpServiceConfig']['dwServiceType'], end=' ')
+                print_log("TYPE              : %2d - " % resp['lpServiceConfig']['dwServiceType'], end=' ')
                 if resp['lpServiceConfig']['dwServiceType'] & 0x1:
-                    print_std("SERVICE_KERNEL_DRIVER ", end=' ')
+                    print_log("SERVICE_KERNEL_DRIVER ", end=' ')
                 if resp['lpServiceConfig']['dwServiceType'] & 0x2:
-                    print_std("SERVICE_FILE_SYSTEM_DRIVER ", end=' ')
+                    print_log("SERVICE_FILE_SYSTEM_DRIVER ", end=' ')
                 if resp['lpServiceConfig']['dwServiceType'] & 0x10:
-                    print_std("SERVICE_WIN32_OWN_PROCESS ", end=' ')
+                    print_log("SERVICE_WIN32_OWN_PROCESS ", end=' ')
                 if resp['lpServiceConfig']['dwServiceType'] & 0x20:
-                    print_std("SERVICE_WIN32_SHARE_PROCESS ", end=' ')
+                    print_log("SERVICE_WIN32_SHARE_PROCESS ", end=' ')
                 if resp['lpServiceConfig']['dwServiceType'] & 0x100:
-                    print_std("SERVICE_INTERACTIVE_PROCESS ", end=' ')
-                print_std("")
-                print_std("START_TYPE        : %2d - " % resp['lpServiceConfig']['dwStartType'], end=' ')
+                    print_log("SERVICE_INTERACTIVE_PROCESS ", end=' ')
+                print_log("")
+                print_log("START_TYPE        : %2d - " % resp['lpServiceConfig']['dwStartType'], end=' ')
                 if resp['lpServiceConfig']['dwStartType'] == 0x0:
-                    print_std("BOOT START")
+                    print_log("BOOT START")
                 elif resp['lpServiceConfig']['dwStartType'] == 0x1:
-                    print_std("SYSTEM START")
+                    print_log("SYSTEM START")
                 elif resp['lpServiceConfig']['dwStartType'] == 0x2:
-                    print_std("AUTO START")
+                    print_log("AUTO START")
                 elif resp['lpServiceConfig']['dwStartType'] == 0x3:
-                    print_std("DEMAND START")
+                    print_log("DEMAND START")
                 elif resp['lpServiceConfig']['dwStartType'] == 0x4:
-                    print_std("DISABLED")
+                    print_log("DISABLED")
                 else:
-                    print_std("UNKNOWN")
+                    print_log("UNKNOWN")
 
-                print_std("ERROR_CONTROL     : %2d - " % resp['lpServiceConfig']['dwErrorControl'], end=' ')
+                print_log("ERROR_CONTROL     : %2d - " % resp['lpServiceConfig']['dwErrorControl'], end=' ')
                 if resp['lpServiceConfig']['dwErrorControl'] == 0x0:
-                    print_std("IGNORE")
+                    print_log("IGNORE")
                 elif resp['lpServiceConfig']['dwErrorControl'] == 0x1:
-                    print_std("NORMAL")
+                    print_log("NORMAL")
                 elif resp['lpServiceConfig']['dwErrorControl'] == 0x2:
-                    print_std("SEVERE")
+                    print_log("SEVERE")
                 elif resp['lpServiceConfig']['dwErrorControl'] == 0x3:
-                    print_std("CRITICAL")
+                    print_log("CRITICAL")
                 else:
-                    print_std("UNKNOWN")
-                print_std("BINARY_PATH_NAME  : %s" % resp['lpServiceConfig']['lpBinaryPathName'][:-1])
-                print_std("LOAD_ORDER_GROUP  : %s" % resp['lpServiceConfig']['lpLoadOrderGroup'][:-1])
-                print_std("TAG               : %d" % resp['lpServiceConfig']['dwTagId'])
-                print_std("DISPLAY_NAME      : %s" % resp['lpServiceConfig']['lpDisplayName'][:-1])
-                print_std("DEPENDENCIES      : %s" % resp['lpServiceConfig']['lpDependencies'][:-1])
-                print_std("SERVICE_START_NAME: %s" % resp['lpServiceConfig']['lpServiceStartName'][:-1])
+                    print_log("UNKNOWN")
+                print_log("BINARY_PATH_NAME  : %s" % resp['lpServiceConfig']['lpBinaryPathName'][:-1])
+                print_log("LOAD_ORDER_GROUP  : %s" % resp['lpServiceConfig']['lpLoadOrderGroup'][:-1])
+                print_log("TAG               : %d" % resp['lpServiceConfig']['dwTagId'])
+                print_log("DISPLAY_NAME      : %s" % resp['lpServiceConfig']['lpDisplayName'][:-1])
+                print_log("DEPENDENCIES      : %s" % resp['lpServiceConfig']['lpDependencies'][:-1])
+                print_log("SERVICE_START_NAME: %s" % resp['lpServiceConfig']['lpServiceStartName'][:-1])
             if resp2['ErrorCode'] == 0:
-                print_std("SERVICE_STATUS    : ", end="")
+                print_log("SERVICE_STATUS    : ", end="")
                 state = resp2['lpServiceStatus']['dwCurrentState']
                 if state == scmr.SERVICE_CONTINUE_PENDING:
-                    print_std("CONTINUE PENDING")
+                    print_log("CONTINUE PENDING")
                 elif state == scmr.SERVICE_PAUSE_PENDING:
-                    print_std("PAUSE PENDING")
+                    print_log("PAUSE PENDING")
                 elif state == scmr.SERVICE_PAUSED:
-                    print_std("PAUSED")
+                    print_log("PAUSED")
                 elif state == scmr.SERVICE_RUNNING:
-                    print_std("RUNNING")
+                    print_log("RUNNING")
                 elif state == scmr.SERVICE_START_PENDING:
-                    print_std("START PENDING")
+                    print_log("START PENDING")
                 elif state == scmr.SERVICE_STOP_PENDING:
-                    print_std("STOP PENDING")
+                    print_log("STOP PENDING")
                 elif state == scmr.SERVICE_STOPPED:
-                    print_std("STOPPED")
+                    print_log("STOPPED")
                 else:
-                    print_std("UNKNOWN")
+                    print_log("UNKNOWN")
             else:
-                print_std(f"Error retrieving service '{service_name}': {resp['ErrorCode']}")
+                print_log(f"Error retrieving service '{service_name}': {resp['ErrorCode']}")
         except Exception as e:
             print_bad("Unable to view service details: " + service_name)
             print_bad("An error occurred:")

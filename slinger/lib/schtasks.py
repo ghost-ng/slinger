@@ -1,6 +1,6 @@
-from ..utils.printlib import *
-from .dcetransport import *
-from ..utils.common import enum_struct, generate_random_date, validate_xml, xml_escape
+from slinger.utils.printlib import *
+from slinger.lib.dcetransport import *
+from slinger.utils.common import enum_struct, generate_random_date, validate_xml, xml_escape
 from tabulate import tabulate
 import os
 import traceback
@@ -30,7 +30,7 @@ class schtasks():
         if response['ErrorCode'] == 0:
             
             folders = response['pNames']
-            #print_std(response.dump())
+            #print_log(response.dump())
             
             for folder in folders:
                 folder_name = folder['Data']
@@ -60,14 +60,14 @@ class schtasks():
             #print_info(f"Found {len(found_folders)} Folders: ")
             #print_info(found_folders)
             for folder_name in found_folders:
-                #print_std("Enumerating: " + folder_name)
+                #print_log("Enumerating: " + folder_name)
                 
                 if not folder_path == "\\":
                     full_folder_path = folder_path + "\\" + folder_name
                 else:
                     full_folder_path = folder_path + folder_name
                 #full_folder_path = full_folder_path.replace("\\", "\\\\")
-                #print_std("Full Folder Path: " + full_folder_path)
+                #print_log("Full Folder Path: " + full_folder_path)
                 #if full_folder_path not in self.folder_list:
                 #print_info("Adding Folder: " + full_folder_path)
                 self.folder_list.append(full_folder_path)
@@ -85,13 +85,13 @@ class schtasks():
         self.task_id = 1  # Reset the task ID counter
         self.view_tasks_in_folder()
         self.print_folder_tree()
-        #print_std(self.folder_list)
+        #print_log(self.folder_list)
 
 
     def print_folder_tree(self):
         data = [{'ID': task_id, 'Folder': folder, 'TaskName': task} for folder, tasks in self.folder_list_dict.items() for task_id, task in tasks]
         table = tabulate(data, headers='keys', tablefmt='psql')
-        print_std(table)
+        print_log(table)
         #print total df entries
         print_info(f"Found {len(data)} tasks")
         
@@ -127,7 +127,7 @@ class schtasks():
             try:
                 #print_info(f"Enumerating tasks in folder: {folder_path}")
                 response = self.dce_transport._view_tasks_in_folder(folder_path)
-                #print_std(response.dump())
+                #print_log(response.dump())
                 #print_info(f"Parsing Tasks in {folder_path}:")
                 self.parse_folder_tasks(response, folder_path)
             except Exception as e:
@@ -139,7 +139,7 @@ class schtasks():
                         print_warning("Unable to view tasks in folder: " + folder +" - invalid name")
                 else:
                     print_bad("Unable to view tasks in folder: " + folder_path)
-                    print_std(e)
+                    print_log(e)
 
     def task_run(self, abs_path):
         if self.dce_transport is None:
@@ -212,7 +212,7 @@ class schtasks():
         print_info("Using Program: " + program)
         print_info("Using Arguments: " + arguments)
         print_info("Task XML:")
-        print_std(task_xml)
+        print_log(task_xml)
         try:
             response = self.dce_transport._create_task(task_name, folder_path, task_xml)
         except Exception as e:
@@ -221,9 +221,9 @@ class schtasks():
                 return
 
         if response['ErrorCode'] == 0:
-            print_std(f"Task '{task_name}' created successfully.")
+            print_log(f"Task '{task_name}' created successfully.")
         else:
-            print_std(f"Error creating task '{task_name}': {response['ErrorCode']}")
+            print_log(f"Error creating task '{task_name}': {response['ErrorCode']}")
 
 
 
@@ -312,9 +312,9 @@ class schtasks():
             response = self.dce_transport._view_tasks(task_name, task_path)
             if response['ErrorCode'] == 0:
                 task_xml = response['pXml']
-                print_std(f"{task_xml}")
+                print_log(f"{task_xml}")
             else:
-                print_std(f"Error retrieving task '{task_name}': {response['ErrorCode']}")
+                print_log(f"Error retrieving task '{task_name}': {response['ErrorCode']}")
         
         except Exception as e:
             if "Bind context rejected: reason_not_specified" in str(e):

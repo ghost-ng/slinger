@@ -4,7 +4,9 @@ import datetime
 import xml.etree.ElementTree as ET
 import re
 from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr
-from ..utils.printlib import *
+from slinger.utils.printlib import print_bad, print_debug, print_good, print_info, print_log, print_warning
+from slinger.var.config import config_vars
+from tabulate import tabulate
 
 # dictionarty of UUID endpoints to plaintext names
 uuid_endpoints = {
@@ -50,13 +52,13 @@ def run_local_command(command):
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     if stdout:
-        print_std(stdout.decode())
+        print_log(stdout.decode())
     if stderr:
-        print_std(stderr.decode())
+        print_log(stderr.decode())
 
 def enum_struct(obj):
     for k,v in obj.__dict__.items():
-        print_std(k ,v)
+        print_log(k ,v)
         if hasattr(v,'__dict__'):
             enum_struct(v)
 
@@ -87,7 +89,48 @@ def xml_escape(data):
 def validate_xml(xml_string):
     try:
         ET.fromstring(xml_string)
-        print_std("XML is valid")
+        print_log("XML is valid")
     except ET.ParseError as e:
-        print_std(e)
+        print_log(e)
         return False
+    
+
+
+def get_config_value(key):
+    try:
+        for c in config_vars:
+            if c["Name"].lower() == key.lower():
+                return c["Value"]
+        print_warning(f"Config variable {key} does not exist")
+    except KeyError:
+        print_warning(f"Config variable {key} does not exist")
+        return
+
+# function to set a value in the config dictionary
+def set_config_value(key, value):
+    try:
+        for c in config_vars:
+            if c["Name"].lower() == key.lower():
+                if c["Type"] == "bool":
+                    c["Value"] = convert_to_bool(value)
+                elif c["Type"] == "int":
+                    try:
+                        c["Value"] = int(value)
+                    except ValueError:
+                        print_warning(f"Invalid value for {key}, needs to be an integer")
+                else:
+                    c["Value"] = value
+                
+                print_log(f"{key} --> {str(c['Value'])}")
+                
+                return
+        print_warning(f"Config variable {key} does not exist")
+    except KeyError:
+        print_warning(f"Config variable {key} does not exist")
+        return
+    
+
+# function to display the current config
+def show_config():
+    # print the config in a tabulate table
+    print_log(tabulate([[c["Name"], c["Value"], c["Description"]] for c in config_vars], headers=["Name", "Value", "Description"]))

@@ -1,5 +1,10 @@
 import inspect
-from ..var.config import config
+from slinger.utils.logger import SlingerLogger
+from slinger.var.config import config_vars
+
+
+
+
 class colors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -8,28 +13,40 @@ class colors:
     FAIL = '\033[1;31m'
     ENDC = '\033[0m'
 
-def print_std(msg=""):
-    print(msg)
+def get_config_value(key):
+    try:
+        for c in config_vars:
+            if c["Name"].lower() == key.lower():
+                return c["Value"]
+        print_warning(f"Config variable {key} does not exist")
+    except KeyError:
+        print_warning(f"Config variable {key} does not exist")
+        return
+
+def print_log(msg="", end="\n"):
+    print(msg, end=end)
+    try:
+        log.debug(msg)
+    except Exception as e:
+        print_warning(f"Unable to write to log file: {e}")
+        raise e
 
 def print_good(msg):
-    print_std(f"{colors.OKGREEN}[+] {msg}{colors.ENDC}")
+    print_log(f"{colors.OKGREEN}[+] {msg}{colors.ENDC}")
 
 def print_bad(msg):
-    print_std(f"{colors.FAIL}[-] {msg}{colors.ENDC}")
+    print_log(f"{colors.FAIL}[-] {msg}{colors.ENDC}")
 
 def print_warning(msg):
-    print_std(f"{colors.WARNING}[!] {msg}{colors.ENDC}")
+    print_log(f"{colors.WARNING}[!] {msg}{colors.ENDC}")
 
 def print_info(msg):
-    print_std(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
+    print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
 def print_debug(msg):
     # find the Debug Dict in config
-    for c in config:
-        if c["Name"] == "Debug":
-            # if Debug is set to false, return
-            if not c["Value"]:
-                return
+    if not get_config_value("Debug"):
+        return
 
     current_frame = inspect.currentframe().f_back
 
@@ -38,16 +55,16 @@ def print_debug(msg):
 
     # Get the name of the module from the frame
     module_name = inspect.getmodule(current_frame).__name__
-    print_std("*********************************************")
-    print_std(f"[DEBUG][{module_name}][Line {line_number}]:{msg}{colors.ENDC}")
-    trace_print_std("Traceback (most recent call last):", trace_calls=True)
-    print_std("*********************************************")
+    print_log("*********************************************")
+    print_log(f"[DEBUG][{module_name}][Line {line_number}]:{msg}{colors.ENDC}")
+    trace_print("Traceback (most recent call last):", trace_calls=True)
+    print_log("*********************************************")
 
-    print_std()
+    print_log()
  
-def trace_print_std(*args, **kwargs):
+def trace_print(*args, **kwargs):
     # Print the standard message
-    #print_std(*args, **kwargs)
+    #print_log(*args, **kwargs)
 
     # Check if tracing is requested
     if kwargs.get('trace_calls', False):
@@ -55,7 +72,7 @@ def trace_print_std(*args, **kwargs):
         frame = inspect.currentframe().f_back
 
         # Iterate over the frames and print the call series
-        print_std("Call trace:")
+        print_log("Call trace:")
         while frame:
             module = inspect.getmodule(frame)
             if module:
@@ -66,6 +83,11 @@ def trace_print_std(*args, **kwargs):
             filename = frame.f_code.co_filename
             lineno = frame.f_lineno
             funcname = frame.f_code.co_name
-            print_std(f"\t{module_name}: {funcname} in {filename}, line {lineno}")
+            print_log(f"\t{module_name}: {funcname} in {filename}, line {lineno}")
 
             frame = frame.f_back
+
+
+log_location = get_config_value("Logs_Folder")
+# Initialize the logger at the start of your application
+log = SlingerLogger(log_location, "slingerlog").get_logger()

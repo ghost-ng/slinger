@@ -1,5 +1,5 @@
-from ..utils.printlib import *
-from ..utils.common import *
+from slinger.utils.printlib import *
+from slinger.utils.common import *
 from tabulate import tabulate
 import os, sys, re, ntpath
 import datetime, tempfile
@@ -13,7 +13,7 @@ class smblib():
         print_debug("Smb Commands Module Loaded!")
 
     def print_current_path(self):
-        print_std(self.current_path)
+        print_log(self.current_path)
 
     # connect to a share
     def connect_share(self, share):
@@ -36,7 +36,7 @@ class smblib():
         shares = self.conn.listShares()
         print_info("Available Shares")
         for share in shares:
-            print_std(f"{share['shi1_netname']}")
+            print_log(f"{share['shi1_netname']}")
 
     def mkdir(self, path):
         
@@ -110,7 +110,7 @@ class smblib():
                 self.conn.putFile(self.share, remote_path, file_obj.read)
         except Exception as e:
             print_bad(f"Failed to upload file {local_path} to {remote_path}: {e}")
-            print_std(sys.exc_info())
+            print_log(sys.exc_info())
 
     def download(self, remote_path, local_path):
         if remote_path.endswith('.') or remote_path.endswith('..'):
@@ -121,7 +121,7 @@ class smblib():
                 self.conn.getFile(self.share, remote_path, file_obj.write)
         except Exception as e:
             print_bad(f"Failed to download file {remote_path} to {local_path}: {e}")
-            print_std(sys.exc_info())
+            print_log(sys.exc_info())
 
     def mget(self, remote_path=None, local_path=None, go_into_dirs=False, regex=None, current_depth=1, max_depth=1):
         if local_path is None:
@@ -131,7 +131,7 @@ class smblib():
             try:
                 re.compile(regex)
             except re.error:
-                print_std(f"Invalid regex: {regex}")
+                print_log(f"Invalid regex: {regex}")
                 return
 
         if remote_path is None:
@@ -164,7 +164,7 @@ class smblib():
         temp_path = tempfile.NamedTemporaryFile(dir='/tmp', delete=False).name
         self.download(path, temp_path)
         with open(temp_path, 'r') as file_obj:
-            print_std(file_obj.read())
+            print_log(file_obj.read())
         os.remove(temp_path)
 
     # dir list
@@ -207,6 +207,6 @@ class smblib():
             else:
                 suffix = path + "\\"
             print_info("Showing directory listing for: " + os.path.normpath(self.share + "\\" + suffix))
-            print_std(tabulate(dirList, headers=['Type', 'Created', 'Last Access', 'Last Write', 'Size', 'Attribs', 'Name'], tablefmt='psql'))
+            print_log(tabulate(dirList, headers=['Type', 'Created', 'Last Access', 'Last Write', 'Size', 'Attribs', 'Name'], tablefmt='psql'))
         except Exception as e:
             print_bad(f"Failed to list directory {path} on share {self.share}: {e}")

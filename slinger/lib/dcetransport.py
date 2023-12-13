@@ -208,7 +208,7 @@ class DCETransport:
         self.bind_override = True
         self._bind(tsch.MSRPC_UUID_TSCHS)
         abs_path = os.path.normpath(folder_path + "\\" + task_name).replace(r'\\', chr(92)) 
-        print_std(f"Retrieving Task: {abs_path}")
+        print_log(f"Retrieving Task: {abs_path}")
         response = tsch.hSchRpcRetrieveTask(self.dce, abs_path)
 
         return response
@@ -225,7 +225,7 @@ class DCETransport:
         sddl = ''  # Security descriptor definition language string (empty string for default permissions)
         abs_path = folder_path + "\\" + task_name
         abs_path = abs_path .replace(r'\\', chr(92))
-        print_std(f"Creating Task: {abs_path}")
+        print_log(f"Creating Task: {abs_path}")
         # Register the task
         # tsch.hSchRpcRegisterTask(dce, '\\%s' % tmpName, xml, tsch.TASK_CREATE, NULL, tsch.TASK_LOGON_NONE)
             
@@ -240,7 +240,7 @@ class DCETransport:
         self._bind(tsch.MSRPC_UUID_TSCHS)
         #abs_path = folder_path + "\\" + task_name
         #abs_path = abs_path .replace(r'\\', chr(92))
-        print_std(f"Running Task: {abs_path}")
+        print_log(f"Running Task: {abs_path}")
         response = tsch.hSchRpcRun(self.dce, abs_path)
         return response
 
@@ -388,7 +388,7 @@ class DCETransport:
                 #self.bind_override = True
                 #self._bind(rrp.MSRPC_UUID_RRP)
                 key = rrp.hBaseRegEnumKey(self.dce, ans2['phkResult'], i)
-                #print_std(keyName + '\\' + key['lpNameOut'][:-1])
+                #print_log(keyName + '\\' + key['lpNameOut'][:-1])
                 subkeys.append(keyName + '\\' + key['lpNameOut'][:-1])
                 i += 1
             except Exception as e:
@@ -403,7 +403,7 @@ class DCETransport:
         
         self.bind_override = True
         self._bind(rrp.MSRPC_UUID_RRP)
-        #print_std(type(keyName))
+        #print_log(type(keyName))
 
         hRootKey, subKey = self._get_root_key(keyName)
         ans = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
@@ -427,9 +427,9 @@ class DCETransport:
                     lp_value_name = '(Default)'
                 lp_type = ans4['lpType']
                 lp_data = b''.join(ans4['lpData'])
-                #print_std('\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t', end=' ')
+                #print_log('\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t', end=' ')
                 res = '\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t'
-                #print_std(res, end='')
+                #print_log(res, end='')
                 res = res + parse_lp_data(lp_type, lp_data, hex_dump=hex_dump)
                 key_value = key_value + res + '\n'
                 i += 1
@@ -466,10 +466,10 @@ class DCETransport:
         )
 
         if ans3['ErrorCode'] == 0:
-            print_std('Successfully set key %s\\%s of type %s to value %s' % (
+            print_log('Successfully set key %s\\%s of type %s to value %s' % (
                 keyName, valueName, valueType, valueData
             ))
         else:
-            print_std('Error 0x%08x while setting key %s\\%s of type %s to value %s' % (
+            print_log('Error 0x%08x while setting key %s\\%s of type %s to value %s' % (
                 ans3['ErrorCode'], keyName, valueName, valueType, valueData
             ))

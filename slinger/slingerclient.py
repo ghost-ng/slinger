@@ -1,10 +1,10 @@
-from .lib.schtasks import schtasks
-from .lib.winreg import winreg
-from .lib.scm import scm
-from .lib.smblib import smblib
-from .utils.printlib import *
-from .utils.common import *
-from .lib.dcetransport import *
+from slinger.lib.schtasks import schtasks
+from slinger.lib.winreg import winreg
+from slinger.lib.scm import scm
+from slinger.lib.smblib import smblib
+from slinger.utils.printlib import *
+from slinger.utils.common import *
+from slinger.lib.dcetransport import *
 import datetime
 from impacket import smbconnection
 from tabulate import tabulate
@@ -97,16 +97,16 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         }
         dialect = self.conn.getDialect()
         smb_version = dialect_mapping.get(dialect, "Unknown")
-        print_std(f"Remote Name: {self.conn.getRemoteName()}")
-        print_std(f"Remote Host: {self.conn.getRemoteHost()}")
-        print_std(f"SMB Version: {smb_version}")
-        print_std(f"Connected: {self.is_connected_to_share}")
+        print_log(f"Remote Name: {self.conn.getRemoteName()}")
+        print_log(f"Remote Host: {self.conn.getRemoteHost()}")
+        print_log(f"SMB Version: {smb_version}")
+        print_log(f"Connected: {self.is_connected_to_share}")
         if self.is_connected_to_share:
-            print_std(f"Share: {self.share}")
-            print_std(f"Current Path: {self.current_path}")
+            print_log(f"Share: {self.share}")
+            print_log(f"Current Path: {self.current_path}")
         
-        print_std(f"Logged in: {self.is_logged_in}")
-        print_std(f"Total time of session: {datetime.datetime.now() - self.session_start_time}")
+        print_log(f"Logged in: {self.is_logged_in}")
+        print_log(f"Total time of session: {datetime.datetime.now() - self.session_start_time}")
 
     
 
@@ -118,7 +118,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             self.dce_transport._connect('srvsvc')
             resp = self.dce_transport._who()
             for session in resp['InfoStruct']['SessionInfo']['Level10']['Buffer']:
-                    print_std("host: %15s, user: %5s, active: %5d, idle: %5d" % (
+                    print_log("host: %15s, user: %5s, active: %5d, idle: %5d" % (
                     session['sesi10_cname'][:-1], session['sesi10_username'][:-1], session['sesi10_time'],
                     session['sesi10_idle_time']))
         except DCERPCException as e:
@@ -134,14 +134,14 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             response = self.dce_transport._enum_server_disk()
             if response['ErrorCode'] == 0:  # Checking for successful response
                 disk_enum = response['DiskInfoStruct']['Buffer']
-                print_std("Disk Drives:")
+                print_log("Disk Drives:")
                 for disk in disk_enum:
-                    print_std(f"  {disk['Disk']}  ", end="")
-                print_std()
+                    print_log(f"  {disk['Disk']}  ", end="")
+                print_log()
             else:
-                print_std(f"Error: {response['ErrorCode']}")
+                print_log(f"Error: {response['ErrorCode']}")
         except Exception as e:
-            print_std(f"An error occurred: {str(e)}")
+            print_log(f"An error occurred: {str(e)}")
             raise e
 
     def enum_logons(self):
@@ -151,7 +151,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         response = self.dce_transport._enum_logons()
         print_info("Logged on Users:")
         for user_info in response['UserInfo']['WkstaUserInfo']['Level1']['Buffer']:
-            print_std(f"Username: {user_info['wkui1_username']}")
+            print_log(f"Username: {user_info['wkui1_username']}")
 
     def enum_sys(self):
         if self.dce_transport is None:
@@ -161,13 +161,13 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         # Assuming you have a response from NetrWkstaGetInfo
         info = response['WkstaInfo']['WkstaInfo102']
 
-        print_std("Workstation Information:")
-        print_std(f"Platform ID: {info['wki102_platform_id']}")
-        print_std(f"Computer Name: {info['wki102_computername']}")
-        print_std(f"Domain Name: {info['wki102_langroup']}")
-        print_std(f"Version Major: {info['wki102_ver_major']}")
-        print_std(f"Version Minor: {info['wki102_ver_minor']}")
-        print_std(f"Logged-on Users: {info['wki102_logged_on_users']}")
+        print_log("Workstation Information:")
+        print_log(f"Platform ID: {info['wki102_platform_id']}")
+        print_log(f"Computer Name: {info['wki102_computername']}")
+        print_log(f"Domain Name: {info['wki102_langroup']}")
+        print_log(f"Version Major: {info['wki102_ver_major']}")
+        print_log(f"Version Minor: {info['wki102_ver_minor']}")
+        print_log(f"Logged-on Users: {info['wki102_logged_on_users']}")
  
 
     def enum_transport(self):
@@ -181,32 +181,32 @@ class SlingerClient(winreg, schtasks, scm, smblib):
 
         print_info("Transport Information:")
         for transport in transports:
-            print_std(f"Quality Of Service: {transport['wkti0_quality_of_service']}")
-            print_std(f"Number of VCs: {transport['wkti0_number_of_vcs']}")
+            print_log(f"Quality Of Service: {transport['wkti0_quality_of_service']}")
+            print_log(f"Number of VCs: {transport['wkti0_number_of_vcs']}")
 
             # Decode the transport name and address from bytes to string
             transport_name = transport['wkti0_transport_name']
             transport_address = transport['wkti0_transport_address']
 
-            print_std(f"Transport Name: {transport_name}")
+            print_log(f"Transport Name: {transport_name}")
             readable_mac_address = ':'.join(transport_address[i:i+2] for i in range(0, len(transport_address), 2))
-            print_std(f"Readable Transport Address (MAC): {readable_mac_address}")
-            print_std(f"WAN ISH: {transport['wkti0_wan_ish']}")
-            print_std()
+            print_log(f"Readable Transport Address (MAC): {readable_mac_address}")
+            print_log(f"WAN ISH: {transport['wkti0_wan_ish']}")
+            print_log()
 
     def enum_info(self):
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('srvsvc')
         response = self.dce_transport._enum_info()
-        #print_std(response.dump())
+        #print_log(response.dump())
         print_info("Server Info:")
         info = response['InfoStruct']['ServerInfo101']
-        print_std(f"Server name: {info['sv101_name']}")
-        print_std(f"Server platform id: {info['sv101_platform_id']}")
-        print_std(f"Server version: {info['sv101_version_major']}.{info['sv101_version_minor']}")
-        print_std(f"Server type: {info['sv101_type']}")
-        print_std(f"Server comment: {info['sv101_comment']}")
+        print_log(f"Server name: {info['sv101_name']}")
+        print_log(f"Server platform id: {info['sv101_platform_id']}")
+        print_log(f"Server version: {info['sv101_version_major']}.{info['sv101_version_minor']}")
+        print_log(f"Server type: {info['sv101_type']}")
+        print_log(f"Server comment: {info['sv101_comment']}")
         print_info("Server Disk Info:")
         self.enum_server_disk()
 
@@ -250,9 +250,9 @@ class SlingerClient(winreg, schtasks, scm, smblib):
 
 
             else:
-                print_std(f"Error: {response['ErrorCode']}")
+                print_log(f"Error: {response['ErrorCode']}")
         except Exception as e:
-            print_std(f"An error occurred: {str(e)}")
+            print_log(f"An error occurred: {str(e)}")
             raise e
 
 
