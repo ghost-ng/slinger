@@ -315,6 +315,8 @@ def main():
                             continue
             elif args.command == "regset":
                 slingerClient.add_reg_value(args.key, args.value, args.data, args.type)
+            elif args.command == "fwrules":
+                slingerClient.show_fw_rules()
             elif args.command == "ifconfig" or args.command == "ipconfig":
                 slingerClient.ipconfig()
             elif args.command == "hostname":

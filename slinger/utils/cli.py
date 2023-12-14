@@ -183,6 +183,10 @@ def setup_cli_parser(client):
     parser_ifconfig = subparsers.add_parser('ifconfig', help='Display network interfaces', aliases=["ipconfig", "enuminterfaces"], description='Display network interfaces on the remote server', epilog='Example Usage: ifconfig')
     parser_hostname = subparsers.add_parser('hostname', help='Display hostname', description='Display the hostname of the remote server', epilog='Example Usage: hostname')
     
+    parser_fwrules = subparsers.add_parser('fwrules', help='Display firewall rules', description='Display firewall rules on the remote server', epilog='Example Usage: fwrules')
+
+
+
     parser_setvar = subparsers.add_parser('set', help='Set a variable', description='Set a variable for use in the application', epilog='Example Usage: set varname value')
     parser_setvar.add_argument('varname', help='Set the debug variable to True or False')
     parser_setvar.add_argument('value', help='Set the mode variable to True or False')

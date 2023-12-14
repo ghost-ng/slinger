@@ -9,6 +9,9 @@ import ntpath
 
 
 class schtasks():
+    """
+    This class provides methods for interacting with the Windows Task Scheduler.
+    """
     def __init__(self):
         print_debug("Scheduled Tasks Module Loaded!")
         self.visited_folders = set()
@@ -45,39 +48,41 @@ class schtasks():
         #self.enum_folders_recursive(self.folder_list, start_index)
 
     def enum_folders(self, folder_path="\\", start_index=0):
-        #folder_path = "\\Microsoft\\Windows"
-        
+        """
+        Enumerate folders recursively starting from the specified folder path.
+
+        Args:
+            folder_path (str): The path of the folder to start enumeration from. Default is "\\".
+            start_index (int): The index to start enumeration from. Default is 0.
+
+        Returns:
+            None
+        """
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('atsvc')
-        #print_info("Enumerating folders in: " + folder_path)
         response = self.dce_transport._enum_folders(folder_path, start_index)
         if response['ErrorCode'] == 0:
             folders = response['pNames']
-            
-            # create list of only folder names
             found_folders = [f['Data'].strip("\x00") for f in folders]
-            #print_info(f"Found {len(found_folders)} Folders: ")
-            #print_info(found_folders)
             for folder_name in found_folders:
-                #print_log("Enumerating: " + folder_name)
-                
                 if not folder_path == "\\":
                     full_folder_path = folder_path + "\\" + folder_name
                 else:
                     full_folder_path = folder_path + folder_name
-                #full_folder_path = full_folder_path.replace("\\", "\\\\")
-                #print_log("Full Folder Path: " + full_folder_path)
-                #if full_folder_path not in self.folder_list:
-                #print_info("Adding Folder: " + full_folder_path)
                 self.folder_list.append(full_folder_path)
-                #print_info("New Folder List: " + ' '.join(self.folder_list))
                 self.enum_folders(full_folder_path)
         else:
-            #print_warning("Error enumerating folder: " + str(response['ErrorCode']))
             return
 
     def enum_folders_recursive(self, folder="\\", start_index=0):
+        """
+        Enumerates the Task Scheduler folders recursively.
+
+        Args:
+            folder (str): The folder to start the enumeration from. Defaults to "\\".
+            start_index (int): The starting index for the enumeration. Defaults to 0.
+        """
         print_info("Enumerating Task Scheduler...")
         self.folder_list = ["\\"]
         self.folder_list_dict = {}
@@ -89,6 +94,15 @@ class schtasks():
 
 
     def print_folder_tree(self):
+        """
+        Prints the folder tree along with the tasks in each folder.
+
+        This method retrieves the folder list dictionary and formats it into a table
+        using the `tabulate` function. The table is then printed to the console using
+        the `print_log` function. Additionally, the total number of tasks found is
+        printed using the `print_info` function.
+
+        """
         data = [{'ID': task_id, 'Folder': folder, 'TaskName': task} for folder, tasks in self.folder_list_dict.items() for task_id, task in tasks]
         table = tabulate(data, headers='keys', tablefmt='psql')
         print_log(table)
@@ -97,7 +111,17 @@ class schtasks():
         
 
     def parse_folder_tasks(self, response, folder):
-        
+        """
+        Parses the tasks in a specific folder from the response and updates the folder_list_dict.
+
+        Args:
+            response (dict): The response containing the tasks.
+            folder (str): The folder name.
+
+        Returns:
+            None: If the response has an error code.
+
+        """
         if response['ErrorCode'] == 0:
             tasks = response['pNames']
             for task in tasks:

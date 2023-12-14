@@ -383,6 +383,8 @@ class DCETransport:
                                 samDesired=rrp.MAXIMUM_ALLOWED | rrp.KEY_ENUMERATE_SUB_KEYS | rrp.KEY_QUERY_VALUE)
         i = 0
         subkeys = []
+        #self.bind_override = True
+        #self._bind(rrp.MSRPC_UUID_RRP)
         while True:
             try:
                 #self.bind_override = True
@@ -396,7 +398,7 @@ class DCETransport:
                 break
         return subkeys
     
-    def _get_key_handle(self, keyName, bind=True):
+    def _get_key_handle(self, keyName):
         if not self.is_connected:
             raise Exception("Not connected to remote host")
         #self._connect('winreg')
@@ -411,10 +413,11 @@ class DCETransport:
         hKey = ans['phkResult']
         return hKey
         
-    def _get_key_values(self, keyName, hex_dump=True, bind=True):
+    def _get_key_values(self, keyName, hex_dump=True):
         if not self.is_connected:
             raise Exception("Not connected to remote host")
-        self._bind(rrp.MSRPC_UUID_RRP)
+        #self.bind_override = True
+        #self._bind(rrp.MSRPC_UUID_RRP)
         key_value = ""
         res = ""
         i = 0
@@ -433,6 +436,8 @@ class DCETransport:
                 res = res + parse_lp_data(lp_type, lp_data, hex_dump=hex_dump)
                 key_value = key_value + res + '\n'
                 i += 1
+                #self.bind_override = True
+                #self._bind(rrp.MSRPC_UUID_RRP)
             except rrp.DCERPCSessionError as e:
                 if e.get_error_code() == ERROR_NO_MORE_ITEMS:
                     print_debug(str(e))
