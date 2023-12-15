@@ -69,8 +69,14 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         self.is_logged_in = True
         self.dialect = self.conn.getDialect()
         self.smb_version = dialect_mapping.get(self.dialect, "Unknown")
-        self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        try:
+            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        except Exception as e:
+            print_bad(f"Unable to setup DCE transport: {e}")
+            raise e
+        
         self.dce_transport._enable_remote_registry()
+       
 
     # handle exit
     def exit(self):

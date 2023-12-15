@@ -25,3 +25,5 @@ if sys.stdout.encoding is None:
 - properly disconnect dce
 - move None checks for transport to function
 - clean up unused imports
+
+fix error reporting

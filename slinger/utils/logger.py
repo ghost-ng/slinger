@@ -2,6 +2,7 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
 from datetime import datetime
+from traceback import format_exception
 
 
 class SlingerLogger:
@@ -28,3 +29,9 @@ class SlingerLogger:
 
 
 
+def error_logging(e):
+    # e is sys.exc_info()
+    exc_type, exc_value, exc_traceback = e
+    tb_lines = format_exception(exc_type, exc_value, exc_traceback)
+    error_message = ''.join(tb_lines)
+    return error_message

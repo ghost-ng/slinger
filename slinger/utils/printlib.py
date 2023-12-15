@@ -1,6 +1,7 @@
 import inspect
-from slinger.utils.logger import SlingerLogger
-from slinger.var.config import config_vars
+from slinger.utils.logger import SlingerLogger, error_logging
+from slinger.var.config import config_vars, logwriter
+
 
 
 
@@ -43,24 +44,31 @@ def print_warning(msg):
 def print_info(msg):
     print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
-def print_debug(msg):
+def print_debug(msg, e=None):
     # find the Debug Dict in config
-    if not get_config_value("Debug"):
-        return
+    
+    if e:
+        verbose_trace = error_logging(e)
+    else:
+        verbose_trace = ""
 
     current_frame = inspect.currentframe().f_back
 
-    # Get the line number from the frame
     line_number = current_frame.f_lineno
 
-    # Get the name of the module from the frame
     module_name = inspect.getmodule(current_frame).__name__
-    print_log("*********************************************")
-    print_log(f"[DEBUG][{module_name}][Line {line_number}]:{msg}{colors.ENDC}")
-    trace_print("Traceback (most recent call last):", trace_calls=True)
-    print_log("*********************************************")
+    debug_msg = f"""
+*********************************************
+[DEBUG][{module_name}][Line {line_number}]:{msg}{colors.ENDC}
+{verbose_trace}
+[DEBUG]{trace_print("Traceback (most recent call last):", trace_calls=True)}
+*********************************************
+"""
 
-    print_log()
+    if not get_config_value("Debug"):
+        log.debug(debug_msg)
+        return
+    print_log(debug_msg)
  
 def trace_print(*args, **kwargs):
     # Print the standard message
@@ -71,8 +79,11 @@ def trace_print(*args, **kwargs):
         # Create a stack trace from the current frame
         frame = inspect.currentframe().f_back
 
-        # Iterate over the frames and print the call series
-        print_log("Call trace:")
+        # Initialize the message variable
+        message = ""
+
+        # Iterate over the frames and append the call series to the message
+        message += "Call trace:\n"
         while frame:
             module = inspect.getmodule(frame)
             if module:
@@ -83,11 +94,16 @@ def trace_print(*args, **kwargs):
             filename = frame.f_code.co_filename
             lineno = frame.f_lineno
             funcname = frame.f_code.co_name
-            print_log(f"\t{module_name}: {funcname} in {filename}, line {lineno}")
+            message += f"\t{module_name}: {funcname} in {filename}, line {lineno}\n"
 
             frame = frame.f_back
+
+        # Return the message
+        return message
 
 
 log_location = get_config_value("Logs_Folder")
 # Initialize the logger at the start of your application
 log = SlingerLogger(log_location, "slingerlog").get_logger()
+
+logwriter = log
