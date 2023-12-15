@@ -175,7 +175,7 @@ class winreg():
     \tDhcpDefaultGateway:\t{DhcpDefaultGateway}
     \tDhcpDomain:\t{DhcpDomain}
     """
-        1/0
+        
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('winreg')
