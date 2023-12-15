@@ -71,7 +71,7 @@ class winreg():
         print_info("Enumerating keys...")
         hKey = self.dce_transport._get_key_handle(keyName)
 
-        ans = self.dce_transport._get_key_values(hKey, hex_dump=hex_dump)
+        ans = self.dce_transport._get_key_values(hKey, hex_dump=False)
         if not return_val:
             print_log(keyName)
             print_log(ans)
@@ -175,7 +175,7 @@ class winreg():
     \tDhcpDefaultGateway:\t{DhcpDefaultGateway}
     \tDhcpDomain:\t{DhcpDomain}
     """
-
+        1/0
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('winreg')
@@ -212,7 +212,7 @@ class winreg():
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('winreg')
-        hKey = self.dce_transport._get_key_handle(self.reg_tcpip, bind=True)
+        hKey = self.dce_transport._get_key_handle(self.reg_tcpip)
         ans = self.dce_transport._get_key_values(hKey)
         values = extract_reg_values(ans, ["Hostname"])
         print_log("Hostname:\t" + values["Hostname"])

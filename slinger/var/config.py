@@ -5,3 +5,5 @@ config_vars = [
     {"Name": "Debug", "Value": False, "Description": "Enable debug messages", "Type": "bool"},
     {"Name": "Logs_Folder", "Value": "slinger/logs", "Description": "Folder to store history files", "Type": "str"},
 ]
+
+logwriter = None

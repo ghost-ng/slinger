@@ -3,6 +3,7 @@ from slinger.lib.dcetransport import *
 import traceback
 from tabulate import tabulate
 import traceback
+import sys
 
 class scm():
 
@@ -266,6 +267,16 @@ class scm():
             else:
                 print_log(f"Error retrieving service '{service_name}': {resp['ErrorCode']}")
         except Exception as e:
+            if "ERROR_SERVICE_DOES_NOT_EXIST" in str(e):
+                print_warning("Service does not exist")
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                
+                # Extracting the line number and other details
+                tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                error_message = ''.join(tb_lines)
+                print_debug(error_message)
+                return
+
             print_bad("Unable to view service details: " + service_name)
             print_bad("An error occurred:")
             traceback.print_exc()

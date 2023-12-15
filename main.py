@@ -67,6 +67,7 @@ def main():
             print_good(f"Successfully logged in to {prgm_args.host}:{prgm_args.port}")
         else:
             print_bad(f"Failed to log in to {prgm_args.host}:{prgm_args.port}")
+            print_debug('',sys.exc_info())
             sys.exit()
     except Exception as e:
         if 'Errno 111' in str(e) and 'Connection refused' in str(e):
@@ -76,12 +77,11 @@ def main():
         else:
             print_debug(str(e))
             print_bad(f"Error: {e}: {sys.exc_info()}")
+        
+        print_debug('',sys.exc_info())
         sys.exit()
+        
     parser = setup_cli_parser(slingerClient)
-    #commands_and_args = get_commands(parser)
-    #session = PromptSession(history=FileHistory('.slinger_history'),completer=ArgparseCompleter())
-    # Create a buffer and a buffer control
-
     completer = CommandCompleter(setup_completer(parser))
     session = PromptSession(history=FileHistory('.slinger_history'),completer=completer)
 
@@ -92,6 +92,7 @@ def main():
             try:
                 #formatted_text(ANSI(prompt_text),end='')
                 user_input = session.prompt(to_formatted_text(ANSI(prompt_text)))
+                logwriter.info(user_input)
                 split = shlex.split(user_input)
                 #user_input = prompt('', history=history)
                 #user_input = input(prompt_text)
@@ -151,7 +152,7 @@ def main():
                         os.chdir(new_dir)
                         print_info(f"Changed local directory to {new_dir}")
                     except Exception as e:
-                        print_debug(str(e))
+                        print_debug('',sys.exc_info())
                         print_log(f"Failed to change local directory to {new_dir}: {e}")
                 else:
                     print_info("Running Local Command: " + local_command)
@@ -325,10 +326,8 @@ def main():
                 pass
                 #parser.print_help()
         except Exception as e:
-            print_bad(f"Error: {e}: {sys.exc_info()}")
-            print_log(f"An error occurred: {e}")
-            print_debug(str(e))
-
+            print_warning(f"Uncaught Error: {e}: {sys.exc_info()}")
+            print_debug('',sys.exc_info())
 
     slingerClient.exit()
 
