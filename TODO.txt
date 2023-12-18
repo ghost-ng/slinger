@@ -5,6 +5,7 @@ file system
 task scheduler
 - all in one
 
+- refactor dce transport class to organize class functions
 
 registry
 - reg delete

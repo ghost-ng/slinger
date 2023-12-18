@@ -316,6 +316,17 @@ def main():
                             continue
             elif args.command == "regset":
                 slingerClient.add_reg_value(args.key, args.value, args.data, args.type)
+            elif args.command == "regdel":
+                if args.value:
+                    slingerClient.del_reg_value(args.key, args.value)
+                elif args.key:
+                    slingerClient.reg_delete_key(args.key)
+                else:
+                    print_warning("Invalid arguments.  Usage: regdel -k <key> [-v <value>]")
+            elif args.command == "regcreate":
+                slingerClient.reg_create_key(args.key)
+            elif args.command == "regcheck":
+                slingerClient.does_key_exist(args.key)
             elif args.command == "fwrules":
                 slingerClient.show_fw_rules()
             elif args.command == "ifconfig" or args.command == "ipconfig":

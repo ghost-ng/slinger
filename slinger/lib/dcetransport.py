@@ -1,10 +1,10 @@
-from impacket.dcerpc.v5 import transport, rrp, srvs, wkst, tsch, scmr
+from impacket.dcerpc.v5 import transport, rrp, srvs, wkst, tsch, scmr, rpcrt
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.dcerpc.v5.rpcrt import RPC_C_AUTHN_GSS_NEGOTIATE, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_LEVEL_PKT_INTEGRITY
 from impacket.dcerpc.v5.tsch import TASK_FLAG_HIDDEN
 import os, traceback
-from ..utils.printlib import *
-from ..utils.common import *
+from slinger.utils.printlib import *
+from slinger.utils.common import *
 from impacket.structure import hexdump
 from struct import unpack, pack
 from impacket.system_errors import ERROR_NO_MORE_ITEMS
@@ -471,10 +471,74 @@ class DCETransport:
         )
 
         if ans3['ErrorCode'] == 0:
-            print_log('Successfully set key %s\\%s of type %s to value %s' % (
+            print_debug('Successfully set key %s\\%s of type %s to value %s' % (
                 keyName, valueName, valueType, valueData
             ))
+            return True
         else:
-            print_log('Error 0x%08x while setting key %s\\%s of type %s to value %s' % (
+            print_debug('Error 0x%08x while setting key %s\\%s of type %s to value %s' % (
                 ans3['ErrorCode'], keyName, valueName, valueType, valueData
             ))
+            return False
+
+    def _reg_delete_value(self, keyName, valueName):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+        hRootKey, subKey = self._get_root_key(keyName)
+        ans2 = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
+                                       samDesired=READ_CONTROL | rrp.KEY_SET_VALUE | rrp.KEY_CREATE_SUB_KEY)
+        ans3 = rrp.hBaseRegDeleteValue(self.dce, ans2['phkResult'], valueName)
+        if ans3['ErrorCode'] == 0:
+            print_debug('Successfully deleted value %s from key %s' % (valueName, keyName))
+            return True
+        else:
+            print_debug('Error 0x%08x while deleting value %s from key %s' % (ans3['ErrorCode'], valueName, keyName))
+            return False
+        
+    def _reg_delete_key(self, keyName):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+        hRootKey, subKey = self._get_root_key(keyName)
+        subKey = '\\'.join(subKey.split('\\')[:-1])
+        ans2 = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
+                                       samDesired=READ_CONTROL | rrp.KEY_SET_VALUE | rrp.KEY_CREATE_SUB_KEY)
+        try:
+            ans3 = rrp.hBaseRegDeleteKey(self.dce, hRootKey, subKey)
+
+        except rpcrt.DCERPCException as e:
+            if e.error_code == 5:
+                #TODO: Check if DCERPCException appears only because of existing subkeys
+                print('Cannot delete key %s. Possibly it contains subkeys or insufficient privileges' % keyName)
+                return
+            else:
+                raise
+        except Exception as e:
+            print_warning('Unhandled exception while hBaseRegDeleteKey')
+            print_debug('Unhandled exception while hBaseRegDeleteKey',e)
+            return
+        
+        if ans3['ErrorCode'] == 0:
+            print_debug('Successfully deleted key %s' % keyName)
+            return True
+        else:
+            print_debug('Error 0x%08x while deleting key %s' % (ans3['ErrorCode'], keyName))
+            return False
+        
+    def _reg_create_key(self, keyName):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+        hRootKey, subKey = self._get_root_key(keyName)
+        ans2 = rrp.hBaseRegCreateKey(self.dce, hRootKey, subKey,
+                                       samDesired=READ_CONTROL | rrp.KEY_SET_VALUE | rrp.KEY_CREATE_SUB_KEY)
+        if ans2['ErrorCode'] == 0:
+            print_debug('Successfully created key %s' % keyName)
+            return True
+        else:
+            print_debug('Error 0x%08x while creating key %s' % (ans2['ErrorCode'], keyName))
+            return False

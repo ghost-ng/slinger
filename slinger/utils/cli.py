@@ -170,19 +170,32 @@ def setup_cli_parser(client):
     parser_regstart = subparsers.add_parser('reguse', help='Connect to the remote registry', description='Connect to a remote registry on the remote server', epilog='Example Usage: reguse')
     parser_regstop = subparsers.add_parser('regstop', help='Disconnect from the remote registry', description='Disconnect from a remote registry on the remote server', epilog='Example Usage: regstop')
     
-    parser_regquery = subparsers.add_parser('regquery', help='Query a registry key', description='Query a registry key on the remote server', epilog='Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run')
+    parser_regquery = subparsers.add_parser('regquery', help='Query a registry key', description='Query a registry key on the remote server', epilog='Example Usage: regquery HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run')
     parser_regquery.add_argument('key', help='Specify the registry key to query')
     parser_regquery.add_argument('-l', '--list', help='List all values in the registry key', action='store_true')
     parser_regquery.add_argument('-v', '--value', help='Enumerate the value of the specified registry key', action='store_true')
 
-    parser_regset = subparsers.add_parser('regset', help='Set a registry value', description='Set a registry value on the remote server', epilog='Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\ -v test -d "C:\\test.exe"')
+    parser_regset = subparsers.add_parser('regset', help='Set a registry value', description='Set a registry value on the remote server', epilog='Example Usage: regset -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\ -v test -d "C:\\test.exe"')
     parser_regset.add_argument('-k', '--key', help='Specify the registry key to set', required=True)
     parser_regset.add_argument('-v', '--value', help='Specify the registry value to set', required=True)
     parser_regset.add_argument('-d', '--data', help='Specify the registry data to set', required=True)
     parser_regset.add_argument('-t', '--type', help='Specify the registry type to set', default="REG_SZ", required=False)
+
+    parser_regdel = subparsers.add_parser('regdel', help='Delete a registry value', description='Delete a registry value on the remote server', epilog='Example Usage: regdel -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\ -v test')
+    parser_regdel.add_argument('-k', '--key', help='Specify the registry key to delete', required=True)
+    parser_regdel.add_argument('-v', '--value', help='Specify the registry value to delete', required=False)
+
+    parser_regcreate = subparsers.add_parser('regcreate', help='Create a registry key', description='Create a registry key on the remote server', epilog='Example Usage: regcreate -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\test')
+    parser_regcreate.add_argument('key', help='Specify the registry key to create')
+
+    parser_regcheck = subparsers.add_parser('regcheck', help='Check if a registry key exists', description='Check if a registry key exists on the remote server.  This is really just an exposed helper function.', epilog='Example Usage: regcheck HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\test')
+    parser_regcheck.add_argument('key', help='Specify the registry key to check')
+    
     parser_ifconfig = subparsers.add_parser('ifconfig', help='Display network interfaces', aliases=["ipconfig", "enuminterfaces"], description='Display network interfaces on the remote server', epilog='Example Usage: ifconfig')
     parser_hostname = subparsers.add_parser('hostname', help='Display hostname', description='Display the hostname of the remote server', epilog='Example Usage: hostname')
     
+
+
     parser_fwrules = subparsers.add_parser('fwrules', help='Display firewall rules', description='Display firewall rules on the remote server', epilog='Example Usage: fwrules')
 
 
