@@ -234,8 +234,21 @@ class winreg():
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('winreg')
+        try:
 
-        self.dce_transport._reg_add(keyName, valueName, valueData, valueType)
+            ans = self.dce_transport._reg_add(keyName, valueName, valueData, valueType)
+            if ans:
+                print_good(f"Added Value {valueName} to {keyName}")
+            else:
+                print_bad(f"Failed to Add Value {valueName} to {keyName}")
+        except Exception as e:
+            if "ERROR_FILE_NOT_FOUND" in str(e):
+                print_warning(f"Key {keyName} does not exist")
+                return
+            else:
+                print_bad(f"Failed to Add Value {valueName} to {keyName}")
+                print_debug("Failed to Add Value", e)
+                return
 
 
 
@@ -296,10 +309,103 @@ class winreg():
         parsed_rules.sort(key=lambda x: ((x['Profile'] if x['Profile'] is not None else '', x['Dir'] if x['Dir'] is not None else '')), reverse=True)
         print(tabulate(parsed_rules, headers="keys"))
 
-    def show_fw_policies(self):
+
+    def reg_create_key(self, keyName):
         """
-        Retrieves and prints the firewall policies for the current host.
+        Creates a registry key.
+
+        Args:
+            keyName (str): The name of the key to create.
 
         Returns:
             None
         """
+        self.registry_used = True
+        if self.dce_transport is None:
+            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.dce_transport._connect('winreg')
+        ans = self.dce_transport._reg_create_key(keyName)
+        if ans:
+            print_good(f"Created Key {keyName}")
+        else:
+            print_bad(f"Failed to Create Key {keyName}")
+
+
+    def reg_delete_key(self, keyName):
+        """
+        Deletes a registry key.
+
+        Args:
+            keyName (str): The name of the key to delete.
+
+        Returns:
+            None
+        """
+        self.registry_used = True
+        if self.dce_transport is None:
+            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.dce_transport._connect('winreg')
+        try:
+            ans = self.dce_transport._reg_delete_key(keyName)
+            if ans:
+                print_good(f"Deleted Key {keyName}")
+            else:
+                print_bad(f"Failed to Delete Key {keyName}")
+        except Exception as e:
+            if "ERROR_FILE_NOT_FOUND" in str(e):
+                print_warning(f"Key {keyName} does not exist")
+                return
+            else:
+                print_bad(f"Failed to Delete Key {keyName}")
+                print_debug("Failed to Delete Key", e)
+                return
+        
+
+    def del_reg_key_value(self, keyName, keyValue):
+        """
+        Deletes the specified registry key.
+
+        Args:
+            keyName (str): The name of the key to delete.
+
+        Returns:
+            None
+        """
+        self.registry_used = True
+        if self.dce_transport is None:
+            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.dce_transport._connect('winreg')
+        try:
+            ans = self.dce_transport._reg_delete_value(keyName, keyValue)
+        except Exception as e:
+            if "ERROR_FILE_NOT_FOUND" in str(e):
+                print_warning(f"Key {keyName} and value {keyValue} combination does not exist")
+                print_debug(f"Key {keyName} and value {keyValue} combination does not exist", e)
+                return
+        if ans:
+            print_good(f"Deleted Value {keyValue} from {keyName}")
+        else:
+            print_bad(f"Failed to Delete Value {keyValue} from {keyName}")
+
+
+    def does_key_exist(self, keyName):
+        """
+        Checks if the specified registry key exists.
+
+        Args:
+            keyName (str): The name of the key to check.
+
+        Returns:
+            bool: True if the key exists, False otherwise.
+        """
+        try:
+            _ = self.enum_key_value(keyName, return_val=True)
+            print_debug(f"Key {keyName} exists")
+            return True
+        except Exception as e:
+            print_debug(f"Key {keyName} does not exist")
+            if "ERROR_FILE_NOT_FOUND" in str(e):
+                return False
+            else:
+                print_debug("Unable to check if key exists", e)
+                return False
