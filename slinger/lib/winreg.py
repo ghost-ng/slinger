@@ -554,4 +554,4 @@ class winreg():
                     rule = rule.strip().split()
                     listen_addr, listen_port = rule[0].split("/")
                     connect_addr, connect_port = rule[2].split("/")
-                    self.active_portfwd_rules.append({"Listen Address": listen_addr, "Listen Port": listen_port, "Connect Address": connect_addr, "Connect Port": connect_port})
+                    self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})
