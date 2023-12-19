@@ -318,11 +318,24 @@ def main():
                 slingerClient.add_reg_value(args.key, args.value, args.data, args.type)
             elif args.command == "regdel":
                 if args.value:
-                    slingerClient.del_reg_value(args.key, args.value)
+                    slingerClient.del_reg_key_value(args.key, args.value)
                 elif args.key:
                     slingerClient.reg_delete_key(args.key)
                 else:
                     print_warning("Invalid arguments.  Usage: regdel -k <key> [-v <value>]")
+            elif args.command == "portfwd":
+                if args.list:
+                    slingerClient.print_portfwd_rules()
+                elif args.remove:
+                    pass
+                    slingerClient.del_port_fwd_rule(args.local)
+                elif args.add:
+                    slingerClient.add_port_fwd_rule(args.local, args.remote)
+            elif args.command == "portfwdrules":
+                if args.load:
+                    slingerClient.load_port_fwd_rules()
+                else:
+                    slingerClient.print_portfwd_rules()
             elif args.command == "regcreate":
                 slingerClient.reg_create_key(args.key)
             elif args.command == "regcheck":

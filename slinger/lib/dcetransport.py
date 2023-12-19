@@ -9,6 +9,7 @@ from impacket.structure import hexdump
 from struct import unpack, pack
 from impacket.system_errors import ERROR_NO_MORE_ITEMS
 from impacket.dcerpc.v5.dtypes import READ_CONTROL
+import sys
 
 
 def parse_lp_data(valueType, valueData, hex_dump=True):
@@ -18,7 +19,8 @@ def parse_lp_data(valueType, valueData, hex_dump=True):
             if type(valueData) is int:
                 result += 'NULL'
             else:
-                result += "%s" % (valueData.decode('utf-16le')[:-1])
+                #result += "%s" % (valueData.decode('utf-16le')[:-1])
+                result += "%s" % (valueData.decode('utf-16le')[::])
         elif valueType == rrp.REG_BINARY:
             result += ''
             if hex_dump:
@@ -46,6 +48,7 @@ def parse_lp_data(valueType, valueData, hex_dump=True):
     except Exception as e:
         result += 'Exception thrown when printing reg value %s' % str(e)
         result += 'Invalid data'
+        print_debug("",sys.exc_info())
     return result
 
 
@@ -391,8 +394,9 @@ class DCETransport:
                 #self._bind(rrp.MSRPC_UUID_RRP)
                 key = rrp.hBaseRegEnumKey(self.dce, ans2['phkResult'], i)
                 #print_log(keyName + '\\' + key['lpNameOut'][:-1])
-                subkeys.append(keyName + '\\' + key['lpNameOut'][:-1])
+                subkeys.append(reduce_slashes(keyName + '\\' + key['lpNameOut'][:-1]))
                 i += 1
+                
             except Exception as e:
                 print_debug(str(e))
                 break
@@ -430,6 +434,13 @@ class DCETransport:
                     lp_value_name = '(Default)'
                 lp_type = ans4['lpType']
                 lp_data = b''.join(ans4['lpData'])
+                #t = lp_data.decode('utf-16le')
+                #print(t)
+                #lp_data = t
+                #lp_data = b''.join(t)
+
+                #print(lp_data.decode('utf-16le'))
+                
                 #print_log('\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t', end=' ')
                 res = '\t' + lp_value_name + '\t' + self.regValues.get(lp_type, 'KEY_NOT_FOUND') + '\t'
                 #print_log(res, end='')
@@ -518,7 +529,7 @@ class DCETransport:
                 raise
         except Exception as e:
             print_warning('Unhandled exception while hBaseRegDeleteKey')
-            print_debug('Unhandled exception while hBaseRegDeleteKey',e)
+            print_debug('Unhandled exception while hBaseRegDeleteKey',sys.exc_info())
             return
         
         if ans3['ErrorCode'] == 0:
