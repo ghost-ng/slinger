@@ -190,7 +190,20 @@ def setup_cli_parser(client):
 
     parser_regcheck = subparsers.add_parser('regcheck', help='Check if a registry key exists', description='Check if a registry key exists on the remote server.  This is really just an exposed helper function.', epilog='Example Usage: regcheck HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\test')
     parser_regcheck.add_argument('key', help='Specify the registry key to check')
+
+    parser_portfwd = subparsers.add_parser('portfwd', help='Forward a local port to a remote port', description='Forward a local port to a remote port on the remote server', epilog='Example Usage: portfwd (-a|-d) [lhost]:[lport] [rhost]:[rport]')
+    parser_portfwdgroup = parser_portfwd.add_mutually_exclusive_group(required=False)
     
+    parser_portfwd.add_argument('local', help='Specify the local host and port to forward from')
+    parser_portfwd.add_argument('remote', help='Specify the remote host and port to forward to')
+
+    parser_portfwdgroup.add_argument('-d', '--remove', help='Remove a port forwarding rule', action='store_true')
+    parser_portfwdgroup.add_argument('-a', '--add', help='Add a port forwarding rule', action='store_true')
+    parser_portfwdgroup.add_argument('-l', '--list', help='List all port forwarding rules', action='store_true')
+
+
+    parser_portfwdrules = subparsers.add_parser('portfwdrules', help='Display port forwarding rules', description='Display port forwarding rules on the remote server', epilog='Example Usage: portfwdrules')
+    parser_portfwdrules.add_argument('-l', '--load', help='Load all port forwarding rules from the registry', action='store_true', required=False)
     parser_ifconfig = subparsers.add_parser('ifconfig', help='Display network interfaces', aliases=["ipconfig", "enuminterfaces"], description='Display network interfaces on the remote server', epilog='Example Usage: ifconfig')
     parser_hostname = subparsers.add_parser('hostname', help='Display hostname', description='Display the hostname of the remote server', epilog='Example Usage: hostname')
     

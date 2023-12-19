@@ -20,6 +20,7 @@ def extract_reg_values(input_text, keys):
     dict: A dictionary containing the keys and their extracted values.
     """
     values = {}
+    print_debug("Extracting values for keys: " + str(keys))
     for key in keys:
         # Construct a regex pattern for each key
         # This pattern looks for the key, followed by the REG type, and captures the value
@@ -47,7 +48,8 @@ class winreg():
         self.reg_interface = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces\\"
         self.fwrule = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules\\"
         self.fwpolicy_std = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\"
-
+        self.portproxy_root = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\PortProxy\\"
+        self.active_portfwd_rules = []
 
     def enum_key_value(self, keyName, hex_dump=True, return_val=False):
         """
@@ -68,7 +70,7 @@ class winreg():
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('winreg')
 
-        print_info("Enumerating keys...")
+        print_info("Enumerating Key: " + keyName)
         hKey = self.dce_transport._get_key_handle(keyName)
 
         ans = self.dce_transport._get_key_values(hKey, hex_dump=False)
@@ -247,7 +249,7 @@ class winreg():
                 return
             else:
                 print_bad(f"Failed to Add Value {valueName} to {keyName}")
-                print_debug("Failed to Add Value", e)
+                print_debug("Failed to Add Value", sys.exc_info())
                 return
 
 
@@ -357,13 +359,13 @@ class winreg():
                 return
             else:
                 print_bad(f"Failed to Delete Key {keyName}")
-                print_debug("Failed to Delete Key", e)
+                print_debug("Failed to Delete Key", sys.exc_info())
                 return
         
 
     def del_reg_key_value(self, keyName, keyValue):
         """
-        Deletes the specified registry key.
+        Deletes the specified registry key's value.
 
         Args:
             keyName (str): The name of the key to delete.
@@ -380,7 +382,7 @@ class winreg():
         except Exception as e:
             if "ERROR_FILE_NOT_FOUND" in str(e):
                 print_warning(f"Key {keyName} and value {keyValue} combination does not exist")
-                print_debug(f"Key {keyName} and value {keyValue} combination does not exist", e)
+                print_debug(f"Key {keyName} and value {keyValue} combination does not exist", sys.exc_info())
                 return
         if ans:
             print_good(f"Deleted Value {keyValue} from {keyName}")
@@ -407,5 +409,149 @@ class winreg():
             if "ERROR_FILE_NOT_FOUND" in str(e):
                 return False
             else:
-                print_debug("Unable to check if key exists", e)
+                print_debug("Unable to check if key exists", sys.exc_info())
                 return False
+
+    def print_portfwd_rules(self):
+        """
+        Prints the current port forwarding rules.
+
+        Returns:
+            None
+        """
+        print_info("Current Port Forwarding Rules:")
+        print(tabulate(self.active_portfwd_rules, headers="keys"))
+
+    def add_port_fwd_rule(self, local, remote):
+        """
+        Adds a port forwarding rule.
+
+        Args:
+            listen_port (int): The port to listen on.
+            connect_port (int): The port to connect to.
+            connect_addr (str): The address to connect to.
+
+        Returns:
+            None
+        """
+        # parse the local and remote ports and addresses
+        try:
+            listen_addr, listen_port = local.split(":")
+            connect_addr, connect_port = remote.split(":")
+        except Exception as e:
+            print_bad("Invalid Local or Remote Address")
+            return
+
+        # check if portproxy\v4tov4 key exists
+        subkeys = self.enum_subkeys(self.portproxy_root, return_list=True)
+        # if not create it 
+        if "v4tov4" not in subkeys:
+            self.reg_create_key(self.portproxy_root + "v4tov4")
+            self.reg_create_key(self.portproxy_root + "v4tov4\\tcp")
+        
+        # add the port forward rule
+        keyName = self.portproxy_root + "\\v4tov4\\tcp"
+        valueName = f"{listen_addr}/{listen_port}"
+        valueData = f"{connect_addr}/{connect_port}"
+        local = valueName.replace("/",":")
+        remote = valueData.replace("/",":")
+        print_info(f"Adding Port Forward Rule {local} -> {remote}")
+        self.add_reg_value(keyName, valueName, valueData, valueType="REG_SZ")
+        self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})    
+
+    def del_port_fwd_rule(self, local):
+        """
+        Deletes a port forwarding rule.
+
+        Args:
+            local_addr (str): The local address and port to listen on.
+
+        Returns:
+            None
+        """
+        # parse the local and remote ports and addresses
+        listen_addr, listen_port = local.split(":")
+        # check if portproxy\v4tov4 key exists
+        key = self.portproxy_root
+        print_debug("Searching in:" + key)
+        subkeys = self.enum_subkeys(key, return_list=True)
+        if "v4tov4" not in " ".join(subkeys):
+            print_warning("No Port Forwarding Rules Created")
+            return
+        else:
+            key = self.portproxy_root + "v4tov4\\tcp\\"
+            print_debug("Searching in:" + key)
+            values = self.enum_key_value(key, return_val=True)
+            if len(values) == 0:
+                print_warning("No Port Forwarding Rules Found")
+                return
+            else:
+                values = values.splitlines()
+                for rule in values:
+                    rule = rule.strip()
+                    #print(rule)
+                    #0.0.0.0/8080    REG_SZ  127.0.0.1/44
+                    rule_list = rule.split()
+                    _listen_addr = rule_list[0].split("/")[0]
+                    _listen_port = rule_list[0].split("/")[1]
+                    print_info(f"Found Rule: {_listen_addr}:{_listen_port}")
+                    print_info(f"Searching for Rule: {listen_addr}:{listen_port}")
+                    if _listen_addr == listen_addr and _listen_port == listen_port:
+                        #print("Found Rule")
+                        #print(rule)
+                        self.del_reg_key_value(self.portproxy_root + "v4tov4\\tcp\\", rule_list[0])
+                        print_good(f"Deleted Port Forwarding Rule for {listen_addr}:{listen_port}")
+                        self.active_portfwd_rules = [rule for rule in self.active_portfwd_rules if not (rule["Listen Address"] == listen_addr and rule["Listen Port"] == listen_port)]
+                        if not self.check_port_fwd_rules():
+                            self.reg_delete_key(self.portproxy_root + "v4tov4\\tcp\\")
+                            self.reg_delete_key(self.portproxy_root + "v4tov4\\")
+                        return
+                print_warning(f"Port Forwarding Rule {listen_addr}:{listen_port} not found")
+                return
+    def check_port_fwd_rules(self):
+        """
+        Checks if there are any port forwarding rules.
+
+        Returns:
+            bool: True if there are port forwarding rules, False otherwise.
+        """
+        # check if portproxy\v4tov4 key exists
+        subkeys = self.enum_subkeys(self.portproxy_root, return_list=True)
+        subkeys = " ".join(subkeys)
+        #print(subkeys)
+        if "v4tov4" not in subkeys:
+            print_debug("No Port Forwarding Rules Found")
+            return False
+        else:
+            values = self.enum_key_value(self.portproxy_root + "v4tov4\\tcp", return_val=True)
+            #print(values)
+            if len(values) == 0:
+                print_debug("No Port Forwarding Rules Found")
+                return False
+            else:
+                return True
+
+    def load_port_fwd_rules(self):
+        # get the current rule set from the regsitry and load it into the active_portfwd_rules list
+        # check if portproxy\v4tov4 key exists
+        #print_warning("Not yet implemented")
+        #return
+
+        if self.check_port_fwd_rules() == False:
+            print_warning("No Port Forwarding Rules Found")
+            return
+        else:
+            key = self.portproxy_root + "v4tov4\\tcp\\"
+            values = self.enum_key_value(key, return_val=True)
+            #print(values)
+            #subkeys = self.enum_subkeys(self.portproxy_root + "v4tov4\\tcp\\", return_list=True)
+            if len(values) == 0:
+                print_warning("No Port Forwarding Rules Found")
+                return
+            else:
+                values = values.splitlines()
+                for rule in values:
+                    rule = rule.strip().split()
+                    listen_addr, listen_port = rule[0].split("/")
+                    connect_addr, connect_port = rule[2].split("/")
+                    self.active_portfwd_rules.append({"Listen Address": listen_addr, "Listen Port": listen_port, "Connect Address": connect_addr, "Connect Port": connect_port})
