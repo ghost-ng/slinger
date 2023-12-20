@@ -8,7 +8,6 @@ task scheduler
 - refactor dce transport class to organize class functions
 
 registry
-- reg delete
 - uptime
 - processes
 

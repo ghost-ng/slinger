@@ -240,7 +240,7 @@ class winreg():
 
             ans = self.dce_transport._reg_add(keyName, valueName, valueData, valueType)
             if ans:
-                print_good(f"Added Value {valueName} to {keyName}")
+                print_good(f"Added Value {valueName} to {reduce_slashes(keyName)}")
             else:
                 print_bad(f"Failed to Add Value {valueName} to {keyName}")
         except Exception as e:
