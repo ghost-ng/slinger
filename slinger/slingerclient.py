@@ -181,7 +181,6 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
         self.dce_transport._connect('wkssvc')
         response = self.dce_transport._enum_transport()
-        enum_struct(response['TransportInfo']['WkstaTransportInfo']['Level0'])
         transports = response['TransportInfo']['WkstaTransportInfo']['Level0']['Buffer']
 
 
@@ -225,10 +224,10 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         print_info(f"Local Date: {date.month}/{date.day}/{date.year}")
 
         try:
-            if self.srvsvc_pipe is None:
-                    self.srvsvc_pipe = DCETransport(self.host, self.username, self.port, self.conn)
-            self.srvsvc_pipe._connect('srvsvc')
-            response = self.srvsvc_pipe.fetch_server_time()
+            if self.dce_transport is None:
+                    self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+            self.dce_transport._connect('srvsvc')
+            response = self.dce_transport._fetch_server_time()
             if response['ErrorCode'] == 0:  # Checking for successful response
                 tod_info = response['BufferPtr']
                 # Server current time
