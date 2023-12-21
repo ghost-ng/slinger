@@ -8,4 +8,3 @@ config_vars = [
 
 logwriter = None
 version = "0.1"
-app_cmds_parser = None

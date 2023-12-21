@@ -3,7 +3,7 @@ from .printlib import *
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
-from slinger.var.config import version, parser
+from slinger.var.config import version
 
 
 def extract_commands_and_args(cmd_parser):
@@ -28,8 +28,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
         #super().error(message)
 
 
-def setup_cli_parser(client):
-    global app_cmds_parser
+def setup_cli_parser():
     parser = CustomArgumentParser(prog='Slinger', description='In App Commands')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s '+version, help='Show the version number and exit')
 
@@ -41,7 +40,7 @@ def setup_cli_parser(client):
 
     # Subparser for 'ls' command
     parser_dir = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path', epilog='Example Usage: ls /path/to/directory')
-    parser_dir.add_argument('path', nargs='?', default=client.current_path, help='Path to list contents, defaults to current path')
+    parser_dir.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path')
 
     # Subparser for 'shares' command
     parser_shares = subparsers.add_parser('shares', help='List all available shares', aliases=['enumshares'], description='List all shares available on the remote server', epilog='Example Usage: shares')
@@ -283,3 +282,40 @@ def get_prompt(client, nojoy):
 def get_commands(parser):
     commands_and_args = extract_commands_and_args(parser)
     return commands_and_args
+
+
+import argparse
+
+# Assuming you have two parsers like this:
+# parser1 = argparse.ArgumentParser(...)
+# parser2 = argparse.ArgumentParser(...)
+
+def merge_parsers(primary_parser, secondary_parser):
+    # Transfer arguments
+    for action in secondary_parser._actions:
+        if not any(a for a in primary_parser._actions if a.dest == action.dest):
+            primary_parser._add_action(action)
+
+    # Check if both parsers have subparsers
+    primary_subparsers = None
+    secondary_subparsers = None
+
+    for action in primary_parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            primary_subparsers = action
+            break
+
+    for action in secondary_parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            secondary_subparsers = action
+            break
+
+    # If both have subparsers, merge them
+    if primary_subparsers and secondary_subparsers:
+        for choice, subparser in secondary_subparsers.choices.items():
+            primary_subparsers.add_parser(choice, parents=[subparser], add_help=False)
+
+    return primary_parser
+
+# Example usage:
+# merged_parser = merge_parsers(parser1, parser2)

@@ -1,7 +1,7 @@
 from slinger.utils.printlib import *
 from slinger.slingerclient import SlingerClient
 from slinger.utils.common import *
-from slinger.utils.cli import setup_cli_parser, get_prompt, get_commands, CommandCompleter, setup_completer
+from slinger.utils.cli import setup_cli_parser, get_prompt, get_commands, CommandCompleter, setup_completer, merge_parsers
 import shlex, argparse, sys, os, traceback, pty, termios
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
@@ -12,7 +12,8 @@ from prompt_toolkit.widgets import TextArea
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.layout.controls import BufferControl
 from slinger.lib.plugin_base import load_plugins
-from slinger.var.config import version, app_cmds_parser
+from slinger.var.config import version
+from slinger.utils.cli import extract_commands_and_args
 
 plugins_folder = "slinger/plugins"
 
@@ -35,10 +36,10 @@ class ArgparseCompleter(Completer):
                 yield Completion(cmd, start_position=-len(word_before_cursor))
 
 
+
 def main():
     global slingerClient
     global commands_and_args
-    global app_cmds_parser
 
 
     original_settings = termios.tcgetattr(0)
@@ -61,7 +62,18 @@ def main():
 
     prgm_args = parser.parse_args()
 
-    
+    slinger_parser = setup_cli_parser()
+    plugins = load_plugins(plugins_folder)
+    # merge all parsers from the plugins into the main parser
+    for plugin in plugins:
+        plugin_parser = plugin.get_parser()
+        #merge the plugin parser with the main parser
+        slinger_parser = merge_parsers(slinger_parser, plugin_parser)
+        #slinger_parser = argparse.ArgumentParser(parents=[slinger_parser, plugin_parser], add_help=False)
+        #parser.add_argument_group(plugin_parser)
+
+    completer = CommandCompleter(setup_completer(slinger_parser))
+    session = PromptSession(history=FileHistory('.slinger_history'),completer=completer)
 
     slingerClient = SlingerClient(prgm_args.host, prgm_args.username, prgm_args.password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
     try:
@@ -84,15 +96,6 @@ def main():
         print_debug('',sys.exc_info())
         sys.exit()
         
-    parser = setup_cli_parser(slingerClient)
-    plugins = load_plugins(plugins_folder)
-    # merge all parsers from the plugins into the main parser
-    for plugin in plugins:
-        plugin.get_parser()
-    
-
-    completer = CommandCompleter(setup_completer(parser))
-    session = PromptSession(history=FileHistory('.slinger_history'),completer=completer)
 
     while True:
         try:
@@ -106,7 +109,8 @@ def main():
                 #user_input = prompt('', history=history)
                 #user_input = input(prompt_text)
                 split = shlex.split(user_input)
-                args = parser.parse_args(split)
+                args = slinger_parser.parse_args(split)
+                #print(args)
             except (argparse.ArgumentError, ValueError):
                 print_debug(str(e))
                 print_warning("Failed to parse command. Try quoting your arguments.")
@@ -130,6 +134,7 @@ def main():
                 print_bad(f"Error: {e}: {sys.exc_info()}")
                 continue
             except argparse.ArgumentError as e:
+                #print("Unknown command")
                 pass
             if args.command is None or args.command == "":
                 continue
@@ -167,7 +172,7 @@ def main():
                     print_info("Running Local Command: " + local_command)
                     run_local_command(local_command)
             elif args.command == "help":
-                parser.print_help()
+                slinger_parser.print_help()
             elif args.command == "exit":
                 slingerClient.exit()
                 break
@@ -358,7 +363,9 @@ def main():
             else:
                 try:
                     for plugin in plugins:
-                        if args.plugin in plugin.get_commands():
+                        p = plugin.get_parser()
+                        cmds = extract_commands_and_args(p)
+                        if args.command in cmds:
                             plugin.execute(args)
                 except Exception as e:
                     print_debug(str(e))
