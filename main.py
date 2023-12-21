@@ -11,8 +11,11 @@ from prompt_toolkit.layout import Layout, Window
 from prompt_toolkit.widgets import TextArea
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.layout.controls import BufferControl
+from slinger.lib.plugin_base import load_plugins
+from slinger.var.config import version, app_cmds_parser
 
-version = "0.1"
+plugins_folder = "slinger/plugins"
+
 
 slingerCliet = None
 
@@ -35,7 +38,7 @@ class ArgparseCompleter(Completer):
 def main():
     global slingerClient
     global commands_and_args
-
+    global app_cmds_parser
 
 
     original_settings = termios.tcgetattr(0)
@@ -58,7 +61,7 @@ def main():
 
     prgm_args = parser.parse_args()
 
-
+    
 
     slingerClient = SlingerClient(prgm_args.host, prgm_args.username, prgm_args.password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
     try:
@@ -82,6 +85,12 @@ def main():
         sys.exit()
         
     parser = setup_cli_parser(slingerClient)
+    plugins = load_plugins(plugins_folder)
+    # merge all parsers from the plugins into the main parser
+    for plugin in plugins:
+        plugin.get_parser()
+    
+
     completer = CommandCompleter(setup_completer(parser))
     session = PromptSession(history=FileHistory('.slinger_history'),completer=completer)
 
@@ -347,6 +356,15 @@ def main():
             elif args.command == "hostname":
                 slingerClient.hostname()
             else:
+                try:
+                    for plugin in plugins:
+                        if args.plugin in plugin.get_commands():
+                            plugin.execute(args)
+                except Exception as e:
+                    print_debug(str(e))
+                    print_warning(f"Error: {e}: {sys.exc_info()}")
+                    continue
+            
                 pass
                 #parser.print_help()
         except Exception as e:
