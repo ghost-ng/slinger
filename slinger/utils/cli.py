@@ -3,6 +3,8 @@ from .printlib import *
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.document import Document
+from slinger.var.config import version, parser
+
 
 def extract_commands_and_args(cmd_parser):
     commands = []
@@ -14,6 +16,12 @@ def extract_commands_and_args(cmd_parser):
     return commands
 
 class CustomArgumentParser(argparse.ArgumentParser):
+    def parse_args(self, args=None, namespace=None):
+        args, argv = self.parse_known_args(args, namespace)
+        if argv:
+            msg = 'unrecognized arguments: %s'
+            self.error(msg % ' '.join(argv))
+        return args
     def error(self, message):
         if 'invalid choice' in message:
             print_log('Invalid command entered. Type help for a list of commands.')
@@ -21,8 +29,9 @@ class CustomArgumentParser(argparse.ArgumentParser):
 
 
 def setup_cli_parser(client):
+    global app_cmds_parser
     parser = CustomArgumentParser(prog='Slinger', description='In App Commands')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s 0.1', help='Show the version number and exit')
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s '+version, help='Show the version number and exit')
 
     subparsers = parser.add_subparsers(dest='command')
 
