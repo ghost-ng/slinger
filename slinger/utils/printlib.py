@@ -2,10 +2,6 @@ import inspect
 from slinger.utils.logger import SlingerLogger, error_logging
 from slinger.var.config import config_vars, logwriter
 
-
-
-
-
 class colors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -25,8 +21,12 @@ def get_config_value(key):
         return
 
 def print_log(msg="", end="\n"):
+    #TODO: test codecs
+    #print(msg.encode().decode(get_config_value("Codec")), end=end)
     print(msg, end=end)
     try:
+        #TODO: test codecs
+        #log.debug(msg.encode().decode(get_config_value("Codec")))
         log.debug(msg)
     except Exception as e:
         print_warning(f"Unable to write to log file: {e}")
