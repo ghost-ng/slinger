@@ -8,3 +8,4 @@ config_vars = [
 
 logwriter = None
 version = "0.1"
+program_name = "Slinger"

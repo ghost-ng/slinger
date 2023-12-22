@@ -3,7 +3,7 @@ import argparse
 import importlib
 import os
 
-def load_plugins(plugin_dir):
+def load_plugins(plugin_dir, client):
     plugins = []
     for filename in os.listdir(plugin_dir):
         if filename.endswith(".py"):
@@ -12,16 +12,18 @@ def load_plugins(plugin_dir):
             spec.loader.exec_module(module)
             for obj in vars(module).values():
                 if isinstance(obj, type) and issubclass(obj, PluginBase) and obj is not PluginBase:
-                    plugins.append(obj())
+                    plugins.append(obj(client))
     return plugins
 
 class PluginBase:
+    def __init__(self, client, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client = client
+
     def get_parser(self):
         parser = argparse.ArgumentParser(add_help=False)
         return parser
 
-    def execute(self, args):
+    def run(self, args):
         raise NotImplementedError
     
-    def get_commands(self):
-        return []
