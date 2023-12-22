@@ -7,9 +7,8 @@ from slinger.utils.common import *
 from slinger.lib.dcetransport import *
 import datetime
 from impacket import smbconnection
-from tabulate import tabulate
 from impacket.dcerpc.v5.rpcrt import DCERPCException
-from impacket.dcerpc.v5.dtypes import NULL
+import slinger.var.config as config
 
 dialect_mapping = {
             0x02FF: "SMB 1.0",
@@ -65,7 +64,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         else:
             self.conn.login(self.username, self.password, domain=self.domain)
         #set a large timeout
-        self.conn.timeout = 999999
+        self.conn.timeout = config.smb_conn_timeout
         self.is_logged_in = True
         self.dialect = self.conn.getDialect()
         self.smb_version = dialect_mapping.get(self.dialect, "Unknown")
