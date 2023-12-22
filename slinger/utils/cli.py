@@ -2,20 +2,68 @@ import argparse
 from .printlib import *
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.document import Document
-from slinger.var.config import version
+from slinger.var.config import version, program_name
+from itertools import zip_longest
 
+def extract_commands_and_args(parser):
+    commands_and_args = {}
 
-def extract_commands_and_args(cmd_parser):
-    commands = []
-    for action in cmd_parser._actions:
+    # Loop over the actions in the parser
+    for action in parser._actions:
         if isinstance(action, argparse._SubParsersAction):
-            for choice, subparser in action.choices.items():
-                commands.append(choice)
-                commands.extend(subparser._option_string_actions.keys())
-    return commands
+            # This is a subparser. Loop over the choices (which are the commands)
+            for command, subparser in action.choices.items():
+                commands_and_args[command] = {}
+                # Loop over the actions in the subparser
+                for sub_action in subparser._actions:
+                    if isinstance(sub_action, argparse._StoreAction):
+                        # This is an argument. Add it to the dictionary
+                        commands_and_args[command][sub_action.dest] = "Example value"
+
+    return commands_and_args
+
+def force_help(parser, command):
+    # Get the _SubParsersAction object
+    subparsers_action = [action for action in parser._actions if isinstance(action, argparse._SubParsersAction)][0]
+
+    # Get the subparser for the command
+    command_parser = subparsers_action.choices.get(command)
+
+    if command_parser is not None:
+        # Print the help message for the command
+        command_parser.print_help()
+    else:
+        print(f"No command named '{command}' found")
+
 
 class CustomArgumentParser(argparse.ArgumentParser):
+
+    def format_help(self):
+        if hasattr(self, 'prog') and self.prog != program_name:
+            return super().format_help()
+        # Get the list of available commands
+        commands = [action.choices for action in self._actions if isinstance(action, argparse._SubParsersAction)][0]
+
+        # Sort the commands alphabetically
+        sorted_commands = sorted(commands.keys())
+
+        # Calculate the number of rows for 4 columns
+        rows = -(-len(sorted_commands) // 4)  # Equivalent to math.ceil(len(sorted_commands) / 4)
+
+        # Distribute the commands across the columns, continuing the alphabetical list in each column
+        columns = [sorted_commands[i:i + rows] for i in range(0, len(sorted_commands), rows)]
+
+        # Create the help message with 4 commands per line
+        help_message = '\nAvailable commands:\n------------------------------------------\n'
+        for row in zip_longest(*columns, fillvalue=''):
+            # Format each command to take up 20 characters of space
+            formatted_row = [f"{command:<20}" for command in row]
+            help_message += '  '.join(formatted_row) + '\n'
+
+        help_message += '\nType help <command> or <command> -h for more information on a specific command\n\n'
+
+        return help_message
+    
     def parse_args(self, args=None, namespace=None):
         args, argv = self.parse_known_args(args, namespace)
         if argv:
@@ -27,9 +75,23 @@ class CustomArgumentParser(argparse.ArgumentParser):
             print_log('Invalid command entered. Type help for a list of commands.')
         #super().error(message)
 
+def show_command_help(parser, command):
+    # Get the subparser for the command
+    subparser = None
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            if command in action.choices:
+                subparser = action.choices[command]
+                break
+
+    if subparser is not None:
+        # Print the help message for the command
+        print(subparser.format_help())
+    else:
+        print(f"Command '{command}' not found.")
 
 def setup_cli_parser():
-    parser = CustomArgumentParser(prog='Slinger', description='In App Commands')
+    parser = CustomArgumentParser(prog=program_name, description='In App Commands')
     parser.add_argument('-v', '--version', action='version', version='%(prog)s '+version, help='Show the version number and exit')
 
     subparsers = parser.add_subparsers(dest='command')
@@ -61,6 +123,7 @@ def setup_cli_parser():
 
     # Subparser for 'help' command
     parser_help = subparsers.add_parser('help', help='Show help message', description='Display help information for the application', epilog='Example Usage: help')
+    parser_help.add_argument('cmd', nargs='?', help='Specify a command to show help for')
 
     # Subparser for 'who' command
     parser_who = subparsers.add_parser('who', help='List current sessions.  This is different than the current user logins', description='List the current sessions connected to the target host', epilog='Example Usage: who')
@@ -279,16 +342,6 @@ def get_prompt(client, nojoy):
     prompt = f"{emoji}{colors.OKGREEN}({client.host}):{client.current_path}>{colors.ENDC} "
     return prompt
 
-def get_commands(parser):
-    commands_and_args = extract_commands_and_args(parser)
-    return commands_and_args
-
-
-import argparse
-
-# Assuming you have two parsers like this:
-# parser1 = argparse.ArgumentParser(...)
-# parser2 = argparse.ArgumentParser(...)
 
 def merge_parsers(primary_parser, secondary_parser):
     # Transfer arguments

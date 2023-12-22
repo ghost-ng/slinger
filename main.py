@@ -1,16 +1,13 @@
 from slinger.utils.printlib import *
 from slinger.slingerclient import SlingerClient
 from slinger.utils.common import *
-from slinger.utils.cli import setup_cli_parser, get_prompt, get_commands, CommandCompleter, setup_completer, merge_parsers
-import shlex, argparse, sys, os, traceback, pty, termios
+from slinger.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help
+import shlex, argparse, sys, os, pty, termios
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import to_formatted_text, ANSI
 from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.layout import Layout, Window
-from prompt_toolkit.widgets import TextArea
-from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.layout.controls import BufferControl
+
 from slinger.lib.plugin_base import load_plugins
 from slinger.var.config import version
 from slinger.utils.cli import extract_commands_and_args
@@ -61,9 +58,10 @@ def main():
         sys.exit(1)
 
     prgm_args = parser.parse_args()
+    slingerClient = SlingerClient(prgm_args.host, prgm_args.username, prgm_args.password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
 
     slinger_parser = setup_cli_parser()
-    plugins = load_plugins(plugins_folder)
+    plugins = load_plugins(plugins_folder, slingerClient)
     # merge all parsers from the plugins into the main parser
     for plugin in plugins:
         plugin_parser = plugin.get_parser()
@@ -75,7 +73,6 @@ def main():
     completer = CommandCompleter(setup_completer(slinger_parser))
     session = PromptSession(history=FileHistory('.slinger_history'),completer=completer)
 
-    slingerClient = SlingerClient(prgm_args.host, prgm_args.username, prgm_args.password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
     try:
         slingerClient.login()
         if slingerClient.is_logged_in:
@@ -172,7 +169,12 @@ def main():
                     print_info("Running Local Command: " + local_command)
                     run_local_command(local_command)
             elif args.command == "help":
-                slinger_parser.print_help()
+                if args.cmd:
+                    # force cmd -h
+                    force_help(slinger_parser, args.cmd)
+                else:
+                    slinger_parser.print_help()
+                
             elif args.command == "exit":
                 slingerClient.exit()
                 break
@@ -366,7 +368,7 @@ def main():
                         p = plugin.get_parser()
                         cmds = extract_commands_and_args(p)
                         if args.command in cmds:
-                            plugin.execute(args)
+                            plugin.run(args)
                 except Exception as e:
                     print_debug(str(e))
                     print_warning(f"Error: {e}: {sys.exc_info()}")
