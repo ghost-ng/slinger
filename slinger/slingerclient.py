@@ -49,20 +49,47 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         self.wkssvc_pipe = None
     
     
-
+    def setup_dce_transport(self):
+        if self.dce_transport is None:
+            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
 
     def login(self):
-        self.conn = smbconnection.SMBConnection(self.host, self.host, sess_port=self.port)
-        
+        print_info(f"Connecting to {self.host}:{self.port}...")
+        try:
+            self.conn = smbconnection.SMBConnection(self.host, self.host, sess_port=self.port, timeout=15)
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            if "Connection error" in str(e):
+                print_bad(f"Failed to connect to {self.host}:{self.port}")
+                sys.exit()
+
         if self.conn is None or self.conn == "":
             self.is_logged_in = False
             raise Exception("Failed to create SMB connection.")
-        if self.use_kerberos:
-            self.conn.kerberosLogin(self.username, self.password, domain=self.domain, lmhash='', nthash='', aesKey='', TGT=None, TGS=None)
-        elif self.ntlm_hash:
-            self.conn.loginWithHash(self.username, self.ntlm_hash, domain=self.domain)
-        else:
-            self.conn.login(self.username, self.password, domain=self.domain)
+        try:
+            if self.use_kerberos:
+                self.conn.kerberosLogin(self.username, self.password, domain=self.domain, lmhash='', nthash='', aesKey='', TGT=None, TGS=None)
+            elif self.ntlm_hash:
+                self.conn.loginWithHash(self.username, self.ntlm_hash, domain=self.domain)
+            else:
+                self.conn.login(self.username, self.password, domain=self.domain)
+            print_good(f"Successfully logged in to {self.host}:{self.port}")
+            GRN_BLD = '\033[1;32m'
+            RST = '\033[0m'
+            print("\nStart Time: " + GRN_BLD + str(self.session_start_time) + RST + "\n")
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            if "STATUS_LOGON_FAILURE" in str(e):
+                print_bad(f"Authentication Failed {self.host}:{self.port}")
+                sys.exit()
+            elif "STATUS_ACCOUNT_RESTRICTION" in str(e):
+                print_good("Login Successful")
+                print_bad(f"Account is restricted {self.host}:{self.port}")
+                sys.exit()
+            else:
+                print_bad(f"Login Failed {self.host}:{self.port}")
+                print_log(str(e) + "\n" + str(sys.exc_info()))
+            sys.exit()
         #set a large timeout
         self.conn.timeout = config.smb_conn_timeout
         self.is_logged_in = True
@@ -82,6 +109,10 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         try:
             self.dce_transport._disconnect()
             self.conn.logoff()
+            GRN_BLD = '\033[1;32m'
+            RST = '\033[0m'
+            CURRENT_TIME = datetime.datetime.now()
+            print("\nStop Time: " + GRN_BLD + str(CURRENT_TIME) + RST + "\n")
             
         except:
             pass
@@ -91,7 +122,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         return self.conn and self.is_connected_to_share
 
     
-    def info(self):
+    def info(self, args=None):
         dialect_mapping = {
             0x02FF: "SMB 1.0",
             0x031F: "SMB 2.0.2",
@@ -115,11 +146,10 @@ class SlingerClient(winreg, schtasks, scm, smblib):
 
     
 
-    def who(self):
+    def who(self, args=None):
 
         try:
-            if self.dce_transport is None:
-                self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+            self.setup_dce_transport()
             self.dce_transport._connect('srvsvc')
             resp = self.dce_transport._who()
             for session in resp['InfoStruct']['SessionInfo']['Level10']['Buffer']:
@@ -127,13 +157,13 @@ class SlingerClient(winreg, schtasks, scm, smblib):
                     session['sesi10_cname'][:-1], session['sesi10_username'][:-1], session['sesi10_time'],
                     session['sesi10_idle_time']))
         except DCERPCException as e:
+             print_debug(str(e), sys.exc_info())
              print_bad(f"Failed to list sessions: {e}")
              raise e
 
-    def enum_server_disk(self):
+    def enum_server_disk(self, args=None):
         try:
-            if self.dce_transport is None:
-                self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+            self.setup_dce_transport()
             self.dce_transport._connect('srvsvc')
             
             response = self.dce_transport._enum_server_disk()
@@ -146,21 +176,20 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             else:
                 print_log(f"Error: {response['ErrorCode']}")
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             print_log(f"An error occurred: {str(e)}")
             raise e
 
-    def enum_logons(self):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+    def enum_logons(self, args=None):
+        self.setup_dce_transport()
         self.dce_transport._connect('wkssvc')
         response = self.dce_transport._enum_logons()
         print_info("Logged on Users:")
         for user_info in response['UserInfo']['WkstaUserInfo']['Level1']['Buffer']:
             print_log(f"Username: {user_info['wkui1_username']}")
 
-    def enum_sys(self):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+    def enum_sys(self, args=None):
+        self.setup_dce_transport()
         self.dce_transport._connect('wkssvc')
         response = self.dce_transport._enum_sys()
         # Assuming you have a response from NetrWkstaGetInfo
@@ -175,9 +204,8 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         print_log(f"Logged-on Users: {info['wki102_logged_on_users']}")
  
 
-    def enum_transport(self):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+    def enum_transport(self, args=None):
+        self.setup_dce_transport()
         self.dce_transport._connect('wkssvc')
         response = self.dce_transport._enum_transport()
         transports = response['TransportInfo']['WkstaTransportInfo']['Level0']['Buffer']
@@ -198,9 +226,8 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             print_log(f"WAN ISH: {transport['wkti0_wan_ish']}")
             print_log()
 
-    def enum_info(self):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+    def enum_info(self, args=None):
+        self.setup_dce_transport()
         self.dce_transport._connect('srvsvc')
         response = self.dce_transport._enum_info()
         #print_log(response.dump())
@@ -215,7 +242,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         self.enum_server_disk()
 
 
-    def get_server_time(self):
+    def get_server_time(self, args=None):
         #print local date and time
         time = datetime.datetime.now()
         date = datetime.date.today()
@@ -223,8 +250,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
         print_info(f"Local Date: {date.month}/{date.day}/{date.year}")
 
         try:
-            if self.dce_transport is None:
-                    self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+            self.setup_dce_transport()
             self.dce_transport._connect('srvsvc')
             response = self.dce_transport._fetch_server_time()
             if response['ErrorCode'] == 0:  # Checking for successful response
@@ -256,6 +282,7 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             else:
                 print_log(f"Error: {response['ErrorCode']}")
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             print_log(f"An error occurred: {str(e)}")
             raise e
 

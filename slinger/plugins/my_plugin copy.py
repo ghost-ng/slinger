@@ -9,13 +9,12 @@ class MyPlugin(PluginBase):
         # define a new subparser to return to merge with the main parser
         parser = argparse.ArgumentParser(add_help=False)
         subparsers = parser.add_subparsers(dest='command')
-        plugincmd_parser = subparsers.add_parser("plugincmd", help="My plugin subparser")
-        plugincmd_parser.add_argument("--plugincmd", help="My plugin argument")
+        plugincmd_parser = subparsers.add_parser("anotherplugincmd", help="My plugin subparser")
         plugincmd_parser.set_defaults(func=self.run)
         return parser
 
     def run(self, args):
-        print(f"Executing {args.command} with arg value of {args.plugincmd}")
+        print(f"Executing {args.command}")
         
         # example of using the SlingerClient object
         self.client.info()

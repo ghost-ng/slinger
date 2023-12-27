@@ -1,10 +1,7 @@
 from slinger.utils.printlib import *
 from slinger.lib.dcetransport import *
-import traceback
 from tabulate import tabulate
-import os
 import traceback
-import datetime
 from time import sleep
 from slinger.utils.common import reduce_slashes
 
@@ -66,8 +63,7 @@ class winreg():
 
         """
         self.registry_used = True
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
 
         print_info("Enumerating Key: " + keyName)
@@ -81,7 +77,7 @@ class winreg():
             return ans
        
 
-    def setup_remote_registry(self):
+    def setup_remote_registry(self, args):
         """
         Sets up the remote registry service.
 
@@ -94,23 +90,41 @@ class winreg():
         Returns:
             None
         """
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         try:
             print_info("Starting Remote Registry service")
-            self.registry_used = True
             response = self.dce_transport._start_service('RemoteRegistry')
             print_good("Remote Registry service started")
             
         except Exception as e:
-            print_debug(str(e))
+            
             if "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
                 print_warning("RemoteRegistry Service already running")
                 self.winreg_already_setup = True
                 return
-            
-    def stop_remote_registry(self):
+            else:
+                print_debug(str(e), sys.exc_info())
+    
+    def reg_query_handler(self, args):
+        if args.list:
+            self.enum_subkeys(args.key)
+        elif args.value:
+            self.enum_key_value(args.key)
+        elif args.key:
+            try:
+                self.enum_key_value(args.key)
+                self.enum_subkeys(args.key)
+            except Exception as e:
+                if "ERROR_FILE_NOT_FOUND" in str(e):
+                    print_bad("Registry key does not exist")
+                else:
+                    print_bad("Error querying registry key: " + str(e))
+                    print_debug(str(e), sys.exc_info())
+                    
+    #elif args.command == "regset":
+
+    def stop_remote_registry(self, args):
         """
         Stops the Remote Registry service.
 
@@ -122,8 +136,7 @@ class winreg():
         Returns:
             None
         """
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         try:
             self.registry_used = True
@@ -134,7 +147,7 @@ class winreg():
             else:
                 print_bad("Failed to stop Remote Registry service")
         except Exception as e:
-            print_debug(str(e))
+            print_debug(str(e), sys.exc_info())
             if "ERROR_SERVICE_NOT_ACTIVE" in str(e):
                 print_warning("RemoteRegistry Service already stopped")
                 return
@@ -151,8 +164,7 @@ class winreg():
             list or None: The subkeys as a list if `return_list` is True, otherwise None.
         """
         self.registry_used = True
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         subkeys = self.dce_transport._enum_subkeys(keyName)
         if not return_list:
@@ -161,7 +173,7 @@ class winreg():
         else:
             return subkeys
 
-    def ipconfig(self):
+    def ipconfig(self, args):
         """
         Retrieves and prints the IP configuration information for the current host.
 
@@ -178,8 +190,7 @@ class winreg():
     \tDhcpDomain:\t{DhcpDomain}
     """
         
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         print_info("Enumerating IP Configuration...")
         subkeys = self.enum_subkeys(self.reg_interface, return_list=True)
@@ -200,7 +211,7 @@ class winreg():
             _iface = iface.split("\\")[-1]
             print_log(iface_banner.format(interface=_iface, **values))
 
-    def hostname(self):
+    def hostname(self, args):
         """
         Retrieves the hostname from the Windows registry.
 
@@ -211,13 +222,15 @@ class winreg():
             Exception: If there is an error retrieving the hostname.
         """
         self.registry_used = True
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         hKey = self.dce_transport._get_key_handle(self.reg_tcpip)
         ans = self.dce_transport._get_key_values(hKey)
         values = extract_reg_values(ans, ["Hostname"])
         print_log("Hostname:\t" + values["Hostname"])
+
+    def add_reg_value_handler(self, args):
+        self.add_reg_value(args.key, args.value, args.data, args.type)
 
     def add_reg_value(self, keyName, valueName, valueData, valueType="REG_SZ"):
         """
@@ -233,8 +246,7 @@ class winreg():
             None
         """
     
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         try:
 
@@ -244,6 +256,7 @@ class winreg():
             else:
                 print_bad(f"Failed to Add Value {valueName} to {keyName}")
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             if "ERROR_FILE_NOT_FOUND" in str(e):
                 print_warning(f"Key {keyName} does not exist")
                 return
@@ -254,7 +267,7 @@ class winreg():
 
 
 
-    def show_fw_rules(self):
+    def show_fw_rules(self, args):
         """
         Retrieves and prints the firewall rules for the current host.
 
@@ -300,7 +313,6 @@ class winreg():
         
         
         
-        #         MSDTC-KTMRM-In-TCP      REG_SZ  v2.22|Action=Allow|Active=FALSE|Dir=In|Protocol=6|LPort=RPC|App=%SystemRoot%\system32\svchost.exe|Svc=ktmrm|Name=@FirewallAPI.dll,-33511|Desc=@FirewallAPI.dll,-33512|EmbedCtxt=@FirewallAPI.dll,-33502|
         ans = self.enum_key_value(self.fwrule, return_val=True)
         fwrules_list = ans.splitlines()
         #print(fwrules_list)
@@ -312,7 +324,7 @@ class winreg():
         print(tabulate(parsed_rules, headers="keys"))
 
 
-    def reg_create_key(self, keyName):
+    def reg_create_key(self, args):
         """
         Creates a registry key.
 
@@ -322,9 +334,12 @@ class winreg():
         Returns:
             None
         """
+        try:
+            keyName = args.key
+        except AttributeError:
+            keyName = args
         self.registry_used = True
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         ans = self.dce_transport._reg_create_key(keyName)
         if ans:
@@ -344,8 +359,7 @@ class winreg():
             None
         """
         self.registry_used = True
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         try:
             ans = self.dce_transport._reg_delete_key(keyName)
@@ -354,6 +368,7 @@ class winreg():
             else:
                 print_bad(f"Failed to Delete Key {keyName}")
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             if "ERROR_FILE_NOT_FOUND" in str(e):
                 print_warning(f"Key {keyName} does not exist")
                 return
@@ -361,7 +376,14 @@ class winreg():
                 print_bad(f"Failed to Delete Key {keyName}")
                 print_debug("Failed to Delete Key", sys.exc_info())
                 return
-        
+    
+    def reg_delete_handler(self, args):
+        if args.value:
+            self.del_reg_key_value(args.key, args.value)
+        elif args.key:
+            self.reg_delete_key(args.key)
+        else:
+            print_warning("Invalid arguments.  Usage: regdel -k <key> [-v <value>]")
 
     def del_reg_key_value(self, keyName, keyValue):
         """
@@ -374,12 +396,12 @@ class winreg():
             None
         """
         self.registry_used = True
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         try:
             ans = self.dce_transport._reg_delete_value(keyName, keyValue)
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             if "ERROR_FILE_NOT_FOUND" in str(e):
                 print_warning(f"Key {keyName} and value {keyValue} combination does not exist")
                 print_debug(f"Key {keyName} and value {keyValue} combination does not exist", sys.exc_info())
@@ -390,7 +412,7 @@ class winreg():
             print_bad(f"Failed to Delete Value {keyValue} from {keyName}")
 
 
-    def does_key_exist(self, keyName):
+    def does_key_exist(self, args):
         """
         Checks if the specified registry key exists.
 
@@ -400,17 +422,24 @@ class winreg():
         Returns:
             bool: True if the key exists, False otherwise.
         """
+        keyName = args.key
         try:
             _ = self.enum_key_value(keyName, return_val=True)
             print_debug(f"Key {keyName} exists")
             return True
         except Exception as e:
-            print_debug(f"Key {keyName} does not exist")
+            print_debug(f"Key {keyName} does not exist", sys.exc_info())
             if "ERROR_FILE_NOT_FOUND" in str(e):
                 return False
             else:
                 print_debug("Unable to check if key exists", sys.exc_info())
                 return False
+
+    def port_fwd_rules_handler(self, args):
+        if args.load:
+            self.load_port_fwd_rules()
+        else:
+            self.print_portfwd_rules()
 
     def print_portfwd_rules(self):
         """
@@ -427,8 +456,7 @@ class winreg():
         Adds a port forwarding rule.
 
         Args:
-            listen_port (int): The port to listen on.
-            connect_port (int): The port to connect to.
+            listen_addr (str): The port to listen on.
             connect_addr (str): The address to connect to.
 
         Returns:
@@ -439,6 +467,7 @@ class winreg():
             listen_addr, listen_port = local.split(":")
             connect_addr, connect_port = remote.split(":")
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             print_bad("Invalid Local or Remote Address")
             return
 
@@ -476,7 +505,9 @@ class winreg():
         print_debug("Searching in:" + key)
         subkeys = self.enum_subkeys(key, return_list=True)
         if "v4tov4" not in " ".join(subkeys):
-            print_warning("No Port Forwarding Rules Created")
+            print_warning("No Port Forwarding Rules Found")
+            #set the active_portfwd_rules to empty
+            self.active_portfwd_rules = []
             return
         else:
             key = self.portproxy_root + "v4tov4\\tcp\\"
@@ -484,6 +515,8 @@ class winreg():
             values = self.enum_key_value(key, return_val=True)
             if len(values) == 0:
                 print_warning("No Port Forwarding Rules Found")
+                #set the active_portfwd_rules to empty
+                self.active_portfwd_rules = []
                 return
             else:
                 values = values.splitlines()
@@ -495,7 +528,7 @@ class winreg():
                     _listen_addr = rule_list[0].split("/")[0]
                     _listen_port = rule_list[0].split("/")[1]
                     print_info(f"Found Rule: {_listen_addr}:{_listen_port}")
-                    print_info(f"Searching for Rule: {listen_addr}:{listen_port}")
+                    print_info(f"Searching for Rule: {listen_addr}/{listen_port}")
                     if _listen_addr == listen_addr and _listen_port == listen_port:
                         #print("Found Rule")
                         #print(rule)
@@ -521,15 +554,36 @@ class winreg():
         #print(subkeys)
         if "v4tov4" not in subkeys:
             print_debug("No Port Forwarding Rules Found")
+            #set the active_portfwd_rules to empty
+            self.active_portfwd_rules = []
             return False
         else:
             values = self.enum_key_value(self.portproxy_root + "v4tov4\\tcp", return_val=True)
             #print(values)
             if len(values) == 0:
                 print_debug("No Port Forwarding Rules Found")
+                #set the active_portfwd_rules to empty
+                self.active_portfwd_rules = []
                 return False
             else:
                 return True
+
+    def port_fwd_handler(self, args):
+        if args.list:
+            self.print_portfwd_rules()
+        elif args.remove:
+            self.del_port_fwd_rule(args.local)
+        elif args.add:
+            if not args.local or not args.remote:
+                print_warning("Invalid arguments.  Usage: portfwd -l|-d|-a <local> <remote>")
+                return
+            self.add_port_fwd_rule(args.local, args.remote)
+        elif args.load:
+            r = self.load_port_fwd_rules()
+            if r:
+                self.print_portfwd_rules()
+        else:
+            print_warning("Invalid arguments.  Usage: portfwd -l|-d|-a <local> <remote>")
 
     def load_port_fwd_rules(self):
         # get the current rule set from the regsitry and load it into the active_portfwd_rules list
@@ -539,7 +593,9 @@ class winreg():
 
         if self.check_port_fwd_rules() == False:
             print_warning("No Port Forwarding Rules Found")
-            return
+            #set the active_portfwd_rules to empty
+            self.active_portfwd_rules = []
+            return False
         else:
             key = self.portproxy_root + "v4tov4\\tcp\\"
             values = self.enum_key_value(key, return_val=True)
@@ -547,7 +603,9 @@ class winreg():
             #subkeys = self.enum_subkeys(self.portproxy_root + "v4tov4\\tcp\\", return_list=True)
             if len(values) == 0:
                 print_warning("No Port Forwarding Rules Found")
-                return
+                #set the active_portfwd_rules to empty
+                self.active_portfwd_rules = []
+                return False
             else:
                 values = values.splitlines()
                 for rule in values:
@@ -555,3 +613,4 @@ class winreg():
                     listen_addr, listen_port = rule[0].split("/")
                     connect_addr, connect_port = rule[2].split("/")
                     self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})
+                return True

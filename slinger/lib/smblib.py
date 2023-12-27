@@ -12,11 +12,20 @@ class smblib():
     def __init__(self):
         print_debug("Smb Commands Module Loaded!")
 
-    def print_current_path(self):
-        print_log(self.current_path)
+    def cd_handler(self, args=None):
+        if self.check_if_connected():
+            if args.path:
+                self.cd(args.path)
+            elif args.command == "cd":
+                self.print_current_path()
+
+    def print_current_path(self, args=None):
+        if self.check_if_connected():
+            print_log(self.current_path)
 
     # connect to a share
-    def connect_share(self, share):
+    def connect_share(self, args):
+        share = args.share
         try:
             self.tree_id = self.conn.connectTree(share)
             self.share = share
@@ -24,6 +33,7 @@ class smblib():
             self.is_connected_to_share = True
             self.update_current_path()
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             if "STATUS_BAD_NETWORK_NAME" in str(e):
                 print_bad(f"Failed to connect to share {share}: Invalid share name.")
             else:
@@ -32,31 +42,96 @@ class smblib():
 
     
 
-    def list_shares(self):
+    def list_shares(self, args=None):
         shares = self.conn.listShares()
         print_info("Available Shares")
         for share in shares:
             print_log(f"{share['shi1_netname']}")
 
-    def mkdir(self, path):
-        
+    def mkdir(self, args):
+        if not self.check_if_connected():
+            return
+        path = args.path
         try:
             self.conn.createDirectory(self.share, path)
             print_info(f"Directory created {path}")
         except Exception as e:
-            print_bad(f"Failed to create directory {path}: {e}")
-            raise e
+            if "STATUS_OBJECT_NAME_COLLISION" in str(e):
+                print_warning(f"Directory already exists {path}")
+            else:
+                print_bad(f"Failed to create directory {path}: {e}")
+                print_debug(str(e), sys.exc_info())
 
-    def rmdir(self, path):
+    def rmdir(self, args):
+        if not self.check_if_connected():
+            return
+        path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
         try:
+            print_debug(f"Removing directory {path}")
             self.conn.deleteDirectory(self.share, path)
             print_info(f"Directory removed {path}")
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             print_bad(f"Failed to remove directory {path}: {e}")
             raise e
 
+    def rm_handler(self, args):
+        if not self.check_if_connected():
+            return
+        if args.remote_path == "." or args.remote_path == "" or args.remote_path is None:
+            print_warning("Please specify a file to remove.")
+            return
+        path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
+        
+        if self.check_if_connected():
+            #if self.file_exists(path):
+            #    self.delete(path)
+            #else:
+            #    print_warning(f"Remote file {path} does not exist.")
+            try:
+                self.delete(path)
+            except Exception as e:
+                print_debug(str(e), sys.exc_info())
+                if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e):
+                    print_warning(f"Remote file {path} does not exist.")
+
     def delete(self, remote_path):
-        self.conn.deleteFile(self.share, remote_path)
+        
+        if not self.check_if_connected():
+            return
+
+        #recursively delete files in directory
+        if remote_path.endswith('*'):
+            
+            remote_path = remote_path[:-2]
+            if self.is_valid_directory(remote_path):
+                print_info(f"Deleting files in directory '{remote_path}'")
+                list_path = remote_path + '\\*' if remote_path else '*'
+                files = self.conn.listPath(self.share, list_path)
+                for f in files:
+                    if f.is_directory() and f.get_longname() in ['.', '..']:
+                        print_debug(f"Found directory {os.path.join(remote_path, f.get_longname())}")
+                        continue
+                    print_debug(f"Deleting file {os.path.join(remote_path, f.get_longname())}")
+                    self.conn.deleteFile(self.share,os.path.join(remote_path, f.get_longname()))
+                    print_info(f"File Removed '{os.path.join(remote_path, f.get_longname())}'")
+            else:
+                print_warning(f"Invalid directory: {remote_path}")
+                return
+        else:
+            print_debug(f"Deleting file '{remote_path}'")
+            try:
+                self.conn.deleteFile(self.share, remote_path)
+                print_info(f"File Removed '{remote_path}'")
+            except Exception as e:
+                print_debug(str(e), sys.exc_info())
+                if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e):
+                    print_warning(f"Remote file '{remote_path}' does not exist.")
+                elif "STATUS_FILE_IS_A_DIRECTORY" in str(e):
+                    print_warning(f"Remote object '{remote_path}' is a directory, skipping.")
+                else:
+                    print_bad(f"Failed to delete file '{remote_path}': {e}")
+                    raise e
 
     #update current path as share + relative path
     def update_current_path(self):
@@ -70,12 +145,21 @@ class smblib():
             self.conn.listPath(self.share, list_path)
             return True
         except Exception as e:
+            if "STATUS_STOPPED_ON_SYMLINK" in str(e):
+                print_warning(f"Remote directory {path} is a symlink.")
+            elif "STATUS_NOT_A_DIRECTORY" in str(e):
+                print_warning(f"Remote object {path} is not a directory.")
+
+            print_debug(f"Failed to list directory {path} on share {self.share}: {e}", sys.exc_info())
             return False
 
     def cd(self, path):
+        if not self.check_if_connected():
+            return
         # Handle ".." in path
+        print_debug(f"Changing directory to {path}")
         if ".." in path:
-            path = os.path.normpath(os.path.join(self.relative_path, path))
+            path = ntpath.normpath(ntpath.join(self.relative_path, path))
             if path.startswith(".."):
                 print_warning("Cannot go above root directory.")
                 return
@@ -89,7 +173,7 @@ class smblib():
         # Handle relative paths
         else:
             #path = os.path.join(self.relative_path, path)
-            path = ntpath.normpath(os.path.join(self.relative_path, path))
+            path = ntpath.normpath(ntpath.join(self.relative_path, path))
 
         if path == self.share:
             self.relative_path = ""
@@ -104,13 +188,46 @@ class smblib():
             print_warning(f"Invalid directory: {path}")
 
     # handle file uploads
+    def upload_handler(self, args):
+        remote_path = ""
+        if self.check_if_connected():
+            if args.remote_path == "." or args.remote_path == "" or args.remote_path is None or "\\" not in args.remote_path:
+                remote_path = ntpath.join(self.relative_path,ntpath.basename(args.local_path))
+            else:
+                remote_path = args.remote_path
+            if os.path.exists(args.local_path):
+                print_info(f"Uploading: {args.local_path} --> {self.share}\\{remote_path}")
+                self.upload(args.local_path, remote_path)
+            else:
+                print_warning(f"Local path {args.local_path} does not exist.")
+
     def upload(self, local_path, remote_path):
+        if not self.check_if_connected():
+            return
         try:
             with open(local_path, 'rb') as file_obj:
                 self.conn.putFile(self.share, remote_path, file_obj.read)
         except Exception as e:
+            print_debug(str(e), sys.exc_info())
             print_bad(f"Failed to upload file {local_path} to {remote_path}: {e}")
             print_log(sys.exc_info())
+
+    def download_handler(self, args):
+        remote_path = os.path.normpath(os.path.join(self.relative_path, args.remote_path))
+        local_path = ""
+        if self.check_if_connected():
+            if args.local_path == "." or args.local_path == "" or args.local_path is None or "/" not in args.local_path:
+                local_path = os.path.join(os.getcwd(), os.path.basename(args.remote_path))
+            else:
+                if os.path.isdir(os.path.dirname(args.local_path)):
+                    local_path = os.path.join(args.local_path, ntpath.basename(args.remote_path))
+                else:
+                    local_path = args.local_path
+            if os.path.isdir(os.path.dirname(local_path)):
+                print_info(f"Downloading: {ntpath.join(self.share,remote_path)} --> {local_path}")
+                self.download(remote_path, local_path)
+            else:
+                print_warning(f"Local path {args.local_path} does not exist.")
 
     def download(self, remote_path, local_path):
         if remote_path.endswith('.') or remote_path.endswith('..'):
@@ -120,10 +237,25 @@ class smblib():
             with open(local_path, 'wb') as file_obj:
                 self.conn.getFile(self.share, remote_path, file_obj.write)
         except Exception as e:
-            print_bad(f"Failed to download file {remote_path} to {local_path}: {e}")
-            print_log(sys.exc_info())
+            print_debug(f"Failed to download file '{remote_path}' to '{local_path}': {e}", sys.exc_info())
+            if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e):
+                print_warning(f"Remote file '{remote_path}' does not exist.")
+            else:
+                print_bad(f"Failed to download file '{remote_path}' to '{local_path}': {e}")
+
+    def mget_handler(self, args):
+        if not self.check_if_connected():
+            return
+        remote_path = args.remote_path if args.remote_path else self.relative_path
+        if self.is_valid_directory(remote_path):
+            local_path = args.local_path if args.local_path else os.getcwd()
+            self.mget(remote_path, local_path, args.r, args.p, args.d)
+        else:
+            print_log(f"Remote directory {remote_path} does not exist.")
 
     def mget(self, remote_path=None, local_path=None, go_into_dirs=False, regex=None, current_depth=1, max_depth=1):
+        if not self.check_if_connected():
+            return
         if local_path is None:
             local_path = os.getcwd()
 
@@ -154,21 +286,36 @@ class smblib():
                 
 
     def file_exists(self, remote_path):
-        files = self.conn.listPath(self.share, remote_path)
+        print_debug(f"Checking if file exists: {remote_path}")
+        path = ntpath.normpath(ntpath.join(remote_path, ".."))
+        print_debug(f"Listing Files in Directory: {path}")
+        files = self.conn.listPath(self.share, path)
+        print_debug(f"Checking if file exists: {ntpath.basename(remote_path)}")
         for file in files:
-            if file.get_longname() == os.path.basename(remote_path):
+            if file.get_longname() == ntpath.basename(remote_path):
+                print_debug(f"File exists: {remote_path}")
                 return True
+        print_debug(f"File does not exist: {remote_path}")
         return False
 
-    def cat(self, path):
+    def cat(self, args):
+        if not self.check_if_connected():
+            return
+        path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
         temp_path = tempfile.NamedTemporaryFile(dir='/tmp', delete=False).name
         self.download(path, temp_path)
-        with open(temp_path, 'r') as file_obj:
-            print_log(file_obj.read())
+        try:
+            with open(temp_path, 'r', encoding=get_config_value("Codec")) as file_obj:
+                print(file_obj.read())
+        except UnicodeDecodeError:
+            print_warning(f"Failed to decode file '{path}' using codec {get_config_value('Codec')}.  Try changing the codec using the 'set codec <codec>' command.")
         os.remove(temp_path)
 
     # dir list
-    def dir_list(self, path=None):
+    def dir_list(self, args=None):
+        if not self.check_if_connected():
+            return
+        path = args.path
         if path is None or path == "." or path == "":
             if self.relative_path == "":
                 path = ""
@@ -209,4 +356,5 @@ class smblib():
             print_info("Showing directory listing for: " + os.path.normpath(self.share + "\\" + suffix))
             print_log(tabulate(dirList, headers=['Type', 'Created', 'Last Access', 'Last Write', 'Size', 'Attribs', 'Name'], tablefmt='psql'))
         except Exception as e:
+            print_debug(f"Failed to list directory {path} on share {self.share}: {e}", sys.exc_info())
             print_bad(f"Failed to list directory {path} on share {self.share}: {e}")
