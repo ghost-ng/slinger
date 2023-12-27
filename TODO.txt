@@ -9,21 +9,10 @@ task scheduler
 
 registry
 - uptime
-- processes
 
 service control
-
-- sc delete
-- sc add
+- sc modify
 
 
-factor encoding
-if sys.stdout.encoding is None:
-        # Output is redirected to a file
-        sys.stdout = codecs.getwriter('utf8')(sys.stdout)
-
-- properly disconnect dce
-- move None checks for transport to function
-- clean up unused imports
-
-fix error reporting
+command chaining
+run slinger script file (from folder)

@@ -4,7 +4,7 @@ import datetime
 import xml.etree.ElementTree as ET
 import re
 from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr
-from slinger.utils.printlib import print_bad, print_debug, print_good, print_info, print_log, print_warning
+from slinger.utils.printlib import *
 from slinger.var.config import config_vars
 from tabulate import tabulate
 
@@ -101,9 +101,9 @@ def get_config_value(key):
         for c in config_vars:
             if c["Name"].lower() == key.lower():
                 return c["Value"]
-        print_warning(f"Config variable {key} does not exist")
+        print_warning(f"Config variable '{key}' does not exist")
     except KeyError:
-        print_warning(f"Config variable {key} does not exist")
+        print_warning(f"Config variable '{key}' does not exist")
         return
 
 # function to set a value in the config dictionary
@@ -117,16 +117,16 @@ def set_config_value(key, value):
                     try:
                         c["Value"] = int(value)
                     except ValueError:
-                        print_warning(f"Invalid value for {key}, needs to be an integer")
+                        print_warning(f"Invalid value for '{key}', needs to be an integer")
                 else:
                     c["Value"] = value
                 
                 print_log(f"{key} --> {str(c['Value'])}")
                 
                 return
-        print_warning(f"Config variable {key} does not exist")
+        print_warning(f"Config variable '{key}' does not exist")
     except KeyError:
-        print_warning(f"Config variable {key} does not exist")
+        print_warning(f"Config variable '{key}' does not exist")
         return
     
 

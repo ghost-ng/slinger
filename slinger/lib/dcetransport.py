@@ -299,8 +299,7 @@ class DCETransport:
             if "rpc_s_access_denied" in str(e):
                 print_bad("Unable to connect to service, access denied")
             else:
-                print_bad("An error occurred:")
-                traceback.print_exc()
+                raise e
             return
         serviceHandle = ans['lpServiceHandle']
         response = scmr.hRStartServiceW(self.dce, serviceHandle)
@@ -322,8 +321,8 @@ class DCETransport:
             if "rpc_s_access_denied" in str(e):
                 print_bad("Unable to connect to service, access denied")
             else:
-                print_bad("An error occurred:")
-                traceback.print_exc()
+                print_bad("An error occurred: " + str(e))
+                print_debug('', sys.exc_info())
             return
         serviceHandle = ans['lpServiceHandle']
         response = scmr.hRControlService(self.dce, serviceHandle, scmr.SERVICE_CONTROL_STOP)
@@ -354,6 +353,51 @@ class DCETransport:
             return True
         else:
             raise Exception('Unknown service state 0x%x - Aborting' % ans['CurrentState'])
+
+    def _delete_service(self, service_name):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(scmr.MSRPC_UUID_SCMR)
+        ans = scmr.hROpenSCManagerW(self.dce)
+        self.scManagerHandle = ans['lpScHandle']
+        try:
+            ans = scmr.hROpenServiceW(self.dce, self.scManagerHandle, service_name + '\x00')
+        except Exception as e:
+            if "rpc_s_access_denied" in str(e):
+                print_bad("Unable to connect to service, access denied")
+            else:
+                print_bad("An error occurred: " + str(e))
+                print_debug('', sys.exc_info())
+            return
+        serviceHandle = ans['lpServiceHandle']
+        response = scmr.hRDeleteService(self.dce, serviceHandle)
+        self._close_scm_handle(serviceHandle)
+        return response
+
+    def _create_service(self, service_name, bin_path, start_type, display_name=None):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(scmr.MSRPC_UUID_SCMR)
+        ans = scmr.hROpenSCManagerW(self.dce)
+        self.scManagerHandle = ans['lpScHandle']
+        if display_name is None:
+            display_name = service_name     
+
+        try:
+            if start_type == 'auto':
+                start_type = scmr.SERVICE_AUTO_START
+            elif start_type == 'demand':
+                start_type = scmr.SERVICE_DEMAND_START
+            elif start_type == 'system':
+                start_type = scmr.SERVICE_SYSTEM_START
+        except AttributeError:
+            start_type = scmr.SERVICE_DEMAND_START
+
+        response = scmr.hRCreateServiceW(self.dce, self.scManagerHandle, service_name, display_name, 
+                                         dwServiceType=scmr.SERVICE_WIN32_OWN_PROCESS, dwErrorControl=scmr.SERVICE_ERROR_IGNORE, lpBinaryPathName=bin_path, dwStartType=start_type)
+        return response
 
     def _get_root_key(self, keyName):
         # Let's strip the root key
@@ -398,7 +442,7 @@ class DCETransport:
                 i += 1
                 
             except Exception as e:
-                print_debug(str(e))
+                print_debug(str(e), sys.exc_info())
                 break
         return subkeys
     

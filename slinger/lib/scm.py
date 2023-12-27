@@ -28,10 +28,23 @@ class scm():
             return new_list
         else:
             return self.services_list
-        
+    
+    def show_service_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+        else:
+            service_arg = args.serviceid if args.serviceid else args.service_name
+            self.view_service_details(service_arg)
+
+    def start_service_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+        else:
+            service_arg = args.serviceid if args.serviceid else args.service_name
+            self.start_service(service_arg)
+
     def start_service(self, service_arg):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         
         # lookup taskpath and task name from dict with task_id
@@ -50,32 +63,48 @@ class scm():
             print_info("Getting service details for %s" % service_arg)
             service_name = service_arg
             
+        if service_name is None:
+            print_warning("Service name not found")
+            return
+        else:
+            print_info("Chosen Service: " + service_name)
         try:
-            if service_name is None:
-                print_warning("Service name not found")
+            response = self.dce_transport._start_service(service_name)
+            if response['ErrorCode'] == 0:
+                print_good("Service started successfully")
+            else:
+                print_log(f"Error starting service '{service_name}': {response['ErrorCode']}")
+        except Exception as e:
+            if "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
+                print_bad("Unable to start service: " + service_name)
+                print_warning("Service already running")
+                return
+            elif "ERROR_SERVICE_DISABLED" in str(e):
+                print_bad("Unable to start service: " + service_name)
+                print_warning("Service disabled")
+                return
+            elif "ERROR_SERVICE_LOGON_FAILED" in str(e):
+                print_bad("Unable to start service: " + service_name)
+                print_warning("Service logon failed")
+                return
+            elif "ERROR_SERVICE_DOES_NOT_EXIST" in str(e):
+                print_bad("Unable to start service: " + service_name)
+                print_warning("Service does not exist")
                 return
             else:
-                print_info("Chosen Service: " + service_name)
-            try:
-                response = self.dce_transport._start_service(service_name)
-                if response['ErrorCode'] == 0:
-                    print_good("Service started successfully")
-                else:
-                    print_log(f"Error starting service '{service_name}': {response['ErrorCode']}")
-            except Exception as e:
-                if "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
-                    print_warning("Service already running")
-                    self.winreg_already_setup = True
-                    return
-            
-        except Exception as e:
-            print_bad("Unable to start service: " + service_name)
-            print_bad("An error occurred:")
-            traceback.print_exc()
+                print_bad("Unable to start service: " + service_name)
+                print_bad("An error occurred:" + str(e))
+                print_debug('', sys.exc_info())
+
+    def service_stop_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+        else:
+            service_arg = args.serviceid if args.serviceid else args.service_name
+            self.stop_service(service_arg)
 
     def stop_service(self, service_arg):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         
         # lookup taskpath and task name from dict with task_id
@@ -106,13 +135,23 @@ class scm():
             else:
                 print_log(f"Error stopping service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
-            print_bad("Unable to stop service: " + service_name)
-            print_bad("An error occurred:")
-            traceback.print_exc()
+            if "ERROR_SERVICE_NOT_ACTIVE" in str(e):
+                print_bad("Unable to stop service: " + service_name)
+                print_warning("Service not active")
+                return
+            elif "ERROR_SERVICE_DOES_NOT_EXIST" in str(e):
+                print_bad("Unable to stop service: " + service_name)
+                print_warning("Service does not exist")
+                return
+            else:
+                print_bad("Unable to start service: " + service_name)
+                print_bad("An error occurred:" + str(e))
+                print_debug('', sys.exc_info())
 
-    def enum_services(self, force=False, filtered=None):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+    def enum_services(self, args):
+        force = args.new
+        filtered = args.filter
+        self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         if force or len(self.services_list) == 0:
             
@@ -174,8 +213,7 @@ class scm():
         
 
     def view_service_details(self, service_arg):
-        if self.dce_transport is None:
-            self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+        self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         
         # lookup taskpath and task name from dict with task_id
@@ -278,10 +316,71 @@ class scm():
                 return
 
             print_bad("Unable to view service details: " + service_name)
-            print_bad("An error occurred:")
-            traceback.print_exc()
+            print_bad("An error occurred:" + str(e))
+            print_debug('', sys.exc_info())
+    
+    def service_del_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+        else:
+            service_arg = args.serviceid if args.serviceid else args.service_name
+            self.delete_service(service_arg)
+
+    def delete_service(self, service_arg):
+        self.setup_dce_transport()
+        self.dce_transport._connect('svcctl')
         
+        # lookup taskpath and task name from dict with task_id
+        service_name = None
+        if type(service_arg) is int:
+            print_info("Looking up service ID...")
+            count = 1
+            #print_log("Searching through %d services" % len(self.services_list))
+            for service in self.services_list:
+                #print_info("Checking service %d" % count)
+                if count == service_arg:
+                    service_name = service[1]
+                    break                    
+                count += 1
+        else:
+            service_name = service_arg
+            
+        try:
+            if service_name is None:
+                print_warning("Service name not found")
+                return
+            else:
+                print_info("Chosen Service: " + service_name)
+            response = self.dce_transport._delete_service(service_name)
+            if response['ErrorCode'] == 0:
+                print_good("Service deleted successfully")
+            else:
+                print_log(f"Error deleting service '{service_name}': {response['ErrorCode']}")
+        except Exception as e:
+            print_bad("Unable to delete service: " + service_name)
+            print_bad("An error occurred:" + str(e))
+            print_debug('', sys.exc_info())
+
+    def create_service(self, args):
+        service_name = args.servicename
+        bin_path = args.binarypath
+        display_name = args.displayname
+        start_type = args.starttype
+
+        self.setup_dce_transport()
+        self.dce_transport._connect('svcctl')
         
+        try:
+            print_info("Creating service...")
+            response = self.dce_transport._create_service(service_name, bin_path, start_type, display_name)
+            if response['ErrorCode'] == 0:
+                print_good("Service created successfully")
+            else:
+                print_log(f"Error creating service '{service_name}': {response['ErrorCode']}")
+        except Exception as e:
+            print_bad("Unable to create service: " + service_name)
+            print_bad("An error occurred:" + str(e))
+            print_debug('', sys.exc_info())
         
         
         
