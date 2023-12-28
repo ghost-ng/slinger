@@ -1,5 +1,5 @@
 from slinger.utils.printlib import *
-from slinger.slingerclient import SlingerClient
+from slinger.lib.slingerclient import SlingerClient
 from slinger.utils.common import *
 from slinger.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, get_subparser_aliases
 import shlex, argparse, sys, os, pty, termios
