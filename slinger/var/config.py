@@ -1,4 +1,4 @@
-# Desc: Config variables for Slinger
+from slinger import __version__, __package__
 
 #dictionary of config variables
 config_vars = [
@@ -8,6 +8,6 @@ config_vars = [
 ]
 
 logwriter = None
-version = "0.1"
-program_name = "Slinger"
+version = __version__
+program_name = __package__
 smb_conn_timeout = 999999
