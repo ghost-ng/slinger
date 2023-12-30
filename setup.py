@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
-from slinger import __version__
-from slinger import __package__
+from src.slingerpkg import __version__
+from src.slingerpkg import __package__
 
 def parse_requirements(filename):
     with open(filename, 'r') as file:
@@ -11,7 +11,8 @@ required_packages = parse_requirements('requirements.txt')
 setup(
     name=__package__,
     version=__version__,
-    packages=find_packages(),
+    package_dir={'': 'src'},  # Tells setuptools where to find the packages
+    packages=find_packages(where='src'),  # Automatically find packages in the 'src' directory
     install_requires=required_packages,
     author="ghost-ng",
     author_email="ghost-ng@outlook.com",
@@ -20,5 +21,11 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/ghost-ng/slinger",
     python_requires='>=3.10',
-    # Add more parameters as needed
+    scripts=['src/slinger.py'],
+    entry_points={
+        'console_scripts': [
+            'slinger=slinger.slinger:main',
+        ],
+    },
+    data_files=[('src/slingerpkg/plugins', ['src/slingerpkg/plugins/my_plugin.py'])],
 )

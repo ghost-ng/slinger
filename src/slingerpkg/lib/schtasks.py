@@ -1,6 +1,6 @@
-from slinger.utils.printlib import *
-from slinger.lib.dcetransport import *
-from slinger.utils.common import enum_struct, generate_random_date, validate_xml, xml_escape
+from slingerpkg.utils.printlib import *
+from slingerpkg.lib.dcetransport import *
+from slingerpkg.utils.common import enum_struct, generate_random_date, validate_xml, xml_escape
 from tabulate import tabulate
 import os
 import traceback

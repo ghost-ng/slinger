@@ -1,5 +1,5 @@
-from slinger.utils.printlib import *
-from slinger.lib.dcetransport import *
+from slingerpkg.utils.printlib import *
+from slingerpkg.lib.dcetransport import *
 import traceback
 from tabulate import tabulate
 import traceback

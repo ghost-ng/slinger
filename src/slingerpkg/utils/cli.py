@@ -1,7 +1,7 @@
 import argparse
 from .printlib import *
 from prompt_toolkit.completion import Completer, Completion
-from slinger.var.config import version, program_name
+from slingerpkg.var.config import version, program_name
 from itertools import zip_longest
 
 def extract_commands_and_args(parser):

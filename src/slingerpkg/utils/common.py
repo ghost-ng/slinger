@@ -4,8 +4,8 @@ import datetime
 import xml.etree.ElementTree as ET
 import re
 from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr
-from slinger.utils.printlib import *
-from slinger.var.config import config_vars
+from slingerpkg.utils.printlib import *
+from slingerpkg.var.config import config_vars
 from tabulate import tabulate
 
 # dictionarty of UUID endpoints to plaintext names

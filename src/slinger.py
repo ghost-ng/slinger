@@ -1,16 +1,15 @@
-from slinger.utils.printlib import *
-from slinger.lib.slingerclient import SlingerClient
-from slinger.utils.common import *
-from slinger.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, get_subparser_aliases
+#!/usr/bin/env python3
+from slingerpkg.utils.printlib import *
+from slingerpkg.lib.slingerclient import SlingerClient
+from slingerpkg.utils.common import get_config_value, set_config_value, run_local_command
+from slingerpkg.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, get_subparser_aliases
+from slingerpkg.lib.plugin_base import load_plugins
+from slingerpkg.var.config import version
 import shlex, argparse, sys, os, pty, termios
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import to_formatted_text, ANSI
 from prompt_toolkit.completion import Completer, Completion
-from slinger.lib.plugin_base import load_plugins
-from slinger.var.config import version
-
-plugins_folder = "slinger/plugins"
 
 
 slingerCliet = None
@@ -36,11 +35,16 @@ def main():
     global slingerClient
     global commands_and_args
 
+    # setup folder structure -> ~/.slinger/logs, ~/.slinger/plugins
+    if not os.path.exists(os.path.expanduser(get_config_value('Logs_Folder'))):
+        os.makedirs(os.path.expanduser(get_config_value('Logs_Folder')))
+
+    if not os.path.exists(os.path.expanduser(get_config_value('Plugin_Folder'))):
+        os.makedirs(os.path.expanduser(get_config_value('Plugin_Folder')))
 
     original_settings = termios.tcgetattr(0)
-    history = FileHistory('.slinger_history')
 
-    parser = argparse.ArgumentParser(description='impacket swiss army knife')
+    parser = argparse.ArgumentParser(description='impacket swiss army knife (sort of)')
     parser.add_argument('--host', required=True, help='Host to connect to')
     parser.add_argument('-u', '--username', required=True, help='Username for authentication')
     parser.add_argument('-pass', '--password', required=True, help='Password for authentication')
@@ -52,7 +56,6 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Turn on debug output')
 
     if len(sys.argv) == 1:
-        print(banner_art)
         parser.print_help()
         sys.exit(1)
 
@@ -62,17 +65,19 @@ def main():
     slingerClient = SlingerClient(prgm_args.host, prgm_args.username, prgm_args.password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
 
     slinger_parser = setup_cli_parser(slingerClient)
+
+    # load plugins
+    plugins_folder = os.path.expanduser(get_config_value('Plugin_Folder'))
+
     plugins = load_plugins(plugins_folder, slingerClient)
     # merge all parsers from the plugins into the main parser
     for plugin in plugins:
         plugin_parser = plugin.get_parser()
-        #merge the plugin parser with the main parser
         slinger_parser = merge_parsers(slinger_parser, plugin_parser)
-        #slinger_parser = argparse.ArgumentParser(parents=[slinger_parser, plugin_parser], add_help=False)
-        #parser.add_argument_group(plugin_parser)
 
+    hist_file_location = os.path.expanduser(get_config_value('History_File'))
     completer = CommandCompleter(setup_completer(slinger_parser))
-    session = PromptSession(history=FileHistory('.slinger_history'),completer=completer)
+    session = PromptSession(history=FileHistory(hist_file_location),completer=completer)
 
     try:
         slingerClient.login()

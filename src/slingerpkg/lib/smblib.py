@@ -1,5 +1,5 @@
-from slinger.utils.printlib import *
-from slinger.utils.common import *
+from slingerpkg.utils.printlib import *
+from slingerpkg.utils.common import *
 from tabulate import tabulate
 import os, sys, re, ntpath
 import datetime, tempfile
