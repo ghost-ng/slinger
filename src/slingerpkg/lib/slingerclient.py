@@ -1,14 +1,14 @@
-from slinger.lib.schtasks import schtasks
-from slinger.lib.winreg import winreg
-from slinger.lib.scm import scm
-from slinger.lib.smblib import smblib
-from slinger.utils.printlib import *
-from slinger.utils.common import *
-from slinger.lib.dcetransport import *
+from slingerpkg.lib.schtasks import schtasks
+from slingerpkg.lib.winreg import winreg
+from slingerpkg.lib.scm import scm
+from slingerpkg.lib.smblib import smblib
+from slingerpkg.utils.printlib import *
+from slingerpkg.utils.common import *
+from slingerpkg.lib.dcetransport import *
 import datetime
 from impacket import smbconnection
 from impacket.dcerpc.v5.rpcrt import DCERPCException
-import slinger.var.config as config
+import slingerpkg.var.config as config
 
 dialect_mapping = {
             0x02FF: "SMB 1.0",

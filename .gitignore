@@ -1,4 +1,5 @@
 *pycache*
-.slinger_history
-*logs*
 test
+dist
+build
+*egg-info*

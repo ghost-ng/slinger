@@ -3,8 +3,8 @@ from impacket.dcerpc.v5.dtypes import NULL
 from impacket.dcerpc.v5.rpcrt import RPC_C_AUTHN_GSS_NEGOTIATE, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_LEVEL_PKT_INTEGRITY
 from impacket.dcerpc.v5.tsch import TASK_FLAG_HIDDEN
 import os, traceback
-from slinger.utils.printlib import *
-from slinger.utils.common import *
+from slingerpkg.utils.printlib import *
+from slingerpkg.utils.common import *
 from impacket.structure import hexdump
 from struct import unpack, pack
 from impacket.system_errors import ERROR_NO_MORE_ITEMS

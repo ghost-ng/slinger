@@ -1,9 +1,9 @@
-from slinger.utils.printlib import *
-from slinger.lib.dcetransport import *
+from slingerpkg.utils.printlib import *
+from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
 import traceback
 from time import sleep
-from slinger.utils.common import reduce_slashes
+from slingerpkg.utils.common import reduce_slashes
 
 def extract_reg_values(input_text, keys):
     """

@@ -1,6 +1,7 @@
 import inspect
-from slinger.utils.logger import SlingerLogger, error_logging
-from slinger.var.config import config_vars, logwriter
+from slingerpkg.utils.logger import SlingerLogger, error_logging
+from slingerpkg.var.config import config_vars
+import os
 
 class colors:
     HEADER = '\033[95m'
@@ -102,7 +103,7 @@ def trace_print(*args, **kwargs):
         return message
 
 
-log_location = get_config_value("Logs_Folder")
+log_location = os.path.expanduser(get_config_value('Logs_Folder'))
 # Initialize the logger at the start of your application
 log = SlingerLogger(log_location, "slingerlog").get_logger()
 
