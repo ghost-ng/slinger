@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.slingerclient import SlingerClient
-from slingerpkg.utils.common import get_config_value, set_config_value, run_local_command
-from slingerpkg.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, get_subparser_aliases
+from slingerpkg.utils.common import get_config_value, set_config_value, run_local_command, show_config
+from slingerpkg.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help
 from slingerpkg.lib.plugin_base import load_plugins
 from slingerpkg.var.config import version
 import shlex, argparse, sys, os, pty, termios
