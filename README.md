@@ -10,7 +10,7 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Registry Management**: Manage registry operations such as querying keys, subkeys, and values, deleting, and much more!
 - **Service Control**: Manage windows services through create, delete, and run functions
 - **System Information Gathering**: Gather detailed system information, including server disk information, logged-on users, and transport details.
-- **Wrapper Commands**: Commands to edit port forwarding rules and view the windows firewalls
+- **Wrapper Commands**: Commands to edit port forwarding rules, view the windows firewall, ip information, etc
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 
 ## Usage
@@ -48,8 +48,7 @@ Slinger offers multiple authentication methods.  All methods are built on impack
 ### Login with password
 
 ```bash                                                                                                                                 
-┌──(kali㉿kali)-[~/Documents/slinger/src]
-└─$ python3 slinger.py --host 192.168.177.130 --username admin --password admin                                                        
+python3 slinger.py --host 192.168.177.130 --username admin --password admin                                                        
 
       __,_____
      / __.==--"   SLINGER
@@ -200,7 +199,7 @@ Contributions to the Slinger project, particularly in the form of plugins, are h
         return parser   <--required
   ```
 
-- The `run` method can be used as an entry point for your plugin's functionality. It should be defined to handle the plugin's core logic.  Whatever the function name, it should be the same name as that function you added in the parser's "set_defaults" and it should accept "args" as a function parameter.
+- The `run` method can be used as an entry point for your plugin's functionality. It should be defined to handle the plugin's core logic.  Whatever the function name, it should be the same name as the function you added in the parser's "set_defaults" and it should accept "args" as a function parameter.
 
   ```python
   def run(self, args):
