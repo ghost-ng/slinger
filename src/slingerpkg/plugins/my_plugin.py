@@ -1,7 +1,7 @@
 # my_plugin.py
 from slingerpkg.lib.plugin_base import PluginBase
 import argparse
-from slingerpkg.lib.dcetransport import *
+from slingerpkg.utils.printlib import *
 
 class MyPlugin(PluginBase):
 
