@@ -70,7 +70,14 @@ class SlingerClient(winreg, schtasks, scm, smblib):
             if self.use_kerberos:
                 self.conn.kerberosLogin(self.username, self.password, domain=self.domain, lmhash='', nthash='', aesKey='', TGT=None, TGS=None)
             elif self.ntlm_hash:
-                self.conn.loginWithHash(self.username, self.ntlm_hash, domain=self.domain)
+                # get nt and lm hashes from ntlm hash
+                try:
+                    nt_hash = self.ntlm_hash.split(":")[1]
+                    lm_hash = self.ntlm_hash.split(":")[0]
+                except IndexError:
+                    print_bad("Invalid NTLM hash. Format should be LM:NT or :NT")
+                    sys.exit()
+                self.conn.login(self.username, self.password, domain=self.domain, lmhash=lm_hash, nthash=nt_hash)
             else:
                 self.conn.login(self.username, self.password, domain=self.domain)
             print_good(f"Successfully logged in to {self.host}:{self.port}")
