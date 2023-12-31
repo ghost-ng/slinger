@@ -13,6 +13,91 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Wrapper Commands**: Commands to edit port forwarding rules and view the windows firewalls
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 
+## Usage
+
+```bash
+python3 slinger.py -h
+
+      __,_____
+     / __.==--"   SLINGER
+    /#(-'             v0.1.0
+    `-'                    a ghost-ng special
+
+usage: slinger.py [-h] --host HOST -u USERNAME -pass PASSWORD [-d DOMAIN] [-p PORT] [--nojoy] [--ntlm NTLM] [--kerberos] [--debug]
+
+impacket swiss army knife (sort of)
+
+options:
+  -h, --help            show this help message and exit
+  --host HOST           Host to connect to
+  -u USERNAME, --username USERNAME
+                        Username for authentication
+  -pass PASSWORD, --password PASSWORD
+                        Password for authentication
+  -d DOMAIN, --domain DOMAIN
+                        Domain for authentication
+  -p PORT, --port PORT  Port to connect to
+  --nojoy               Turn off emojis
+  --ntlm NTLM           NTLM hash for authentication
+  --kerberos            Use Kerberos for authentication
+  --debug               Turn on debug output
+```
+
+Slinger offers multiple authentication methods.  All methods are built on impacket functions and should therefore function the same.  *Warnining* at this time kerberos login has not been tested.
+
+### Login with password
+
+```bash                                                                                                                                 
+┌──(kali㉿kali)-[~/Documents/slinger/src]
+└─$ python3 slinger.py --host 192.168.177.130 --username admin --password admin                                                        
+
+      __,_____
+     / __.==--"   SLINGER
+    /#(-'             v0.1.0
+    `-'                    a ghost-ng special
+
+[*] Connecting to 192.168.177.130:445...
+[+] Successfully logged in to 192.168.177.130:445
+
+Start Time: 2023-12-30 23:46:00.651408
+
+[*] Checking the status of the RemoteRegistry service
+[*] Service RemoteRegistry is in stopped state
+[*] Trying to start RemoteRegistry service
+[+] Remote Registry service started
+[+] Successfully logged in to 192.168.177.130:445
+🤠 (192.168.177.130):> exit
+[*] Remote Registy state restored -> STOPPED
+
+Stop Time: 2023-12-30 23:46:09.633701
+```
+
+### Login with NTLM
+
+```bash
+python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919CC3B1D7AD859697CFA659          
+
+      __,_____
+     / __.==--"   SLINGER
+    /#(-'             v0.1.0
+    `-'                    a ghost-ng special
+
+[*] Connecting to 10.0.0.28:445...
+[+] Successfully logged in to 10.0.0.28:445
+
+Start Time: 2023-12-30 23:42:15.410337
+
+[*] Checking the status of the RemoteRegistry service
+[*] Service RemoteRegistry is in stopped state
+[*] Trying to start RemoteRegistry service
+[+] Remote Registry service started
+[+] Successfully logged in to 10.0.0.28:445
+🤠 (10.0.0.28):> exit
+[*] Remote Registy state restored -> STOPPED
+
+Stop Time: 2023-12-30 23:42:19.886846
+```
+
 ### Available Commands
 
 ```bash

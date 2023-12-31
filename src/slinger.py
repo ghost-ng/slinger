@@ -47,12 +47,14 @@ def main():
     parser = argparse.ArgumentParser(description='impacket swiss army knife (sort of)')
     parser.add_argument('--host', required=True, help='Host to connect to')
     parser.add_argument('-u', '--username', required=True, help='Username for authentication')
-    parser.add_argument('-pass', '--password', required=True, help='Password for authentication')
     parser.add_argument('-d', '--domain', default='', help='Domain for authentication')
     parser.add_argument('-p', '--port', type=int, default=445, help='Port to connect to')
     parser.add_argument('--nojoy', action='store_true', help='Turn off emojis')
-    parser.add_argument('--ntlm', help='NTLM hash for authentication')
-    parser.add_argument('--kerberos', action='store_true', help='Use Kerberos for authentication')
+    # authentication mutually exclusive group
+    auth_group = parser.add_mutually_exclusive_group(required=True)
+    auth_group.add_argument('-pass', '--password', help='Password for authentication')
+    auth_group.add_argument('--ntlm', help='NTLM hash for authentication')
+    auth_group.add_argument('--kerberos', action='store_true', help='Use Kerberos for authentication')
     parser.add_argument('--debug', action='store_true', help='Turn on debug output')
 
     if len(sys.argv) == 1:
