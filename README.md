@@ -1,5 +1,7 @@
 # Slinger
 
+![Alt text](image.png)
+
 Slinger is a versatile tool designed for advanced network interactions and manipulations, with a focus on the SMB protocol. It offers a range of functionalities for interacting with remote systems, including managing scheduled tasks, handling Windows Registry operations, and gathering system information.  Slinger is built on the impacket framework and should offer a similar feel to impacket functions.
 
 ## Features
