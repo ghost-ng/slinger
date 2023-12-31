@@ -13,6 +13,34 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Wrapper Commands**: Commands to edit port forwarding rules and view the windows firewalls
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 
+### Available Commands
+
+```bash
+Available commands:
+------------------------------------------
+!                     help                  reguse                svcdelete           
+#shell                hostname              rm                    svcenum             
+cat                   ifconfig              rmdir                 svcshow             
+cd                    info                  serviceadd            svcstart            
+config                ipconfig              servicecreate         svcstop             
+download              ls                    servicedel            taskadd             
+enumdisk              mget                  servicedelete         taskcreate          
+enuminfo              mkdir                 servicerun            taskdel             
+enuminterfaces        plugincmd             services              taskdelete          
+enumlogons            portfwd               servicesenum          taskenum            
+enumservices          put                   serviceshow           taskexec            
+enumshares            pwd                   servicestart          taskrm              
+enumsys               regcheck              servicestop           taskrun             
+enumtasks             regcreate             set                   tasksenum           
+enumtime              regdel                shares                taskshow            
+enumtransport         regquery              showservice           tasksshow           
+exit                  regset                showtask              upload              
+fwrules               regstart              svcadd                use                 
+get                   regstop               svccreate             who                 
+
+Type help <command> or <command> -h for more information on a specific command
+```
+
 ## Plugins
 
 **none at this time**
