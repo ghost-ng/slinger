@@ -104,28 +104,55 @@ Stop Time: 2023-12-30 23:42:19.886846
 ```bash
 Available commands:
 ------------------------------------------
-!                     help                  reguse                svcdelete           
-#shell                hostname              rm                    svcenum             
-cat                   ifconfig              rmdir                 svcshow             
-cd                    info                  serviceadd            svcstart            
-config                ipconfig              servicecreate         svcstop             
-download              ls                    servicedel            taskadd             
-enumdisk              mget                  servicedelete         taskcreate          
-enuminfo              mkdir                 servicerun            taskdel             
-enuminterfaces        plugincmd             services              taskdelete          
-enumlogons            portfwd               servicesenum          taskenum            
-enumservices          put                   serviceshow           taskexec            
-enumshares            pwd                   servicestart          taskrm              
-enumsys               regcheck              servicestop           taskrun             
-enumtasks             regcreate             set                   tasksenum           
-enumtime              regdel                shares                taskshow            
-enumtransport         regquery              showservice           tasksshow           
-exit                  regset                showtask              upload              
-fwrules               regstart              svcadd                use                 
-get                   regstop               svccreate             who                 
+!                     hostname              rmdir                 svcshow             
+#shell                ifconfig              run                   svcstart            
+cat                   info                  serviceadd            svcstop             
+cd                    ipconfig              servicecreate         taskadd             
+config                ls                    servicedel            taskcreate          
+download              mget                  servicedelete         taskdel             
+enumdisk              mkdir                 servicerun            taskdelete          
+enuminfo              plugincmd             services              taskenum            
+enuminterfaces        portfwd               servicesenum          taskexec            
+enumlogons            put                   serviceshow           taskrm              
+enumservices          pwd                   servicestart          taskrun             
+enumshares            regcheck              servicestop           tasksenum           
+enumsys               regcreate             set                   taskshow            
+enumtasks             regdel                shares                tasksshow           
+enumtime              regquery              showservice           upload              
+enumtransport         regset                showtask              use                 
+exit                  regstart              svcadd                who                 
+fwrules               regstop               svccreate                                 
+get                   reguse                svcdelete                                 
+help                  rm                    svcenum                
 
 Type help <command> or <command> -h for more information on a specific command
 ```
+
+### Command Chaining
+Slinger has two ways to execute a sequence of commands.
+
+- Run a command chain through the CLI:
+    run -c "cmd1;cmd2;cmd3"
+- Run a series of commands from a script file, one command per line
+    cmd1
+    cmd2
+    cmd3
+
+```bash
+run -h
+usage: slinger run [-h] (-c CMD_CHAIN | -f FILE)
+
+Run a slinger script or command sequence
+
+options:
+  -h, --help            show this help message and exit
+  -c CMD_CHAIN, --cmd_chain CMD_CHAIN
+                        Specify a command sequence to run
+  -f FILE, --file FILE  Specify a script file to run
+
+Example Usage: run -c|-f [script]
+```
+
 
 ## Plugins
 
