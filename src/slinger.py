@@ -2,7 +2,7 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.slingerclient import SlingerClient
 from slingerpkg.utils.common import get_config_value, set_config_value, run_local_command, show_config
-from slingerpkg.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help
+from slingerpkg.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, file_to_slinger_script
 from slingerpkg.lib.plugin_base import load_plugins
 from slingerpkg.var.config import version
 import shlex, argparse, sys, os, pty, termios
@@ -101,14 +101,18 @@ def main():
         print_debug('',sys.exc_info())
         sys.exit()
         
-
+    slingerQueue = []
     while True:
         try:
             prompt_text = get_prompt(slingerClient, prgm_args.nojoy)
 
             try:
                 #formatted_text(ANSI(prompt_text),end='')
-                user_input = session.prompt(to_formatted_text(ANSI(prompt_text)))
+                if slingerQueue:
+                    user_input = slingerQueue.pop(0)
+                else:
+                    user_input = session.prompt(to_formatted_text(ANSI(prompt_text)))
+
                 logwriter.info(user_input)
                 split = shlex.split(user_input)
                 #user_input = prompt('', history=history)
@@ -188,37 +192,29 @@ def main():
             elif args.command == "exit":
                 slingerClient.exit()
                 break
+            
 
-            # elif args.command== "upload" or args.command == "put":
-            #     remote_path = ""
-            #     if slingerClient.check_if_connected():
-            #         if args.remote_path == "." or args.remote_path == "" or args.remote_path is None:
-            #             remote_path = os.path.basename(args.local_path)
-            #         else:
-            #             remote_path = args.remote_path
-            #         if os.path.exists(args.local_path):
-            #             print_info(f"Uploading: {args.local_path} --> {slingerClient.share}\\{remote_path}")
-            #             slingerClient.upload(args.local_path, remote_path)
-            #         else:
-            #             print_warning(f"Local path {args.local_path} does not exist.")
+            elif args.command == "run":
+                
+                if args.file:
+                    file_path = os.path.expanduser(args.file)
+                    if not os.path.exists(file_path):
+                        print_warning(f"File {args.file} does not exist")
+                        continue
+                    lines = file_to_slinger_script(file_path)
+                    
+                    for line in lines:
+                        slingerQueue.append(line)
+                    
+                elif args.cmd_chain:
+                    if ";" in args.cmd_chain:
+                        lines = args.cmd_chain.split(";")
+                        
+                        for line in lines:
+                            slingerQueue.append(line)
+                    else:
+                        print_warning("Invalid command sequence.  Use ';' to separate commands")
 
-            # elif args.command == "download" or args.command == "get":
-            #     # handle if remote_path is a file name (relative to current path)
-            #     remote_path = os.path.normpath(os.path.join(slingerClient.relative_path, args.remote_path))
-            #     local_path = ""
-            #     if slingerClient.check_if_connected():
-            #         if not slingerClient.file_exists(args.remote_path):
-            #             print_warning(f"Remote file {args.remote_path} does not exist.")
-            #             continue
-            #         if args.local_path == "." or args.local_path == "" or args.local_path is None:
-            #             local_path = os.path.join(os.getcwd(), os.path.basename(args.remote_path))
-            #         else:
-            #             local_path = args.local_path
-            #         if os.path.isdir(os.path.dirname(local_path)):
-            #             print_info(f"Downloading: {slingerClient.share}\\{remote_path} --> {local_path}")
-            #             slingerClient.download(remote_path, local_path)
-            #         else:
-            #             print_warning(f"Local path {args.local_path} does not exist.")
             else:
                 pass
         except Exception as e:

@@ -34,6 +34,8 @@ def force_help(parser, command):
     else:
         print(f"No command named '{command}' found")
 
+class InvalidParsing(Exception):
+    pass
 
 class CustomArgumentParser(argparse.ArgumentParser):
 
@@ -69,9 +71,13 @@ class CustomArgumentParser(argparse.ArgumentParser):
             msg = 'unrecognized arguments: %s'
             self.error(msg % ' '.join(argv))
         return args
+    
+    
+
     def error(self, message):
         if 'invalid choice' in message:
             print_log('Invalid command entered. Type help for a list of commands.')
+            raise InvalidParsing('Invalid command entered. Type help for a list of commands.')
         #super().error(message)
 
 def show_command_help(parser, command):
@@ -92,7 +98,7 @@ def show_command_help(parser, command):
 
 def setup_cli_parser(slingerClient):
     parser = CustomArgumentParser(prog=program_name, description='In App Commands')
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s '+version, help='Show the version number and exit')
+    parser.add_argument('--version', action='version', version='%(prog)s '+version, help='Show the version number and exit')
 
     subparsers = parser.add_subparsers(dest='command')
 
@@ -342,7 +348,27 @@ def setup_cli_parser(slingerClient):
     
     parser_setvar = subparsers.add_parser('config', help='Show the current config', description='Show the current config', epilog='Example Usage: config')
     
+    parser_run = subparsers.add_parser('run', help='Run a slinger script or command sequence', description='Run a slinger script or command sequence', epilog='Example Usage: run -c|-f [script]')
+    #parser_run.add_argument('-v', '--validate', help='Validate the script or command sequence without running it', action='store_true')
+    parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
+    parser_rungroup.add_argument('-c', '--cmd_chain', help='Specify a command sequence to run')
+    parser_rungroup.add_argument('-f', '--file', help='Specify a script file to run')
+
     return parser
+
+# def validate_args(parser, arg_list):
+#     try:
+#         args = parser.parse_args(arg_list)
+#     except InvalidParsing:
+#         return False
+#     pass
+    
+
+def file_to_slinger_script(file_path):
+    script = ""
+    with open(file_path, 'r') as file:
+        script = file.read().splitlines()
+    return script
 
 def get_subparser_aliases(command, parser):
     for action in parser._actions:

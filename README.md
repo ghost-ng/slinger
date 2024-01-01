@@ -160,10 +160,6 @@ pip install slinger-_._._.tar.gz
 ### Service Control
 - sc modify
 
-### MISC
-- command chaining
-- run a slinger script file (from a script folder)
-
 ## Contributing
 
 ### Creating Your Own Plugin for Slinger
