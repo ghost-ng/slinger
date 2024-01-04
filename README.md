@@ -160,7 +160,7 @@ Example Usage: run -c|-f [script]
 
 ## Installation
 
-Clone the repository and install the required dependencies:
+Clone the repository and install using one of the below methods:
 
 ### Using this Repo
 ```bash
@@ -168,10 +168,15 @@ git clone https://github.com/ghost-ng/slinger.git
 cd slinger
 pip install -r requirements.txt
 pip install .
+export PATH=~/.local/bin:$PATH  #if not already done
 ```
 
 ### Using the Distribution Packages
-pip install slinger-_._._.tar.gz
+```bash
+pip install slinger-version.tar.gz
+export PATH=~/.local/bin:$PATH  #if not already done
+```
+
 
 ## TODO
 
