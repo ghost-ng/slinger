@@ -110,6 +110,8 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'ls' command
     parser_dir = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path', epilog='Example Usage: ls /path/to/directory')
     parser_dir.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path')
+    parser_dir.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
+    parser_dir.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
     parser_dir.set_defaults(func=slingerClient.dir_list)
 
     # Subparser for 'shares' command
@@ -425,7 +427,7 @@ def get_prompt(client, nojoy):
         preamble = slinger_emoji + " "
         emoji = preamble if not nojoy else ""
     
-    prompt = f"{emoji}{colors.OKGREEN}({client.host}):{client.current_path}>{colors.ENDC} "
+    prompt = f"{emoji}{colors.OKGREEN}({client.host}):\\\\{client.current_path}>{colors.ENDC} "
     return prompt
 
 
