@@ -79,6 +79,7 @@ class schtasks():
             folder (str): The folder to start the enumeration from. Defaults to "\\".
             start_index (int): The starting index for the enumeration. Defaults to 0.
         """
+        print_info("Getting all tasks, this might take a while...")
         folder="\\"
         start_index=0
         print_info("Enumerating Task Scheduler...")

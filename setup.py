@@ -22,10 +22,5 @@ setup(
     url="https://github.com/ghost-ng/slinger",
     python_requires='>=3.10',
     scripts=['src/slinger.py'],
-    entry_points={
-        'console_scripts': [
-            'slinger=slinger.slinger:main',
-        ],
-    },
     data_files=[('src/slingerpkg/plugins', ['src/slingerpkg/plugins/my_plugin.py'])],
 )

@@ -346,7 +346,7 @@ class DCETransport:
         # Let's check its status
         ans = scmr.hRQueryServiceStatus(self.dce, svcHandle)
         if ans['lpServiceStatus']['dwCurrentState'] == scmr.SERVICE_STOPPED:
-            print_info('Service %s is in stopped state' % serviceName)
+            print_info('Service %s is in a stopped state' % serviceName)
             return False
         elif ans['lpServiceStatus']['dwCurrentState'] == scmr.SERVICE_RUNNING:
             print_info('Service %s is already running' % serviceName)

@@ -31,6 +31,7 @@ class smblib():
             self.share = share
             print_good(f"Connected to share {share}")
             self.is_connected_to_share = True
+            self.relative_path = ""
             self.update_current_path()
         except Exception as e:
             print_debug(str(e), sys.exc_info())
@@ -348,13 +349,45 @@ class smblib():
                 if f.is_system(): attributes += 'S'
                 if f.is_archive(): attributes += 'A'
                 long_name = f.get_longname()
-                dirList.append([file_type, creation_time, last_access_time, last_write_time, filesize, attributes, long_name])
+                # attributes is file type - attributes (if not empty)
+                attribs = file_type if attributes == '' else file_type + "," + attributes
+                dirList.append([attribs, creation_time, last_access_time, last_write_time, filesize, long_name])
             if path == "\\":
                 suffix = ""
             else:
                 suffix = path + "\\"
             print_info("Showing directory listing for: " + os.path.normpath(self.share + "\\" + suffix))
-            print_log(tabulate(dirList, headers=['Type', 'Created', 'Last Access', 'Last Write', 'Size', 'Attribs', 'Name'], tablefmt='psql'))
+
+            # get sort option from arg.sort
+            sort_option = args.sort
+            reverse_sort_option = args.sort_reverse
+            if sort_option == "name":
+                if reverse_sort_option:
+                    dirList.sort(key=lambda x: x[5], reverse=True)
+                else:
+                    dirList.sort(key=lambda x: x[5])
+            elif sort_option == "created":
+                if reverse_sort_option:
+                    dirList.sort(key=lambda x: x[1], reverse=True)
+                else:
+                    dirList.sort(key=lambda x: x[1])
+            elif sort_option == "lastaccess":
+                if reverse_sort_option:
+                    dirList.sort(key=lambda x: x[2], reverse=True)
+                else:
+                    dirList.sort(key=lambda x: x[2])
+            elif sort_option == "lastwrite":
+                if reverse_sort_option:
+                    dirList.sort(key=lambda x: x[3], reverse=True)
+                else:
+                    dirList.sort(key=lambda x: x[3])
+            elif sort_option == "size":
+                if reverse_sort_option:
+                    dirList.sort(key=lambda x: x[4], reverse=True)
+                else:
+                    dirList.sort(key=lambda x: x[4])
+
+            print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
         except Exception as e:
             print_debug(f"Failed to list directory {path} on share {self.share}: {e}", sys.exc_info())
             print_bad(f"Failed to list directory {path} on share {self.share}: {e}")

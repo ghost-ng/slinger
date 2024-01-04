@@ -180,12 +180,17 @@ pip install slinger-_._._.tar.gz
 
 ### Task Scheduler
 - all in one (create, execute, delete)
+- add task run modifiers (run every X min/hour)
 
 ### Registry
 - uptime
+- process enumeration (inspired by nmap ns script)
 
 ### Service Control
 - sc modify
+
+### Test
+- test on a domain
 
 ## Contributing
 
