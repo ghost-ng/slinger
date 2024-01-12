@@ -231,11 +231,8 @@ class DCETransport:
         flags = tsch.TASK_CREATE | tsch.TASK_FLAG_SYSTEM_REQUIRED | tsch.TASK_FLAG_HIDDEN
         sddl = ''  # Security descriptor definition language string (empty string for default permissions)
         abs_path = folder_path + "\\" + task_name
-        abs_path = abs_path .replace(r'\\', chr(92))
-        print_log(f"Creating Task: {abs_path}")
-        # Register the task
-        # tsch.hSchRpcRegisterTask(dce, '\\%s' % tmpName, xml, tsch.TASK_CREATE, NULL, tsch.TASK_LOGON_NONE)
-            
+        abs_path = abs_path.replace(r'\\', chr(92))
+
         response = tsch.hSchRpcRegisterTask(self.dce, abs_path, task_xml, tsch.TASK_CREATE, NULL, tsch.TASK_LOGON_NONE)
         return response
 

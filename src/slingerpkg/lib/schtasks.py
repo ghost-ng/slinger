@@ -179,8 +179,27 @@ class schtasks():
         arguments = args.arguments
         folder_path = args.folder
         # generate random date in last year using format 2023-01-01T08:00:00
-        new_date = generate_random_date()
-        task_xml = f"""<?xml version="1.0" encoding="UTF-16"?>
+        
+        if args.date:
+            new_date = reformat_datetime(args.date)
+        else:
+            new_date = generate_random_date()
+
+        interval = None
+        if args.interval:
+            #if less than 60, -> PT_M
+            #if greater than 60, -> PT_H
+            if int(args.interval) % 60 == 0:
+                h = int(args.interval) / 60
+                interval = f"PT{h}H"
+            elif int(args.interval) < 60:
+                interval = f"PT{args.interval}M"
+            else:
+                h = round(int(args.interval) / 60)
+                m = int(args.interval) % 60
+                interval = f"PT{h}H{m}M"
+
+        task_xml_once = f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <Date>{new_date}</Date>
@@ -229,20 +248,83 @@ class schtasks():
   </Actions>
 </Task>
 """
+        
+        task_xml_interval = f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Date>{new_date}</Date>
+    <Author>SYSTEM</Author>
+    <URI>{folder_path}\{task_name}</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <Repetition>
+        <Interval>{interval}</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <StartBoundary>{new_date}</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-18</UserId>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>false</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>true</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>true</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT72H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>{program}</Command>
+      <Arguments>{xml_escape(arguments)}</Arguments>
+    </Exec>
+  </Actions>
+</Task>
+"""     
+        task_xml = task_xml_interval if args.interval else task_xml_once
         #validate_xml(task_xml)
         self.setup_dce_transport()
         self.dce_transport._connect('atsvc')
         
-        print_info(f"Creating task '{task_name}' in folder '{folder_path}'")
+        
         print_info("Using Program: " + program)
         print_info("Using Arguments: " + arguments)
-        print_info("Task XML:")
-        print_log(task_xml)
+        print_info("Using Date: " + new_date)
+        print_info("Using Interval: " + interval if args.interval else "Using Interval: None")
+        print_debug("Task XML:")
+        print_debug(task_xml)
+        abs_path = folder_path + "\\" + task_name
+        abs_path = abs_path.replace(r'\\', chr(92))
+        print_log(f"Creating Task: {abs_path}")
         try:
             response = self.dce_transport._create_task(task_name, folder_path, task_xml)
         except Exception as e:
             if "ERROR_ALREADY_EXISTS" in str(e):
                 print_warning(f"Task '{task_name}' already exists in folder '{folder_path}'")
+                return
+            else:
+                print_bad(f"Error creating task '{task_name}': {e}")
                 return
 
         if response['ErrorCode'] == 0:
@@ -313,10 +395,11 @@ class schtasks():
 
         if not self.folder_list_dict and args.taskid:
             print_warning("No tasks have been enumerated. Run enumtasks first.")
-        else:
+        elif args.task_path:
             task_arg = args.taskid if args.taskid else args.task_path
             self.view_task_details(task_arg)
-
+        else:
+            print_warning("No task specified. Use taskshow -i <taskid> or taskshow <name> to specify a task.")
 
     def task_manager(self):
         pass

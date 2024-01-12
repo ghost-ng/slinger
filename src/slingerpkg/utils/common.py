@@ -73,6 +73,18 @@ def generate_random_date(lower_time_bound=None):
     random_date = lower_time_bound + datetime.timedelta(seconds=random_second)
     return random_date.strftime("%Y-%m-%dT%H:%M:%S")
 
+def reformat_datetime(datetime_str):
+    original_format = "%Y-%m-%d %H:%M:%S"  # Assuming the original format is "%Y-%m-%d %H:%M:%S"
+    new_format = "%Y-%m-%dT%H:%M:%S"  # Desired format "%Y-%m-%dT%H:%M:%S"
+
+    # Parse the original datetime string
+    dt = datetime.datetime.strptime(datetime_str, original_format)
+
+    # Convert the datetime object to the desired format
+    formatted_datetime = dt.strftime(new_format)
+
+    return formatted_datetime
+
 def xml_escape(data):
     replace_table = {
             "&": "&amp;",
