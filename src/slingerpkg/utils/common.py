@@ -58,7 +58,7 @@ def run_local_command(command):
 
 def enum_struct(obj):
     for k,v in obj.__dict__.items():
-        print_log(k ,v)
+        print(k ,v)
         if hasattr(v,'__dict__'):
             enum_struct(v)
 

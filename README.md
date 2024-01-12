@@ -180,22 +180,7 @@ export PATH=~/.local/bin:$PATH  #if not already done
 
 ## TODO
 
-### File System
-- recursive ls
-
-### Task Scheduler
-- all in one (create, execute, delete)
-- add task run modifiers (run every X min/hour)
-
-### Registry
-- uptime
-- process enumeration (inspired by nmap ns script)
-
-### Service Control
-- sc modify
-
-### Test
-- test on a domain
+- see TODO.md
 
 ## Contributing
 

