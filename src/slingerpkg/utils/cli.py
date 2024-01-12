@@ -210,7 +210,7 @@ def setup_cli_parser(slingerClient):
     parser_taskenum = subparsers.add_parser('enumtasks', help='Enumerate scheduled tasks', description='Enumerate scheduled tasks on the remote server', epilog='Example Usage: enumtasks', aliases=['tasksenum','taskenum'])
     parser_taskenum.set_defaults(func=slingerClient.enum_task_folders_recursive)
     # Subparser for 'tasksshow' command
-    parser_taskshow = subparsers.add_parser('tasksshow', help='Show task details', description='Show details of a specific task on the remote server', epilog='Example Usage: tasksshow -i 123', aliases=['taskshow','showtask'])
+    parser_taskshow = subparsers.add_parser('taskshow', help='Show task details', description='Show details of a specific task on the remote server', epilog='Example Usage: tasksshow -i 123', aliases=['tasksshow','showtask'])
     taskshowgroup = parser_taskshow.add_mutually_exclusive_group(required=True)
     taskshowgroup.add_argument('-i', '--taskid', type=int, help='Specify the ID of the task to show')
     taskshowgroup.add_argument('task_path', type=str, nargs='?', help='Specify the full path of the task to show')
@@ -220,9 +220,11 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'taskcreate' command
     parser_taskcreate = subparsers.add_parser('taskcreate', help='Create a new task', description='Create a new scheduled task on the remote server', epilog="Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\\test' -f \\\\Windows", aliases=['taskadd'], formatter_class=argparse.RawDescriptionHelpFormatter)
     parser_taskcreate.add_argument('-n', '--name', required=True, help='Specify the name of the new task')
-    parser_taskcreate.add_argument('-p', '--program', required=True, help='Specify the program to run in the task')
-    parser_taskcreate.add_argument('-a', '--arguments', required=True, help='Specify the arguments to pass to the program')
-    parser_taskcreate.add_argument('-f', '--folder', required=True, default="\\", help='Specify the folder to create the task in')
+    parser_taskcreate.add_argument('-p', '--program', required=True, help='Specify the program to run (cmd.exe)')
+    parser_taskcreate.add_argument('-a', '--arguments', required=False, help='Specify the arguments to pass to the program')
+    parser_taskcreate.add_argument('-f', '--folder', required=False, default="", help='Specify the folder to create the task in')
+    parser_taskcreate.add_argument('-i', '--interval', required=False, default=None, help='Specify an interval in minutes to run the task')
+    parser_taskcreate.add_argument('-d', '--date', required=False, default=None, help='Specify the date to start the task (2099-12-31 14:01:00)')
     parser_taskcreate.set_defaults(func=slingerClient.task_create)
 
     # Subparser for 'taskrun' command

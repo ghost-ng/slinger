@@ -83,6 +83,18 @@ class smblib():
         if args.remote_path == "." or args.remote_path == "" or args.remote_path is None:
             print_warning("Please specify a file to remove.")
             return
+        if args.remote_path == "*":
+            # get file listing
+            list_path = self.relative_path + '\\*' if self.relative_path else '*'
+            files = self.conn.listPath(self.share, list_path)
+            for f in files:
+                if f.is_directory() and f.get_longname() in ['.', '..']:
+                    continue
+                path = ntpath.normpath(ntpath.join(self.relative_path, f.get_longname()))
+                print_debug(f"Removing file {path}")
+                self.conn.deleteFile(self.share, path)
+                print_info(f"File Removed {path}")
+            return
         path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
         
         if self.check_if_connected():
@@ -141,16 +153,18 @@ class smblib():
         self.current_path = ntpath.normpath(self.share + "\\" + self.relative_path)
 
     # validate the directory exists
-    def is_valid_directory(self, path):
+    def is_valid_directory(self, path, print_error=True):
         list_path = path + '\\*' if path else '*'
         try:
             self.conn.listPath(self.share, list_path)
             return True
         except Exception as e:
             if "STATUS_STOPPED_ON_SYMLINK" in str(e):
-                print_warning(f"Remote directory {path} is a symlink.")
+                if print_error:
+                    print_warning(f"Remote directory {path} is a symlink.")
             elif "STATUS_NOT_A_DIRECTORY" in str(e):
-                print_warning(f"Remote object {path} is not a directory.")
+                if print_error:
+                    print_warning(f"{path} is not a directory.")
 
             print_debug(f"Failed to list directory {path} on share {self.share}: {e}", sys.exc_info())
             return False
@@ -328,16 +342,17 @@ class smblib():
             path = os.path.normpath(os.path.join(self.relative_path,path))
 
 
-        if not self.is_valid_directory(path):
-            print_bad(f"Invalid directory: {path}")
-            return
+        #if not self.is_valid_directory(path):
+        #    print_bad(f"Invalid directory: {path}")
+            #return
 
         dirList = []
-        if self.share is None:
-            print_warning("No share is connected. Use the 'use' command to connect to a share.")
-            return
+
         try:
-            list_path = path + '\\*' if path else '*'
+            if not self.is_valid_directory(path, print_error=False) and "\\" not in path:
+                list_path = path
+            else:
+                list_path = path + '\\*' if path else '*'
             files = self.conn.listPath(self.share, list_path)
             for f in files:
                 creation_time = (datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=f.get_ctime()/10)).replace(microsecond=0)
@@ -358,7 +373,7 @@ class smblib():
                 suffix = ""
             else:
                 suffix = path + "\\"
-            print_info("Showing directory listing for: " + os.path.normpath(self.share + "\\" + suffix))
+            print_debug("Showing file listing for: " + os.path.normpath(self.share + "\\" + suffix))
 
             # get sort option from arg.sort
             sort_option = args.sort
@@ -391,5 +406,8 @@ class smblib():
 
             print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
         except Exception as e:
-            print_debug(f"Failed to list directory {path} on share {self.share}: {e}", sys.exc_info())
-            print_bad(f"Failed to list directory {path} on share {self.share}: {e}")
+            if "STATUS_NO_SUCH_FILE" in str(e):
+                print_warning(f"Invalid directory or file: {path}")
+            else:
+                print_debug(f"Failed to list file or directory {path} on share {self.share}: {e}", sys.exc_info())
+            
