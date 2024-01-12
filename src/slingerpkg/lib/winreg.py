@@ -1,9 +1,10 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
-import traceback
 from time import sleep
 from slingerpkg.utils.common import reduce_slashes
+
+import struct
 
 def extract_reg_values(input_text, keys):
     """
@@ -614,3 +615,21 @@ class winreg():
                     connect_addr, connect_port = rule[2].split("/")
                     self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})
                 return True
+            
+    def show_process_list(self, args):
+        """
+        Retrieves and prints the list of running processes.
+
+        Returns:
+            None
+        """
+        #https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters
+        print_info("This function is not implemented yet")
+        return
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        print_info("Retrieving Processes List...")
+        #counter_name = "ID Process"
+        data_blob = self.dce_transport._reg_query_perf_data()
+ 
+

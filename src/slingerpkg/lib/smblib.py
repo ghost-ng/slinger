@@ -33,6 +33,7 @@ class smblib():
             self.is_connected_to_share = True
             self.relative_path = ""
             self.update_current_path()
+            self.dce_transport.share = share
         except Exception as e:
             print_debug(str(e), sys.exc_info())
             if "STATUS_BAD_NETWORK_NAME" in str(e):
@@ -237,6 +238,7 @@ class smblib():
         try:
             with open(local_path, 'wb') as file_obj:
                 self.conn.getFile(self.share, remote_path, file_obj.write)
+            print_good(f"Downloaded file '{remote_path}' to '{local_path}'")
         except Exception as e:
             print_debug(f"Failed to download file '{remote_path}' to '{local_path}': {e}", sys.exc_info())
             if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e):

@@ -339,6 +339,8 @@ def setup_cli_parser(slingerClient):
     parser_hostname = subparsers.add_parser('hostname', help='Display hostname', description='Display the hostname of the remote server', epilog='Example Usage: hostname')
     parser_hostname.set_defaults(func=slingerClient.hostname)
 
+    parser_procs = subparsers.add_parser('procs', help='List running processes', aliases=['ps','tasklist'], description='List running processes on the remote server', epilog='Example Usage: procs')
+    parser_procs.set_defaults(func=slingerClient.show_process_list)
 
     parser_fwrules = subparsers.add_parser('fwrules', help='Display firewall rules', description='Display firewall rules on the remote server', epilog='Example Usage: fwrules')
     parser_fwrules.set_defaults(func=slingerClient.show_fw_rules)
@@ -355,6 +357,12 @@ def setup_cli_parser(slingerClient):
     parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
     parser_rungroup.add_argument('-c', '--cmd_chain', help='Specify a command sequence to run')
     parser_rungroup.add_argument('-f', '--file', help='Specify a script file to run')
+
+    parser_hashdump = subparsers.add_parser('hashdump', help='Dump hashes from the remote server', description='Dump hashes from the remote server', epilog='Example Usage: hashdump')
+    parser_hashdump.set_defaults(func=slingerClient.hashdump)
+
+    parser_secretsdump = subparsers.add_parser('secretsdump', help='Dump secrets from the remote server', description='Dump secrets from the remote server', epilog='Example Usage: secretsdump')
+    parser_secretsdump.set_defaults(func=slingerClient.secretsdump)
 
     return parser
 
