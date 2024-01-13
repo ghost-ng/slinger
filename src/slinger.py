@@ -111,7 +111,7 @@ def main():
                 if slingerQueue:
                     user_input = slingerQueue.pop(0)
                 else:
-                    user_input = session.prompt(to_formatted_text(ANSI(prompt_text)))
+                    user_input = session.prompt(to_formatted_text(ANSI(prompt_text)), complete_while_typing=False, complete_style='readline')
 
                 logwriter.info(user_input)
                 split = shlex.split(user_input)
