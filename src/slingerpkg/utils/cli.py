@@ -191,6 +191,20 @@ def setup_cli_parser(slingerClient):
     svcstopgroup.add_argument('-i', '--serviceid', type=int, help='Specify the ID of the service to stop')
     svcstopgroup.add_argument('service_name', type=str, nargs='?', help='Specify the name of the service to stop')
 
+    # Subparser for 'serviceenable' command
+    parser_svcenable = subparsers.add_parser('serviceenable', help='Enable a service', description='Enable a specified service on the remote server', epilog='Example Usage: serviceenable -i 123  OR svcenable Spooler', aliases=['svcenable','enableservice', 'enablesvc'])
+    parser_svcenable.set_defaults(func=slingerClient.enable_service_handler)
+    svcenablegroup = parser_svcenable.add_mutually_exclusive_group(required=True)
+    svcenablegroup.add_argument('-i', '--serviceid', type=int, help='Specify the ID of the service to enable')
+    svcenablegroup.add_argument('service_name', type=str, nargs='?', help='Specify the name of the service to enable')
+
+    # Subparser for 'servicedisable' command
+    parser_svcdisable = subparsers.add_parser('servicedisable', help='Disable a service', description='Disable a specified service on the remote server', epilog='Example Usage: servicedisable -i 123  OR svcdisable Spooler', aliases=['svcdisable','disableservice', 'disablesvc'])
+    parser_svcdisable.set_defaults(func=slingerClient.disable_service_handler)
+    svcdisablegroup = parser_svcdisable.add_mutually_exclusive_group(required=True)
+    svcdisablegroup.add_argument('-i', '--serviceid', type=int, help='Specify the ID of the service to disable')
+    svcdisablegroup.add_argument('service_name', type=str, nargs='?', help='Specify the name of the service to disable')
+
     # Subparser for 'servicedel' command
     parser_svcdelete = subparsers.add_parser('servicedel', help='Delete a service', description='Delete a specified service on the remote server', epilog='Example Usage: servicedelete -i 123  OR svcdelete Spooler', aliases=['svcdelete','servicedelete'])
     svcdeletegroup = parser_svcdelete.add_mutually_exclusive_group(required=True)

@@ -96,7 +96,15 @@ class winreg():
         try:
             print_info("Starting Remote Registry service")
             response = self.dce_transport._start_service('RemoteRegistry')
-            print_good("Remote Registry service started")
+            if response == "DISABLED":
+                print_info("Trying to enable the Remote Registry service")
+                self.dcetransport._connect('winreg')
+                ans = self.dce_transport._enable_service('RemoteRegistry')
+            
+                if ans != False:
+                    print_good("Remote Registry service started")
+                else:
+                    print_bad("Failed to start Remote Registry service")
             
         except Exception as e:
             
