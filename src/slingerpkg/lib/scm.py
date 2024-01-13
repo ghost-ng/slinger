@@ -43,6 +43,90 @@ class scm():
             service_arg = args.serviceid if args.serviceid else args.service_name
             self.start_service(service_arg)
 
+    def enable_service_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+        else:
+            service_arg = args.serviceid if args.serviceid else args.service_name
+            self.enable_service(service_arg)
+
+    def disable_service_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+        else:
+            service_arg = args.serviceid if args.serviceid else args.service_name
+            self.disable_service(service_arg)
+
+    def disable_service(self, service_arg):
+        self.setup_dce_transport()
+        self.dce_transport._connect('svcctl')
+        
+        # lookup taskpath and task name from dict with task_id
+        service_name = None
+        if type(service_arg) is int:
+            print_info("Looking up service ID...")
+            count = 1
+            #print_log("Searching through %d services" % len(self.services_list))
+            for service in self.services_list:
+                #print_info("Checking service %d" % count)
+                if count == service_arg:
+                    service_name = service[1]
+                    break                    
+                count += 1
+        else:
+            service_name = service_arg
+            
+        if service_name is None:
+            print_warning("Service name not found")
+            return
+        else:
+            print_info("Chosen Service: " + service_name)
+        try:
+            response = self.dce_transport._disable_service(service_name)
+            if response:
+                print_good("Service disabled successfully")
+            else:
+                print_log(f"Error disabling service '{service_name}': {response['ErrorCode']}")
+        except Exception as e:
+            print_bad("Unable to disable service: " + service_name)
+            print_bad("An error occurred:" + str(e))
+            print_debug('', sys.exc_info())
+
+    def enable_service(self, service_arg):
+        self.setup_dce_transport()
+        self.dce_transport._connect('svcctl')
+        service_name = None
+        if type(service_arg) is int:
+            print_info("Looking up service ID...")
+            count = 1
+            #print_log("Searching through %d services" % len(self.services_list))
+            for service in self.services_list:
+                #print_info("Checking service %d" % count)
+                if count == service_arg:
+                    service_name = service[1]
+                    break                    
+                count += 1
+        else:
+            service_name = service_arg
+            
+        if service_name is None:
+            print_warning("Service name not found")
+            return
+        else:
+            print_info("Chosen Service: " + service_name)
+
+        try:
+            print_info(f"Trying to enable service {service_name}")
+            response = self.dce_transport._enable_service(service_name)
+            if response:
+                print_good("Service enabled successfully")
+            else:
+                print_log(f"Error enabling service '{service_name}': {response['ErrorCode']}")
+        except Exception as e:
+            print_bad("Unable to enable service: " + service_name)
+            print_bad("An error occurred:" + str(e))
+            print_debug('', sys.exc_info())
+
     def start_service(self, service_arg):
         self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
@@ -70,7 +154,13 @@ class scm():
             print_info("Chosen Service: " + service_name)
         try:
             response = self.dce_transport._start_service(service_name)
-            if response['ErrorCode'] == 0:
+            if response == "DISABLED":
+                print_warning("Failed to start service: " + service_name)
+                print_warning("Service disabled")
+                return
+            elif response is False:
+                return
+            elif response is True:
                 print_good("Service started successfully")
             else:
                 print_log(f"Error starting service '{service_name}': {response['ErrorCode']}")

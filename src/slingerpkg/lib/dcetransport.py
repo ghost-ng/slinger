@@ -112,10 +112,21 @@ class DCETransport:
             self.rrpstarted = True
         else:
             print_info("Trying to start RemoteRegistry service")
-            response = self._start_service('RemoteRegistry', bind=False)
-            self.rrpstarted = True
-            self.rrpshouldStop = True
-            print_good("Remote Registry service started")
+            self._connect('svcctl')
+            response = self._start_service('RemoteRegistry', bind=True)
+            if response == "DISABLED":
+                self.rrpshouldDisable = True
+                print_bad("Remote Registry service is disabled")
+                self._connect('svcctl')
+                print_info("Trying to enable RemoteRegistry service")
+                _ = self._enable_service("RemoteRegistry")
+                _ = self._start_service('RemoteRegistry', bind=False)
+                print_info("Checking the status of the RemoteRegistry service")
+                response = self._checkServiceStatus("RemoteRegistry")
+                if response:
+                    self.rrpshouldStop = True
+                    self.rrpstarted = True
+                    print_good("Remote Registry service started")
 
     def _close_scm_handle(self, serviceHandle):
         try:
@@ -128,6 +139,10 @@ class DCETransport:
             self._connect('svcctl')
             self._stop_service("RemoteRegistry")
             print_info("Remote Registy state restored -> STOPPED")
+        if self.rrpshouldDisable:
+            self._connect('svcctl')
+            self._disable_service("RemoteRegistry")
+            print_info("Remote Registy state restored -> DISABLED")
         self.dce.disconnect()
         self.is_connected = False
 
@@ -270,6 +285,54 @@ class DCETransport:
         self._close_scm_handle(self.scManagerHandle)
         return response
 
+    def _disable_service(self, service_name):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(scmr.MSRPC_UUID_SCMR)
+        ans = scmr.hROpenSCManagerW(self.dce)
+        self.scManagerHandle = ans['lpScHandle']
+        ans = scmr.hROpenServiceW(self.dce, self.scManagerHandle, service_name + '\x00')
+        self.serviceHandle = ans['lpServiceHandle']
+        try:
+            response = scmr.hRChangeServiceConfigW(self.dce, self.serviceHandle, dwStartType=scmr.SERVICE_DISABLED)
+            self._close_scm_handle(self.serviceHandle)
+            if response['ErrorCode'] == 0:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            if "ERROR_ACCESS_DENIED" in str(e):
+                print_bad("Unable to change service configuration, access denied")
+            else:
+                print_bad("An error occurred: " + str(e))
+            return False
+
+    def _enable_service(self, service_name):
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(scmr.MSRPC_UUID_SCMR)
+        ans = scmr.hROpenSCManagerW(self.dce)
+        self.scManagerHandle = ans['lpScHandle']
+        ans = scmr.hROpenServiceW(self.dce, self.scManagerHandle, service_name + '\x00')
+        self.serviceHandle = ans['lpServiceHandle']
+        try:
+            response = scmr.hRChangeServiceConfigW(self.dce, self.serviceHandle, dwStartType=scmr.SERVICE_AUTO_START)
+            self._close_scm_handle(self.serviceHandle)
+            if response['ErrorCode'] == 0:
+                return True
+            else:
+                return False
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            if "ERROR_ACCESS_DENIED" in str(e):
+                print_bad("Unable to change service configuration, access denied")
+            else:
+                print_bad("An error occurred: " + str(e))
+            return False
+
     def _get_service_details(self, service_name):
         if not self.is_connected:
             raise Exception("Not connected to remote host")
@@ -303,11 +366,27 @@ class DCETransport:
                 raise e
             return
         serviceHandle = ans['lpServiceHandle']
-        response = scmr.hRStartServiceW(self.dce, serviceHandle)
-        self._close_scm_handle(serviceHandle)
-        if service_name == "RemoteRegistry":
-            self.rrpstarted = True
-        return response
+        try:
+            response = scmr.hRStartServiceW(self.dce, serviceHandle)
+            self._close_scm_handle(serviceHandle)
+            if service_name == "RemoteRegistry":
+                self.rrpstarted = True
+            if response['ErrorCode'] == 0:
+                
+                return True
+        except Exception as e:
+            if "ERROR_SERVICE_DISABLED" in str(e):
+                return "DISABLED"
+            elif "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
+                return "RUNNING"
+            elif "ERROR_ACCESS_DENIED" in str(e):
+                print_bad("Unable to start service, access denied")
+                return False
+            else:
+                print_debug(str(e), sys.exc_info())
+                return False
+            
+        
 
     def _stop_service(self, service_name):
         if not self.is_connected:
