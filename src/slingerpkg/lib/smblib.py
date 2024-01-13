@@ -240,6 +240,7 @@ class smblib():
                 else:
                     local_path = args.local_path
             if os.path.isdir(os.path.dirname(local_path)):
+                remote_path = ntpath.normpath(remote_path)
                 print_info(f"Downloading: {ntpath.join(self.share,remote_path)} --> {local_path}")
                 self.download(remote_path, local_path)
             else:
