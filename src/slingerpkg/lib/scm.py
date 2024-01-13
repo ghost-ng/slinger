@@ -257,6 +257,10 @@ class scm():
             else:
                 new_list = self.services_list
             
+            # truncate the 'Display Name" if greater than 70 characters
+            for service in new_list:
+                if len(service[2]) > 70:
+                    service[2] = service[2][:70] + "..."
             # Print the DataFrame using tabulate
             print_log(tabulate(new_list, headers=['ID','Service Name', 'Display Name', 'State'], tablefmt='psql'))
             print_log("Total Services: %d" % len(self.services_list))

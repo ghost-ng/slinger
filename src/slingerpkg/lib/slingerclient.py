@@ -68,6 +68,9 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets):
         if self.conn is None or self.conn == "":
             self.is_logged_in = False
             raise Exception("Failed to create SMB connection.")
+        
+        self.conn._timeout = int(config.smb_conn_timeout)
+
         try:
             if self.use_kerberos:
                 self.conn.kerberosLogin(self.username, self.password, domain=self.domain, lmhash='', nthash='', aesKey='', TGT=None, TGS=None)

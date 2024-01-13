@@ -421,7 +421,15 @@ class DCETransport:
         ans = scmr.hROpenSCManagerW(self.dce)
         svcHandle = ans['lpScHandle']
         # Now let's open the service
-        ans = scmr.hROpenServiceW(self.dce, svcHandle, serviceName)
+        try:
+            ans = scmr.hROpenServiceW(self.dce, svcHandle, serviceName)
+        except Exception as e:
+            if "rpc_s_access_denied" in str(e):
+                print_bad("Unable to connect to service, access denied")
+            else:
+                print_bad("An error occurred: " + str(e))
+                print_debug('', sys.exc_info())
+            return
         svcHandle = ans['lpServiceHandle']
         # Let's check its status
         ans = scmr.hRQueryServiceStatus(self.dce, svcHandle)
