@@ -30,6 +30,7 @@ def extract_reg_values(input_text, keys):
         else:
             # If the key is not found, store None
             values[key] = None
+    #enter_interactive_mode(local=locals())
     return values
 
 
@@ -49,7 +50,7 @@ class winreg():
         self.portproxy_root = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\PortProxy\\"
         self.active_portfwd_rules = []
 
-    def enum_key_value(self, keyName, hex_dump=True, return_val=False):
+    def enum_key_value(self, keyName, hex_dump=True, return_val=False, echo=True):
         """
         Enumerate the values of a given registry key.
 
@@ -67,10 +68,13 @@ class winreg():
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
 
-        print_info("Enumerating Key: " + keyName)
+        if echo:
+            print_info("Enumerating Key: " + keyName)
         hKey = self.dce_transport._get_key_handle(keyName)
 
         ans = self.dce_transport._get_key_values(hKey, hex_dump=False)
+        #enter_interactive_mode(local=locals())
+
         if not return_val:
             print_log(keyName)
             print_log(ans)
@@ -127,6 +131,8 @@ class winreg():
             except Exception as e:
                 if "ERROR_FILE_NOT_FOUND" in str(e):
                     print_bad("Registry key does not exist")
+                elif "ERROR_BAD_PATHNAME" in str(e):
+                    print_bad("Invalid registry path")
                 else:
                     print_bad("Error querying registry key: " + str(e))
                     print_debug(str(e), sys.exc_info())
@@ -420,6 +426,44 @@ class winreg():
         else:
             print_bad(f"Failed to Delete Value {keyValue} from {keyName}")
 
+    def show_env_handler(self, args):
+        ans = self.show_env()
+        print_log(ans)
+
+    def get_processor_architecture(self):
+        """
+        Retrieves the processor architecture from the Windows registry.
+
+        Returns:
+            str: The processor architecture of the machine.
+
+        Raises:
+            Exception: If there is an error retrieving the processor architecture.
+        """
+        self.registry_used = True
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        ans = self.show_env(echo=False)
+        values = extract_reg_values(ans, ["PROCESSOR_ARCHITECTURE"])
+        if "64" in values["PROCESSOR_ARCHITECTURE"]:
+            print_debug("Processor is 64-bit")
+            return "64"
+        else:
+            print_debug("Processor is 32-bit")
+            return "32"
+
+    def show_env(self, echo=True):
+        """
+        Retrieves and prints the environment variables for the current host.
+
+        Returns:
+            None
+        """
+        self.registry_used = True
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        ans = self.enum_key_value("HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment\\", return_val=True, echo=echo)
+        return ans
 
     def does_key_exist(self, args):
         """
@@ -632,12 +676,31 @@ class winreg():
             None
         """
         #https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters
-        print_info("This function is not implemented yet")
-        return
+        
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         print_info("Retrieving Processes List...")
         #counter_name = "ID Process"
-        data_blob = self.dce_transport._reg_query_perf_data()
- 
+        arch = self.get_processor_architecture()
+        self.dce_transport._connect('winreg')
+        result = self.dce_transport._hQueryPerformaceData("230", int(arch))
+        process_list = result[2]["Process"]
+        names = {}
+        names = [key for key in process_list if key != "_Total"]
+        names.sort(key=lambda x: process_list[x]["ID Process"])
 
+        psl = {}
+        for name in names:
+            if name != "_Total":
+                psl[process_list[name]["ID Process"]] = {
+                    'Name': name,
+                    'PID': process_list[name]["ID Process"],
+                    'PPID': process_list[name]["Creating Process ID"],
+                    'Priority': process_list[name]["Priority Base"],
+                    'Threads': process_list[name]["Thread Count"],
+                    'Handles': process_list[name]["Handle Count"],
+                }
+        print(tabulate(psl.values(), headers="keys"))
+        print_good("Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes")
+
+            

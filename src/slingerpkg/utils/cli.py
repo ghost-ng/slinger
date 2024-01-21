@@ -108,11 +108,12 @@ def setup_cli_parser(slingerClient):
     parser_use.set_defaults(func=slingerClient.connect_share)
 
     # Subparser for 'ls' command
-    parser_dir = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path', epilog='Example Usage: ls /path/to/directory')
-    parser_dir.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path')
-    parser_dir.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
-    parser_dir.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
-    parser_dir.set_defaults(func=slingerClient.dir_list)
+    parser_ls = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path', epilog='Example Usage: ls /path/to/directory')
+    parser_ls.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path')
+    parser_ls.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
+    parser_ls.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
+    parser_ls.add_argument('-l', '--long', action='store_true', help='Display long format listing', default=False)
+    parser_ls.set_defaults(func=slingerClient.ls)
 
     # Subparser for 'shares' command
     parser_shares = subparsers.add_parser('shares', help='List all available shares', aliases=['enumshares'], description='List all shares available on the remote server', epilog='Example Usage: shares')
@@ -379,6 +380,9 @@ def setup_cli_parser(slingerClient):
 
     parser_secretsdump = subparsers.add_parser('secretsdump', help='Dump secrets from the remote server', description='Dump secrets from the remote server', epilog='Example Usage: secretsdump')
     parser_secretsdump.set_defaults(func=slingerClient.secretsdump)
+
+    parser_env = subparsers.add_parser('env', help='Display environment variables', description='Display environment variables on the remote server', epilog='Example Usage: env')
+    parser_env.set_defaults(func=slingerClient.show_env_handler)
 
     return parser
 

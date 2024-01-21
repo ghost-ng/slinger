@@ -304,6 +304,15 @@ class smblib():
                 
 
     def file_exists(self, remote_path):
+        """
+        Check if a file exists at the specified remote path.
+
+        Args:
+            remote_path (str): The path of the remote file to check.
+
+        Returns:
+            bool: True if the file exists, False otherwise.
+        """
         print_debug(f"Checking if file exists: {remote_path}")
         path = ntpath.normpath(ntpath.join(remote_path, ".."))
         print_debug(f"Listing Files in Directory: {path}")
@@ -317,20 +326,39 @@ class smblib():
         return False
 
     def cat(self, args):
-        if not self.check_if_connected():
-            return
-        path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
-        temp_path = tempfile.NamedTemporaryFile(dir='/tmp', delete=False).name
-        self.download(path, temp_path)
-        try:
-            with open(temp_path, 'r', encoding=get_config_value("Codec")) as file_obj:
-                print(file_obj.read())
-        except UnicodeDecodeError:
-            print_warning(f"Failed to decode file '{path}' using codec {get_config_value('Codec')}.  Try changing the codec using the 'set codec <codec>' command.")
-        os.remove(temp_path)
+            """
+            Downloads a file from the remote server and prints its contents.
 
-    # dir list
-    def dir_list(self, args=None):
+            Args:
+                args (str): The remote path of the file to be downloaded.
+
+            Returns:
+                None
+            """
+            if not self.check_if_connected():
+                return
+            path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
+            temp_path = tempfile.NamedTemporaryFile(dir='/tmp', delete=False).name
+            self.download(path, temp_path)
+            try:
+                with open(temp_path, 'r', encoding=get_config_value("Codec")) as file_obj:
+                    print(file_obj.read())
+            except UnicodeDecodeError:
+                print_warning(f"Failed to decode file '{path}' using codec {get_config_value('Codec')}.  Try changing the codec using the 'set codec <codec>' command.")
+            os.remove(temp_path)
+
+
+
+    def ls(self, args=None):
+        """
+            List files and directories in the current directory or the specified path.
+
+            Args:
+                args (object): Optional arguments for the ls command.
+
+            Returns:
+                None
+            """
         if not self.check_if_connected():
             return
         path = args.path
@@ -366,15 +394,19 @@ class smblib():
                 if f.is_hidden(): attributes += 'H'
                 if f.is_system(): attributes += 'S'
                 if f.is_archive(): attributes += 'A'
+                
                 long_name = f.get_longname()
                 # attributes is file type - attributes (if not empty)
                 attribs = file_type if attributes == '' else file_type + "," + attributes
-                dirList.append([attribs, creation_time, last_access_time, last_write_time, filesize, long_name])
+                if args.long:
+                    dirList.append([attribs, creation_time, last_access_time, last_write_time, filesize, long_name])
+                else:
+                    dirList.append([attribs, long_name])
             if path == "\\":
                 suffix = ""
             else:
                 suffix = path + "\\"
-            print_debug("Showing file listing for: " + os.path.normpath(self.share + "\\" + suffix))
+            print_info("Showing file listing for: " + os.path.normpath(self.share + "\\" + suffix))
 
             # get sort option from arg.sort
             sort_option = args.sort
@@ -404,8 +436,10 @@ class smblib():
                     dirList.sort(key=lambda x: x[4], reverse=True)
                 else:
                     dirList.sort(key=lambda x: x[4])
-
-            print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
+            if args.long:
+                print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
+            else:
+                print_log(tabulate(dirList, headers=['Attribs', 'Name']))
         except Exception as e:
             if "STATUS_NO_SUCH_FILE" in str(e):
                 print_warning(f"Invalid directory or file: {path}")

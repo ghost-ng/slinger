@@ -1,4 +1,6 @@
+import base64
 import string
+import time
 from impacket.dcerpc.v5 import transport, rrp, srvs, wkst, tsch, scmr, rpcrt
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.dcerpc.v5.rpcrt import RPC_C_AUTHN_GSS_NEGOTIATE, RPC_C_AUTHN_LEVEL_PKT_PRIVACY, RPC_C_AUTHN_LEVEL_PKT_INTEGRITY
@@ -735,24 +737,150 @@ class DCETransport:
         else:
             print_debug('Error 0x%08x while creating key %s' % (ans2['ErrorCode'], keyName))
             return False
-        
-    def _reg_query_perf_data(self):
+    
+    
+
+    def _hQueryPerformaceData(self, object_num, arch=64):
+        if arch == 64:
+                bitwise = True
+        else:
+            bitwise = False 
         
         result = {}
         if not self.is_connected:
             raise Exception("Not connected to remote host")
         self.bind_override = True
-        self._bind(rrp.MSRPC_UUID_RRP)
+        try:
+            self._bind(rrp.MSRPC_UUID_RRP)
+        except:
+            pass
 
         # Open Performance Data
-        openhkpd_result = rrp.hOpenPerformanceData(self.dce, samDesired=rrp.MAXIMUM_ALLOWED | rrp.KEY_ENUMERATE_SUB_KEYS | rrp.KEY_QUERY_VALUE | rrp.KEY_READ)
-        #openhkpd_result.dump()
-        ans = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
-        result['title-database'] = parse_perf_title_data(ans[1])
-        counter_ID = result['title-database']['Process']
-        queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="238")
-        queryvalue_result.dump()
+        openhkpd_result = rrp.hOpenPerformanceData(self.dce)
         
-        return ans
+
+        
+        queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
+
+        pos = 0
+        result = {}
+
+        status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result[1], pos)
+
+        result['title_database'][0] = "<null>"  # correct up to here
+
+        #print(result['title_database']) 
+
+        queryvalue_result =rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], object_num, 600000)
 
 
+        pos = 0
+        status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)      # works up to here
+        
+        #for key, value in data_block.items():
+        #    print(key + ": " + str(value))
+
+        if not status:
+            print("Error parsing data block")
+            return False, pos
+        
+
+        for i in range(data_block['NumObjectTypes']):
+            
+            object_start = pos
+
+            counter_definitions = {}
+            object_instances = {}
+
+            # Get the type of the object
+            
+            status, pos, object_type = parse_perf_object_type(queryvalue_result[1], pos, is_64bit=bitwise)    # correct up to here
+            if not status:
+                return False, pos
+
+            #print_info("Object Type: " + str(object_type))
+            object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
+
+            result[object_name] = {}    # correct up to here
+
+            # Bring the position to the beginning of the counter definitions
+            pos = object_start + object_type['HeaderLength']
+
+            # Parse the counter definitions
+            for j in range(object_type['NumCounters']):
+                status, pos, counter_definitions[j] = parse_perf_counter_definition(queryvalue_result[1], pos, is_64bit=bitwise)
+                #print("Current Position after Counter Definition: " + str(pos))
+                #print_info("Added Counter Definition: " + str(counter_definitions[j]))
+                if not status:
+                    print_debug("Error parsing counter definitions", sys.exc_info())
+                    return False, pos
+
+            #print_info("Counter Definitions: " + str(counter_definitions))  # correct up to here
+
+            # Bring the position to the beginning of the instances (or counters)
+            pos = object_start + object_type['DefinitionLength']
+
+            # Check if we have any instances
+            #print_info("NumInstances: " + str(object_type['NumInstances']))
+            if object_type['NumInstances'] > 0:
+                # Parse the object instances and counters
+                for j in range(object_type['NumInstances']):
+                    instance_start = pos
+
+                    # Instance definition
+                    #print("Current Position for Instance Definition: " + str(pos))
+                    status, pos, object_instances[j] = parse_perf_instance_definition(queryvalue_result[1], pos)       # this works
+                    #print_info("Instance Definition: " + str(object_instances[j]))
+                    if not status:
+                        print_debug("Error parsing instance definitions", sys.exc_info())
+                        return False, pos
+
+                    # Set up the instance array
+                    instance_name = object_instances[j]['InstanceName']
+                    # check if the instance name already exists
+                    if instance_name in result[object_name]:
+                        instance_name = instance_name + " (uuid:" + generate_random_string(6) + ")"
+                    result[object_name][instance_name] = {}
+                    #print_info(f"Added: result[{object_name}][{instance_name}]")
+
+                    # Bring the pos to the start of the counter block
+                    pos = instance_start + object_instances[j]['ByteLength']
+
+                    # The counter block
+                    status, pos, counter_block = parse_perf_counter_block(queryvalue_result[1], pos)
+                    
+                    if not status:
+                        print_debug("Error parsing counter block", sys.exc_info())
+                        return False, pos
+                    #print_info("NumCounters: " + str(object_type['NumCounters']))
+                    for k in range(object_type['NumCounters']):
+                        # Each individual counter
+                        status, pos, counter_result = parse_perf_counter(queryvalue_result[1], pos, counter_definitions[k])
+                        if not status:
+                            print_debug("Error parsing counter", sys.exc_info())
+                            return False, pos
+
+                        counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
+                        result[object_name][instance_name][counter_name] = counter_result
+
+                    # Bring the pos to the end of the next section
+                    
+                    pos = instance_start + object_instances[j]['ByteLength'] + counter_block['ByteLength']
+            else:
+                print_debug("Did not find instances")
+                print_debug("NumCounters: " + str(object_type['NumCounters']), sys.exc_info())
+                for k in range(object_type['NumCounters']+1):
+                    # Each individual counter
+                    status, pos, counter_result = parse_perf_counter(queryvalue_result[1], pos, counter_definitions[k])
+                    print("Counter Result: " + str(counter_result))
+                    if not status:
+                        print_debug("Error parsing counter", sys.exc_info())
+                        return False, pos
+
+                    counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
+                    print_debug("Counter Name: " + str(counter_name), sys.exc_info())
+                    result[object_name][counter_name] = counter_result
+
+        return True, pos, result
+
+    

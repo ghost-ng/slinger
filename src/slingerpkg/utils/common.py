@@ -1,3 +1,4 @@
+import string
 import subprocess
 import random
 import datetime
@@ -96,7 +97,9 @@ def xml_escape(data):
     return ''.join(replace_table.get(c, c) for c in data)
 
 
-
+def generate_random_string(length=6):
+    random.seed()
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
 
 def validate_xml(xml_string):
     try:
@@ -105,7 +108,12 @@ def validate_xml(xml_string):
     except ET.ParseError as e:
         print_log(e)
         return False
-    
+
+def enter_interactive_mode(local=locals()):
+    import code
+    print_info("Entering interactive mode")
+    print_warning("Ctrl-D to end interactive mode")
+    code.interact(local=local)
 
 
 def get_config_value(key):

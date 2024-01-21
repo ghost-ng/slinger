@@ -7,12 +7,9 @@
 
 ### Registry
 - uptime
-- process enumeration (inspired by nmap nse script)
+- process enumeration (make graphical tree))
 
 ### Service Control
 - sc modify
-
-### Test
-- test on a domain
 
 ### General

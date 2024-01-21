@@ -24,6 +24,7 @@ def get_config_value(key):
 def print_log(msg="", end="\n"):
     #TODO: test codecs
     #print(msg.encode().decode(get_config_value("Codec")), end=end)
+
     print(msg, end=end)
     try:
         #TODO: test codecs
@@ -60,7 +61,7 @@ def print_debug(msg, e=None):
     module_name = inspect.getmodule(current_frame).__name__
     debug_msg = f"""
 *********************************************
-[DEBUG][{module_name}][Line {line_number}]:{msg}{colors.ENDC}
+[DEBUG][{module_name}][Line {line_number}]:{colors.HEADER}{msg}{colors.ENDC}
 {verbose_trace}
 [DEBUG]{trace_print("Traceback (most recent call last):", trace_calls=True)}
 *********************************************
