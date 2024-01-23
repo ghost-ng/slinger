@@ -104,26 +104,30 @@ Stop Time: 2023-12-30 23:42:19.886846
 ```bash
 Available commands:
 ------------------------------------------
-!                     hostname              rmdir                 svcshow             
-#shell                ifconfig              run                   svcstart            
-cat                   info                  serviceadd            svcstop             
-cd                    ipconfig              servicecreate         taskadd             
-config                ls                    servicedel            taskcreate          
-download              mget                  servicedelete         taskdel             
-enumdisk              mkdir                 servicerun            taskdelete          
-enuminfo              plugincmd             services              taskenum            
-enuminterfaces        portfwd               servicesenum          taskexec            
-enumlogons            put                   serviceshow           taskrm              
-enumservices          pwd                   servicestart          taskrun             
-enumshares            regcheck              servicestop           tasksenum           
-enumsys               regcreate             set                   taskshow            
-enumtasks             regdel                shares                tasksshow           
-enumtime              regquery              showservice           upload              
-enumtransport         regset                showtask              use                 
-exit                  regstart              svcadd                who                 
-fwrules               regstop               svccreate                                 
-get                   reguse                svcdelete                                 
-help                  rm                    svcenum                
+!                     fwrules               regset                svcadd              
+#shell                get                   regstart              svccreate           
+cat                   hashdump              regstop               svcdelete           
+cd                    help                  reguse                svcdisable          
+config                hostname              rm                    svcenable           
+debug-availcounters   ifconfig              rmdir                 svcenum             
+debug-counter         info                  run                   svcshow             
+disableservice        ipconfig              secretsdump           svcstart            
+disablesvc            logoff                serviceadd            svcstop             
+download              logout                servicecreate         taskadd             
+enableservice         ls                    servicedel            taskcreate          
+enablesvc             mget                  servicedelete         taskdel             
+enumdisk              mkdir                 servicedisable        taskdelete          
+enuminfo              plugincmd             serviceenable         taskenum            
+enuminterfaces        portfwd               servicerun            taskexec            
+enumlogons            procs                 services              tasklist            
+enumservices          ps                    servicesenum          taskrm              
+enumshares            put                   serviceshow           taskrun             
+enumsys               pwd                   servicestart          tasksenum           
+enumtasks             quit                  servicestop           taskshow            
+enumtime              regcheck              set                   tasksshow           
+enumtransport         regcreate             shares                upload              
+env                   regdel                showservice           use                 
+exit                  regquery              showtask              who                 
 
 Type help <command> or <command> -h for more information on a specific command
 ```
