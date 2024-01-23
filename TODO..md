@@ -8,6 +8,7 @@
 ### Registry
 - uptime
 - process enumeration (make graphical tree))
+- move from performance data querying experimental features to 
 
 ### Service Control
 - sc modify
