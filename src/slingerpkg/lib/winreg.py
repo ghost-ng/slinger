@@ -2,7 +2,7 @@ from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
 from time import sleep
-from slingerpkg.utils.common import reduce_slashes
+from slingerpkg.utils.common import reduce_slashes, enter_interactive_debug_mode
 
 import struct
 
@@ -49,6 +49,7 @@ class winreg():
         self.fwpolicy_std = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\"
         self.portproxy_root = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\PortProxy\\"
         self.active_portfwd_rules = []
+        self.titledb_list = []
 
     def enum_key_value(self, keyName, hex_dump=True, return_val=False, echo=True):
         """
@@ -703,4 +704,67 @@ class winreg():
         print(tabulate(psl.values(), headers="keys"))
         print_good("Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes")
 
-            
+    def show_avail_counters(self, args):
+        self.setup_dce_transport()
+        print_info("Retrieving Title Database")
+        if self.titledb_list:
+            for elem in self.titledb_list:
+                for k,v in elem.items():
+                    if args.filter:
+                        if args.filter.lower() in v.lower():
+                            print(f"{k} - {v}")
+                    else:
+                        print(f"{k} - {v}")
+            return
+        self.dce_transport._connect('winreg')
+        result = self.dce_transport._GetTitleDatabase()
+        # sort result by key
+        result = dict(sorted(result.items()))
+        #enter_interactive_mode(local=locals())
+        # remove all non-ascii characters
+        for k,v in result.items():
+            desc = re.sub(r'[^\x00-\x7f]',r'', v)
+            self.titledb_list.append({k: desc})
+        
+        
+        for elem in self.titledb_list:
+            for k,v in elem.items():
+                if args.filter:
+                    if args.filter.lower() in v.lower():
+                        print(f"{k} - {v}")
+                else:
+                    print(f"{k} - {v}")
+
+    def show_perf_counter(self, args):
+        
+        # get current debug value
+        original_debug_value = get_config_value("debug")
+        set_config_value("debug", "True")
+
+
+        if not args.counter:
+            print_warning("Invalid arguments.  Usage: debug-counter <counter>")
+            return
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        result = self.dce_transport._GetTitleDatabase()
+        self.dce_transport._connect('winreg')
+        print_info("Retrieving Performance Counter: " + result[args.counter])
+        if args.arch == "unk":
+            arch = self.get_processor_architecture()
+        elif args.arch == "x86":
+            arch = "32"
+        elif args.arch == "x64":
+            arch = "64"
+        self.dce_transport._connect('winreg')
+        result = self.dce_transport._hQueryPerformaceData(str(args.counter), int(arch))
+        # remove the title database entry
+        title_db = result[2].pop("title_database")
+        perfData = result[2]
+        print_good("'result'\tAccess the entire Performance Counter dictionary")
+        print_good("'perfData'\tAccess the Performance Counter Data only")
+        combined_scope = globals().copy()
+        combined_scope.update(locals())
+        enter_interactive_debug_mode(local=locals())
+        set_config_value("debug", original_debug_value)
+        

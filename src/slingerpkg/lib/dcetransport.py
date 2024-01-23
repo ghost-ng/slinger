@@ -738,12 +738,40 @@ class DCETransport:
             print_debug('Error 0x%08x while creating key %s' % (ans2['ErrorCode'], keyName))
             return False
     
-    
+    def _GetTitleDatabase(self, arch=64):
+                
+        result = {}
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        try:
+            self._bind(rrp.MSRPC_UUID_RRP)
+        except:
+            pass
+
+        # Open Performance Data
+        openhkpd_result = rrp.hOpenPerformanceData(self.dce)
+                
+        queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
+
+        pos = 0
+        result = {}
+
+        status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result[1], pos)
+        # print the title database using tabulate
+        if status:
+            return result['title_database']
+        else:
+            return None
+        
 
     def _hQueryPerformaceData(self, object_num, arch=64):
+        print_warning("Performance Data querying is experimental and is still under development")
         if arch == 64:
-                bitwise = True
+            print_debug("Setting 64-bit architecture in hQueryPerformaceData")
+            bitwise = True
         else:
+            print_debug("Setting 32-bit architecture in hQueryPerformaceData")
             bitwise = False 
         
         result = {}
@@ -776,15 +804,20 @@ class DCETransport:
 
         pos = 0
         status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)      # works up to here
-        
-        #for key, value in data_block.items():
-        #    print(key + ": " + str(value))
+        # store values in a list    
+        dbg_perf_block_list = []    
+        for key, value in data_block.items():
+            dbg_perf_block_list.append(f"{key} : {str(value)}")
+
+        # print list with \n as separator
+        s = "\n".join(dbg_perf_block_list)
+        print_debug(f"Data Block: \n{s}")
 
         if not status:
             print("Error parsing data block")
             return False, pos
         
-
+        print_debug(f"Found #{data_block['NumObjectTypes']} object types")
         for i in range(data_block['NumObjectTypes']):
             
             object_start = pos
@@ -795,12 +828,20 @@ class DCETransport:
             # Get the type of the object
             
             status, pos, object_type = parse_perf_object_type(queryvalue_result[1], pos, is_64bit=bitwise)    # correct up to here
+
+            object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
+
+            print_debug(f"Object #{i} - Object Name: " + str(object_name), sys.exc_info())
+            print_debug(f"Object #{i} - Object Type: " + str(object_type), sys.exc_info())
+
             if not status:
                 return False, pos
 
-            #print_info("Object Type: " + str(object_type))
-            object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
-
+            if object_type['ObjectNameTitleIndex'] == 0:
+                print_debug("Skipping object type with index 0")
+                pos = object_start + object_type['TotalByteLength']
+                continue
+            
             result[object_name] = {}    # correct up to here
 
             # Bring the position to the beginning of the counter definitions
@@ -815,7 +856,7 @@ class DCETransport:
                     print_debug("Error parsing counter definitions", sys.exc_info())
                     return False, pos
 
-            #print_info("Counter Definitions: " + str(counter_definitions))  # correct up to here
+            print_debug("Counter Definitions: \n" + str(counter_definitions))  # correct up to here
 
             # Bring the position to the beginning of the instances (or counters)
             pos = object_start + object_type['DefinitionLength']
@@ -823,6 +864,7 @@ class DCETransport:
             # Check if we have any instances
             #print_info("NumInstances: " + str(object_type['NumInstances']))
             if object_type['NumInstances'] > 0:
+                print_debug(f"Found {str(object_type['NumInstances'])} instances")
                 # Parse the object instances and counters
                 for j in range(object_type['NumInstances']):
                     instance_start = pos
@@ -853,34 +895,77 @@ class DCETransport:
                         print_debug("Error parsing counter block", sys.exc_info())
                         return False, pos
                     #print_info("NumCounters: " + str(object_type['NumCounters']))
+                    print_debug("NumCounters: " + str(object_type['NumCounters']), sys.exc_info())
                     for k in range(object_type['NumCounters']):
+                        
                         # Each individual counter
-                        status, pos, counter_result = parse_perf_counter(queryvalue_result[1], pos, counter_definitions[k])
+                        status, pos, counter_result = parse_perf_counter_data(queryvalue_result[1], pos, counter_definitions[k])
                         if not status:
                             print_debug("Error parsing counter", sys.exc_info())
                             return False, pos
 
                         counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
+                        print_debug(f"#{k} Counter Name: " + str(counter_name), sys.exc_info())
                         result[object_name][instance_name][counter_name] = counter_result
 
                     # Bring the pos to the end of the next section
                     
                     pos = instance_start + object_instances[j]['ByteLength'] + counter_block['ByteLength']
-            else:
-                print_debug("Did not find instances")
-                print_debug("NumCounters: " + str(object_type['NumCounters']), sys.exc_info())
-                for k in range(object_type['NumCounters']+1):
-                    # Each individual counter
-                    status, pos, counter_result = parse_perf_counter(queryvalue_result[1], pos, counter_definitions[k])
-                    print("Counter Result: " + str(counter_result))
-                    if not status:
-                        print_debug("Error parsing counter", sys.exc_info())
-                        return False, pos
+            else:  # if NumInstances == 0
+                #https://learn.microsoft.com/en-us/windows/win32/perfctrs/performance-data-format
+                # start at the end of the PERF_COUNTER_DEFINITIONS and PERF_OBJECT_TYPE
+                print_debug(f"Found {str(object_type['NumInstances'])} instances")
 
+                total_counter_definitions_length = sum(cd['ByteLength'] for cd in counter_definitions.values())
+                counter_block_start = object_start + object_type['HeaderLength'] + total_counter_definitions_length
+
+                print_debug("Counter Block Start: " + str(counter_block_start))
+                print_debug("Original Position: " + str(pos))
+
+                # Parse the PERF_COUNTER_BLOCK
+                status, pos, counter_block = parse_perf_counter_block_test(queryvalue_result[1], pos)
+                print_debug("Counter Block: " + str(counter_block))
+                if not status:
+                    # Handle error
+                    print_debug("Error parsing counter block", sys.exc_info())
+                    return False, pos
+
+                print_debug("New Position: " + str(pos))
+
+                # Start parsing the counter data
+                print_debug("NumCounters: " + str(object_type['NumCounters']))
+                for k in range(object_type['NumCounters']):
+                    counter_def = counter_definitions[k]
                     counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
-                    print_debug("Counter Name: " + str(counter_name), sys.exc_info())
+
+                    print_debug(f"#{k} Counter Name: " + str(counter_name))
+                    
+                    print_debug(f"Counter Block Start: {counter_block_start + counter_def['CounterOffset']} = {counter_block_start} + {counter_def['CounterOffset']}")
+                    counter_block_start = counter_block_start + counter_def['CounterOffset']
+                    
+                    status, pos, counter_result = parse_perf_counter_data(queryvalue_result[1], counter_block_start, counter_def)
+                    
+                    if not status:
+                        # Handle error
+                        print_debug("Error parsing counter", sys.exc_info())
+                        result[object_name][counter_name] = "<null>"
+                        continue
+                        #return False, pos
+
+                    print_debug("Counter Result: " + str(counter_result))
+
+                    # Store counter result
                     result[object_name][counter_name] = counter_result
 
+                
+                
+                # Update pos after processing all counters
+                pos = counter_block_start + counter_block['ByteLength']
+
+
+                print_debug("Exiting Counter Definitions Loop")
+
+                
         return True, pos, result
 
     

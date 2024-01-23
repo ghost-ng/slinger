@@ -141,8 +141,11 @@ def main():
             except SystemExit:
                 continue
             except Exception as e:
-                print_warning(f"Uncaught Error: {e}")
-                print_debug(str(e), sys.exc_info())
+                if "Invalid command entered" in str(e):
+                    pass
+                else:
+                    print_warning(f"Uncaught Error: {e}")
+                    print_debug(str(e), sys.exc_info())
 
                 continue
             except argparse.ArgumentError as e:

@@ -109,8 +109,10 @@ def validate_xml(xml_string):
         print_log(e)
         return False
 
-def enter_interactive_mode(local=locals()):
+def enter_interactive_debug_mode(local=locals()):
     import code
+    combined_scope = globals().copy()
+    combined_scope.update(locals())
     print_info("Entering interactive mode")
     print_warning("Ctrl-D to end interactive mode")
     code.interact(local=local)

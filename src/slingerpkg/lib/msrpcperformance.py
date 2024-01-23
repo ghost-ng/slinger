@@ -9,7 +9,51 @@ from slingerpkg.utils.printlib import *
 #https://learn.microsoft.com/en-us/windows/win32/api/winperf/
 #https://svn.nmap.org/nmap/nselib/msrpcperformance.lua
 
-def parse_perf_counter(data, pos, counter_definition):
+"""
+PERF_DATA_BLOCK
+|
+|--> PERF_OBJECT_TYPE #1
+    |
+    |--> PERF_COUNTER_DEFINITION #1
+    |--> PERF_COUNTER_DEFINITION #2
+    |    ...
+    |--> PERF_COUNTER_DEFINITION #N
+    |
+    |--> (If no instances)
+    |    |
+    |    |--> PERF_COUNTER_BLOCK 
+    |         |
+    |         |--> Raw Counter Data for Counter #1
+    |         |--> Raw Counter Data for Counter #2
+    |         |    ...
+    |         |--> Raw Counter Data for Counter #N
+    |
+    |--> (If instances exist)
+         |
+         |--> PERF_INSTANCE_DEFINITION #1
+         |    |
+         |    |--> Instance Name #1
+         |    |--> PERF_COUNTER_BLOCK #1
+         |         |
+         |         |--> Raw Counter Data for Counter #1
+         |         |--> Raw Counter Data for Counter #2
+         |         |    ...
+         |         |--> Raw Counter Data for Counter #N
+         |
+         |--> PERF_INSTANCE_DEFINITION #2
+         |    ...
+         |--> PERF_INSTANCE_DEFINITION #M
+              |
+              |--> Instance Name #M
+              |--> PERF_COUNTER_BLOCK #M
+                   |
+                   |--> Raw Counter Data for Counter #1
+                   |--> Raw Counter Data for Counter #2
+                   |    ...
+                   |--> Raw Counter Data for Counter #N
+"""
+
+def parse_perf_counter_data(data, pos, counter_definition):
     try:
         # Define format strings
         int32_fmt = '<I'  # 32-bit unsigned integer
@@ -31,7 +75,8 @@ def parse_perf_counter(data, pos, counter_definition):
             pos = end_pos
 
         return True, pos, result
-    except struct.error:
+    except struct.error as e:
+        print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data", None
 
 
@@ -66,6 +111,7 @@ def parse_perf_instance_definition(data, pos=0):        # no need for 64 bit han
         try:
             result['InstanceName'] = data[name_start:name_end].decode('utf-16le', errors='ignore').rstrip('\x00')
         except UnicodeDecodeError:
+            print_debug("MSRPC: ERROR: Error decoding instance name")
             result['InstanceName'] = "Instance name contains invalid characters"
         return False, pos, result
     
@@ -125,6 +171,7 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
 
         return True, pos, counter_def
     except struct.error as e:
+        print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: " + str(e), None
 
 
@@ -172,6 +219,7 @@ def parse_perf_object_type(data, pos=0, is_64bit=False):
 
         return True, pos, object_type
     except struct.error as e:
+        print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: " + str(e), None
 
 
@@ -186,9 +234,13 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
 
         return True, pos, {'ByteLength': byte_length}
     except struct.error as e:
+        print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: {}".format(e), None
 
-
+def parse_perf_counter_block_test(data, pos=0):      # no need for 64 bit handling
+    result = {}
+    pos, result['ByteLength'] = unmarshall_int32(data, pos)
+    return True, pos, result
 
 def remove_null_terminator(s):
     # Remove common null terminator patterns from the end of the string

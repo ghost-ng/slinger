@@ -34,4 +34,6 @@ def error_logging(e):
     exc_type, exc_value, exc_traceback = e
     tb_lines = format_exception(exc_type, exc_value, exc_traceback)
     error_message = ''.join(tb_lines)
+    if "NoneType" in error_message:
+        error_message = ""
     return error_message
