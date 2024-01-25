@@ -14,6 +14,60 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **System Information Gathering**: Gather detailed system information, including server disk information, logged-on users, and transport details.
 - **Wrapper Commands**: Commands to edit port forwarding rules, view the windows firewall, ip information, etc
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
+- **Query Performance Data**: (Experimental) Remotely query performance data like remote processes
+
+```
+🤠 (10.0.0.28):\\> ps
+[*] Retrieving Processes List...
+[!] Performance Data querying is experimental and is still under development
+Name                         PID    PPID    Priority    Threads    Handles
+-------------------------  -----  ------  ----------  ---------  ---------
+Idle                           0       0           0          1          0
+System                         4       0           8         81        740
+mmc (uuid:wVWpou)            152    1868           6         19        824
+conhost                      172     248           6          2         54
+cmd                          248    2836           6          1         26
+svchost (uuid:LE9JOF)        428     712           8         14        779
+smss                         440       4          11          2         52
+csrss                        524     516          13          8        231
+csrss (uuid:ZHvV4L)          616     608          13          8        243
+vpnagent                     620     712          10          6        437
+wininit                      624     516          13          1         79
+winlogon                     652     608          13          2        157
+services                     712     624           9          6        258
+lsass                        720     624           9          6        694
+svchost (uuid:HfKmym)        756     712           8         16        535
+svchost                      780     712           8          7        358
+svchost (uuid:1ngQeO)        808     712           8          6        327
+dwm                          896     652          13          7        190
+svchost (uuid:xqconX)        920     712           8         13        444
+svchost (uuid:AwBbeG)        980     712           8         28       1000
+rundll32                    1076     980          10          5        204
+svchost (uuid:a31ADo)       1092     712           8         15        379
+spoolsv                     1228     712           8          8        370
+svchost (uuid:0wxSfV)       1260     712           8          6        118
+svchost (uuid:Fwvb34)       1280     712           8          8        194
+msdtc                       1292     712           8          9        163
+dns                         1296     712           8         10      10224
+svchost (uuid:tQ16ZP)       1392     712           8         10        253
+VGAuthService               1432     712           8          2        114
+vm3dservice                 1480     712           8          2         88
+vmtoolsd                    1532     712          13         10        308
+vm3dservice (uuid:rfz3k2)   1544    1480          13          2         85
+svchost (uuid:i2Waqs)       1568     712           8         15        162
+dllhost                     1976     712           8         10        192
+vmtoolsd (uuid:OXMvuj)      1996    2628           8          9        231
+WmiPrvSE                    2176     780           8         10        316
+WmiPrvSE (uuid:elaPeM)      2312     780           8          7        234
+taskhostex                  2540     980           8          5        201
+vpnui                       2548    2952           8          6        356
+Taskmgr                     2580    2628           8         10        305
+explorer                    2628    2612           8         38       1304
+taskeng                     2836     980           8          3        115
+ServerManager               2988    2548           8          8        430
+mmc                         3004    2628           8         19        403
+[+] Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes
+```
 
 ## Usage
 

@@ -858,12 +858,13 @@ class DCETransport:
 
             print_debug("Counter Definitions: \n" + str(counter_definitions))  # correct up to here
 
-            # Bring the position to the beginning of the instances (or counters)
-            pos = object_start + object_type['DefinitionLength']
+            
 
             # Check if we have any instances
             #print_info("NumInstances: " + str(object_type['NumInstances']))
             if object_type['NumInstances'] > 0:
+                # Bring the position to the beginning of the instances (or counters)
+                pos = object_start + object_type['DefinitionLength']
                 print_debug(f"Found {str(object_type['NumInstances'])} instances")
                 # Parse the object instances and counters
                 for j in range(object_type['NumInstances']):
@@ -916,35 +917,65 @@ class DCETransport:
                 # start at the end of the PERF_COUNTER_DEFINITIONS and PERF_OBJECT_TYPE
                 print_debug(f"Found {str(object_type['NumInstances'])} instances")
 
+                # Calculate the total length of all counter definitions
                 total_counter_definitions_length = sum(cd['ByteLength'] for cd in counter_definitions.values())
-                counter_block_start = object_start + object_type['HeaderLength'] + total_counter_definitions_length
 
-                print_debug("Counter Block Start: " + str(counter_block_start))
+                # Calculate the start position of the counter block
+                counter_block_start = object_start + object_type['HeaderLength'] + total_counter_definitions_length
+                initial_counter_block_pos = object_start + object_type['HeaderLength'] + total_counter_definitions_length
+
+                # Calculate padding if needed
+                padding_needed = (8 - (initial_counter_block_pos % 8)) % 8
+
+                # Final position of the PERF_COUNTER_BLOCK, considering padding for alignment
+                final_counter_block_pos = initial_counter_block_pos + padding_needed
+
+
+                # these should be the same
+                print_debug("Object Start: " + str(object_start))
+                print_debug("Initial Counter Block Start: " + str(initial_counter_block_pos))
+                print_debug("Final Counter Block Start: " + str(final_counter_block_pos))
                 print_debug("Original Position: " + str(pos))
 
                 # Parse the PERF_COUNTER_BLOCK
-                status, pos, counter_block = parse_perf_counter_block_test(queryvalue_result[1], pos)
+                #https://learn.microsoft.com/en-us/windows/win32/api/winperf/ns-winperf-perf_counter_block
+                
+                status, pos, counter_block = parse_perf_counter_block_test(queryvalue_result[1], final_counter_block_pos)
                 print_debug("Counter Block: " + str(counter_block))
+                
                 if not status:
                     # Handle error
                     print_debug("Error parsing counter block", sys.exc_info())
                     return False, pos
-
                 print_debug("New Position: " + str(pos))
 
                 # Start parsing the counter data
                 print_debug("NumCounters: " + str(object_type['NumCounters']))
+
+                
+
                 for k in range(object_type['NumCounters']):
                     counter_def = counter_definitions[k]
                     counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
 
                     print_debug(f"#{k} Counter Name: " + str(counter_name))
                     
-                    print_debug(f"Counter Block Start: {counter_block_start + counter_def['CounterOffset']} = {counter_block_start} + {counter_def['CounterOffset']}")
-                    counter_block_start = counter_block_start + counter_def['CounterOffset']
+                    # Bring the pos to the start of the counter
+
+                    #print_debug(f"Counter Block Start: {counter_block_start + counter_def['CounterOffset']} = {counter_block_start} + {counter_def['CounterOffset']}")
+                    #counter_block_start = counter_block_start + counter_def['CounterOffset']
                     
-                    status, pos, counter_result = parse_perf_counter_data(queryvalue_result[1], counter_block_start, counter_def)
-                    
+                    #status, pos, counter_result = parse_perf_counter_data(queryvalue_result[1], counter_block_start, counter_def)
+
+
+                    # change position to start of counter block
+                    counter_data_start = counter_block_start + counter_def['CounterOffset']
+
+                    # Now set pos to this position
+                    pos = counter_data_start
+
+                    status, pos, counter_result = parse_perf_counter_data(queryvalue_result[1], pos, counter_def)
+
                     if not status:
                         # Handle error
                         print_debug("Error parsing counter", sys.exc_info())
@@ -960,10 +991,11 @@ class DCETransport:
                 
                 
                 # Update pos after processing all counters
-                pos = counter_block_start + counter_block['ByteLength']
+                #pos = counter_block_start + counter_block['ByteLength']
 
 
                 print_debug("Exiting Counter Definitions Loop")
+            
 
                 
         return True, pos, result
