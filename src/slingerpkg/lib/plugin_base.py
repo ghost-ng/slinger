@@ -15,6 +15,7 @@ def load_plugins(plugin_dir, client):
                     plugins.append(obj(client))
     return plugins
 
+
 class PluginBase:
     def __init__(self, client, *args, **kwargs):
         super().__init__(*args, **kwargs)

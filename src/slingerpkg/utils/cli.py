@@ -393,6 +393,7 @@ def setup_cli_parser(slingerClient):
     parser_getCounter.add_argument('-a', '--arch', help='Specify the architecture of the remote server', choices=['x86','x64', 'unk'], default='unk')
     parser_getCounter.set_defaults(func=slingerClient.show_perf_counter)
     
+    parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
 
     return parser
 
@@ -430,6 +431,7 @@ def setup_completer(subparsers):
             for cmd, subparser in action.choices.items():
                 commands[cmd] = [arg for arg in subparser._option_string_actions.keys()]
     return commands
+
 
 class CommandCompleter(Completer):
     def __init__(self, commands):

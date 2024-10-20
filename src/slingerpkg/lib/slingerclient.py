@@ -49,8 +49,8 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets):
         self.dce_transport = None
         self.srvsvc_pipe = None
         self.wkssvc_pipe = None
-    
-    
+
+
     def setup_dce_transport(self):
         if self.dce_transport is None:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)

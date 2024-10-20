@@ -12,8 +12,7 @@ from prompt_toolkit.formatted_text import to_formatted_text, ANSI
 from prompt_toolkit.completion import Completer, Completion
 
 
-slingerCliet = None
-
+session = None
 banner_art = f"""
       __,_____
      / __.==--"   SLINGER
@@ -34,6 +33,7 @@ class ArgparseCompleter(Completer):
 def main():
     global slingerClient
     global commands_and_args
+    global session
 
     # setup folder structure -> ~/.slinger/logs, ~/.slinger/plugins
     if not os.path.exists(os.path.expanduser(get_config_value('Logs_Folder'))):
@@ -157,10 +157,38 @@ def main():
 #############################################################
 #############################################################
 #############################################################
+            
+            if args.command == "reload":
+                slinger_parser = setup_cli_parser(slingerClient)
+                # load plugins
+                plugins_folder = os.path.expanduser(get_config_value('Plugin_Folder'))
+
+                plugins = load_plugins(plugins_folder, slingerClient)
+                # merge all parsers from the plugins into the main parser
+                for plugin in plugins:
+                    plugin_parser = plugin.get_parser()
+                    slinger_parser = merge_parsers(slinger_parser, plugin_parser)
+
+                hist_file_location = os.path.expanduser(get_config_value('History_File'))
+                completer = CommandCompleter(setup_completer(slinger_parser))
+                session = PromptSession(history=FileHistory(hist_file_location),completer=completer)
+                print_good(f"Loaded {len(plugins)} plugins")
+                
+                if get_config_value('debug'):
+                    for plugin in plugins:
+                        print_info(f"Loaded plugin: {plugin.name}")
+
+                print_info("Reloaded config")
+
 
             elif args.command == "set":
                 if args.varname and args.value:
                     set_config_value(args.varname, args.value)
+                    if args.varname.lower() == 'debug':
+                        if get_config_value('debug'):
+                            print_info("Debug mode enabled")
+                        else:
+                            print_info("Debug mode disabled")
                 else:
                     print_warning("Invalid arguments.  Usage: set <key> <value>")
             elif args.command == "config":
