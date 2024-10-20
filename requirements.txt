@@ -1,5 +1,4 @@
 impacket==0.11.0
-lupa==2.0
 prompt_toolkit==3.0.41
 pycryptodome==3.20.0
 setuptools==70.0.0
