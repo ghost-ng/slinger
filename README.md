@@ -158,30 +158,31 @@ Stop Time: 2023-12-30 23:42:19.886846
 ```bash
 Available commands:
 ------------------------------------------
-!                     fwrules               regset                svcadd              
-#shell                get                   regstart              svccreate           
-cat                   hashdump              regstop               svcdelete           
-cd                    help                  reguse                svcdisable          
-config                hostname              rm                    svcenable           
-debug-availcounters   ifconfig              rmdir                 svcenum             
-debug-counter         info                  run                   svcshow             
-disableservice        ipconfig              secretsdump           svcstart            
-disablesvc            logoff                serviceadd            svcstop             
-download              logout                servicecreate         taskadd             
-enableservice         ls                    servicedel            taskcreate          
-enablesvc             mget                  servicedelete         taskdel             
-enumdisk              mkdir                 servicedisable        taskdelete          
-enuminfo              plugincmd             serviceenable         taskenum            
-enuminterfaces        portfwd               servicerun            taskexec            
-enumlogons            procs                 services              tasklist            
-enumservices          ps                    servicesenum          taskrm              
-enumshares            put                   serviceshow           taskrun             
-enumsys               pwd                   servicestart          tasksenum           
-enumtasks             quit                  servicestop           taskshow            
-enumtime              regcheck              set                   tasksshow           
-enumtransport         regcreate             shares                upload              
-env                   regdel                showservice           use                 
-exit                  regquery              showtask              who                 
+!                     get                   regstop               svcdelete           
+#shell                hashdump              reguse                svcdisable          
+cat                   help                  reload                svcenable           
+cd                    hostname              rm                    svcenum             
+config                ifconfig              rmdir                 svcshow             
+debug-availcounters   info                  run                   svcstart            
+debug-counter         ipconfig              secretsdump           svcstop             
+disableservice        logoff                serviceadd            taskadd             
+disablesvc            logout                servicecreate         taskcreate          
+download              ls                    servicedel            taskdel             
+enableservice         mget                  servicedelete         taskdelete          
+enablesvc             mkdir                 servicedisable        taskenum            
+enumdisk              plugincmd             serviceenable         taskexec            
+enuminfo              portfwd               servicerun            tasklist            
+enuminterfaces        procs                 services              taskrm              
+enumlogons            ps                    servicesenum          taskrun             
+enumservices          put                   serviceshow           tasksenum           
+enumshares            pwd                   servicestart          taskshow            
+enumsys               quit                  servicestop           tasksshow           
+enumtasks             regcheck              set                   upload              
+enumtime              regcreate             shares                use                 
+enumtransport         regdel                showservice           who                 
+env                   regquery              showtask                                  
+exit                  regset                svcadd                                    
+fwrules               regstart              svccreate                                 
 
 Type help <command> or <command> -h for more information on a specific command
 ```
@@ -210,6 +211,9 @@ options:
 
 Example Usage: run -c|-f [script]
 ```
+
+Click here to view all the help entries:
+[Help Entries](HELP_MENU.md)
 
 
 ## Plugins
