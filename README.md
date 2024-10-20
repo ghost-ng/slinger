@@ -187,6 +187,10 @@ fwrules               regstart              svccreate
 Type help <command> or <command> -h for more information on a specific command
 ```
 
+#### Click here to view all the help entries:
+[Help Entries](HELP_MENU.md)
+
+
 ### Command Chaining
 Slinger has two ways to execute a sequence of commands.
 
@@ -211,9 +215,6 @@ options:
 
 Example Usage: run -c|-f [script]
 ```
-
-Click here to view all the help entries:
-[Help Entries](HELP_MENU.md)
 
 
 ## Plugins
