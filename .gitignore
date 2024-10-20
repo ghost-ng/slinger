@@ -3,3 +3,4 @@ test
 dist
 build
 *egg-info*
+.venv

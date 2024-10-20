@@ -4,6 +4,8 @@ import argparse
 from slingerpkg.utils.printlib import *
 
 class MyPlugin(PluginBase):
+    # Name
+    name = "My Test Plugin"
 
     def get_parser(self):
         # define a new subparser to return to merge with the main parser
@@ -15,7 +17,7 @@ class MyPlugin(PluginBase):
         return parser
 
     def run(self, args):
-        print(f"Executing {args.command} with arg value of {args.plugincmd}")
+        print_info(f"Executing {args.command} with arg value of {args.plugincmd}")
         
         # example of using the SlingerClient object
         self.client.info()
