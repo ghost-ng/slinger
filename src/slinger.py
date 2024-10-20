@@ -2,7 +2,7 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.slingerclient import SlingerClient
 from slingerpkg.utils.common import get_config_value, set_config_value, run_local_command, show_config
-from slingerpkg.utils.cli import setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, file_to_slinger_script
+from slingerpkg.utils.cli import print_all_help, setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, file_to_slinger_script
 from slingerpkg.lib.plugin_base import load_plugins
 from slingerpkg.var.config import version
 import shlex, argparse, sys, os, pty, termios
@@ -216,8 +216,11 @@ def main():
                     run_local_command(local_command)
             elif args.command == "help":
                 if args.cmd:
-                    # force cmd -h
-                    force_help(slinger_parser, args.cmd)
+                    if args.cmd.lower() == "all":
+                        print_all_help(slinger_parser)
+                    else:
+                        # force cmd -h
+                        force_help(slinger_parser, args.cmd)
                 else:
                     slinger_parser.print_help()
                 

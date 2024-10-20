@@ -34,6 +34,14 @@ def force_help(parser, command):
     else:
         print(f"No command named '{command}' found")
 
+def print_all_help(parser):
+    subparsers_action = [action for action in parser._actions if isinstance(action, argparse._SubParsersAction)][0]
+    command_parser = subparsers_action.choices
+    for command, parser in command_parser.items():
+        print(f"\n======= Command: {command} =======")
+        parser.print_help()
+
+
 class InvalidParsing(Exception):
     pass
 
