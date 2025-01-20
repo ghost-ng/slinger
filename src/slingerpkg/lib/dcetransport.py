@@ -941,6 +941,7 @@ class DCETransport:
                 #https://learn.microsoft.com/en-us/windows/win32/api/winperf/ns-winperf-perf_counter_block
                 
                 status, pos, counter_block = parse_perf_counter_block_test(queryvalue_result[1], final_counter_block_pos)
+                #status, pos, counter_block = parse_perf_counter_block(queryvalue_result[1], final_counter_block_pos)
                 print_debug("Counter Block: " + str(counter_block))
                 
                 if not status:
