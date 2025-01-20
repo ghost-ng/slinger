@@ -124,6 +124,8 @@ def parse_perf_title_database(data, pos=0):     #validated
     split_data = data.split('\x00')[2:]
      # Iterate over the list in steps of 2
     for i in range(0, len(split_data), 2):
+        if i + 1 >= len(split_data):
+            break
         number = split_data[i]
         name = split_data[i + 1]
 
