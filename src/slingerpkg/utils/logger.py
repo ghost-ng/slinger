@@ -6,6 +6,16 @@ from traceback import format_exception
 
 
 class SlingerLogger:
+    """
+    A logger class that sets up a daily rotating file logger.
+    Attributes:
+        logger (logging.Logger): The logger instance.
+    Methods:
+        __init__(log_folder, log_file_basename):
+            Initializes the SlingerLogger with the specified log folder and log file base name.
+        get_logger():
+            Returns the logger instance.
+    """
     def __init__(self, log_folder, log_file_basename):
         # Ensure the log folder exists
         os.makedirs(log_folder, exist_ok=True)
