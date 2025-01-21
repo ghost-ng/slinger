@@ -262,7 +262,31 @@ def parse_perf_title_database(data, pos=0):     #validated
 
     return True, pos, result
 
+def parse_perf_counter_block_test(data, pos=0):
+    dword_fmt = '<I'  # Little-endian format for DWORD
 
+    try:
+        byte_length, pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+    except struct.error as e:
+        # Check if the buffer is too short for unpacking
+        required_length = pos + 4  # Needed length for DWORD
+        if len(data) < required_length:
+            padding_needed = required_length - len(data)
+            # Pad the data appropriately
+            data += b'\x00' * padding_needed
+            # Try unpacking again
+            try:
+                byte_length, pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+            except struct.error as e:
+                # Handle error if unpacking still fails
+                print_debug(f"MSRPC: ERROR: Error unpacking data after padding: {e}", sys.exc_info())
+                return False, "Error unpacking data after padding", None
+        else:
+            # Handle other unpacking errors
+            print_debug(f"MSRPC: ERROR: Error unpacking data: {e}", sys.exc_info())
+            return False, "Error unpacking data", None
+
+    return True, pos, {'ByteLength': byte_length}
 
 def remove_null_terminator(s):
     # Remove common null terminator patterns from the end of the string
