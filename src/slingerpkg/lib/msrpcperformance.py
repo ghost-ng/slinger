@@ -240,44 +240,27 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
         print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: {}".format(e), None
 
-def parse_perf_counter_block_test(data, pos=0):
-    import struct
+def parse_perf_title_database(data, pos=0):     #validated
+    #print(data)
+    result = {}
+    split_data = data.split('\x00')[2:]
+     # Iterate over the list in steps of 2
+    for i in range(0, len(split_data), 2):
+        if i + 1 >= len(split_data):
+            break
+        number = split_data[i]
+        name = split_data[i + 1]
 
-    dword_fmt = '<I'  # Little-endian DWORD format
+        # Convert number to integer if needed
+        try:
+            number_key = int(number)
+        except ValueError:
+           continue
 
-    try:
-        # Validate position
-        if pos < 0 or pos >= len(data):
-            print_debug(f"ERROR: Invalid position {pos} for data length {len(data)}")
-            return False, "Invalid position", None
+        # Store the pair in the dictionary
+        result[number_key] = name
 
-        # Ensure sufficient data exists for unpacking
-        if len(data) < pos + 4:
-            required_length = pos + 4
-            padding_needed = required_length - len(data)
-            print_debug(f"DEBUG: Insufficient data length. Padding needed: {padding_needed} bytes")
-
-            # Cap excessive padding
-            max_padding = 4096
-            if padding_needed > max_padding:
-                print_debug(f"ERROR: Excessive padding required: {padding_needed}")
-                return False, f"Excessive padding required: {padding_needed} bytes", None
-
-            # Create a padded copy
-            padded_data = data + b'\x00' * padding_needed
-        else:
-            padded_data = data
-
-        # Unpack the DWORD
-        byte_length, pos = struct.unpack_from(dword_fmt, padded_data, pos)[0], pos + 4
-
-    except struct.error as e:
-        print_debug(f"ERROR: Failed to unpack DWORD: {e}", sys.exc_info())
-        return False, "Error unpacking data", None
-
-    return True, pos, {'ByteLength': byte_length}
-
-
+    return True, pos, result
 
 
 
