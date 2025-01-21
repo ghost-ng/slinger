@@ -394,11 +394,15 @@ def setup_cli_parser(slingerClient):
 
     parser_availCounters = subparsers.add_parser('debug-availcounters', help='Display available performance counters.  This is for debug use only, it doesn\'t really give you anything.', description='Display available performance counters on the remote server.  This is for debug use only, it doesn\'t really give you anything.', epilog='Example Usage: availcounters')
     parser_availCounters.add_argument('-f', '--filter', help='Simple filter for case insenstive counters containing a given string', default=None, type=str)
+    parser_availCounters.add_argument('-p', '--print', help='Print the available counters to the screen.  Must be provide with -s if you want to print to screen.', action='store_true', default=False)
+    parser_availCounters.add_argument('-s', '--save', help='Save the available counters to a file', default=None, type=str, required=False, metavar='filename')
     parser_availCounters.set_defaults(func=slingerClient.show_avail_counters)
 
     parser_getCounter = subparsers.add_parser('debug-counter', help='Display a performance counter.  This is for debug use only, it doesn\'t really give you anything.', description='Display a performance counter on the remote server.  This is for debug use only, it doesn\'t really give you anything.', epilog='Example Usage: counter -c 123 [-a x86]')
     parser_getCounter.add_argument('-c','--counter', help='Specify the counter to display', default=None, type=int)
     parser_getCounter.add_argument('-a', '--arch', help='Specify the architecture of the remote server', choices=['x86','x64', 'unk'], default='unk')
+    parser_getCounter.add_argument('-i', '--interactive', help='Run the counter in interactive mode', action='store_true', default=False)
+
     parser_getCounter.set_defaults(func=slingerClient.show_perf_counter)
     
     parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
