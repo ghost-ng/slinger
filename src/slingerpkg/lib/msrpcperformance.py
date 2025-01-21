@@ -179,7 +179,7 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
 
 
 def parse_perf_object_type(data, pos=0, is_64bit=False):
-    print_debug("MSRPC: Entering parse_perf_object_type()")
+    print_debug("MSRPC: Entering parse_perf_object_type(): pos = {}".format(pos))
     try:
         # Define formats
         dword_fmt = '<I'
@@ -227,13 +227,17 @@ def parse_perf_object_type(data, pos=0, is_64bit=False):
             object_type[field], pos = struct.unpack_from(fmt, data, pos)[0], pos + size
 
         # Validate TotalByteLength
-        if object_type['TotalByteLength'] <= 0 or object_type['TotalByteLength'] > len(data):
-            return False, "Invalid TotalByteLength value", object_type
+        if object_type['TotalByteLength'] <= 0:# or object_type['TotalByteLength'] > len(data):
+            print_debug("MSRPC: ERROR: Invalid TotalByteLength value")
+            print_debug(object_type)
+            print_debug(f"MSRPC: TotalByteLength = {object_type['TotalByteLength']}, data length = {len(data)}")
+            return False, pos, {}
 
         return True, pos, object_type
 
     except struct.error as e:
-        return False, "Error unpacking data: " + str(e), None
+        print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
+        return False, pos, {}
 
 
 
