@@ -702,7 +702,7 @@ class winreg():
                     'Handles': process_list[name]["Handle Count"],
                 }
         print(tabulate(psl.values(), headers="keys"))
-        print_good("Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes")
+        print_good("Processes with '(uuid:<random chars>)' have duplicate names but are unique processes")
 
     def show_avail_counters(self, args):
         self.setup_dce_transport()
