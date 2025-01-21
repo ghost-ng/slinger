@@ -685,6 +685,7 @@ class winreg():
         arch = self.get_processor_architecture()
         self.dce_transport._connect('winreg')
         result = self.dce_transport._hQueryPerformaceData("230", int(arch))
+        print_debug("Result: \n" + str(result))
         process_list = result[2]["Process"]
         names = {}
         names = [key for key in process_list if key != "_Total"]

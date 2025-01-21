@@ -803,7 +803,7 @@ class DCETransport:
 
 
         pos = 0
-        status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)      # works up to here
+        status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)
         # store values in a list    
         dbg_perf_block_list = []    
         for key, value in data_block.items():
@@ -836,7 +836,7 @@ class DCETransport:
 
             # skip and increment the position if the object name is not Process
             if object_name != "Process":
-                print_debug("Skipping object type with name not equal to Process")
+                print_debug("Skipping object name with name not equal to Process")
                 pos = object_start + object_type['TotalByteLength']
                 continue
             if not status:
@@ -866,13 +866,14 @@ class DCETransport:
             
 
             # Check if we have any instances
-            #print_info("NumInstances: " + str(object_type['NumInstances']))
+            print_debug("Found NumInstances: " + str(object_type['NumInstances']))
             if object_type['NumInstances'] > 0:
                 # Bring the position to the beginning of the instances (or counters)
                 pos = object_start + object_type['DefinitionLength']
                 print_debug(f"Found {str(object_type['NumInstances'])} instances")
                 # Parse the object instances and counters
                 for j in range(object_type['NumInstances']):
+                    print_debug(f"Instance #{j}")
                     instance_start = pos
 
                     # Instance definition
