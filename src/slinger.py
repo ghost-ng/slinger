@@ -265,5 +265,14 @@ def main():
 
 if __name__ == "__main__":
     print_log(banner_art)
+    # print python debug info
+    print_debug("Python Version: " + sys.version)
+    print_debug("Python Path: " + sys.executable)
+    print_debug("Python Prefix: " + sys.prefix)
+    print_debug("Python Path: " + sys.path[0])
+    print_debug("Python Platform: " + sys.platform)
+    print_debug("Python Version Info: " + str(sys.version_info))
+
+    
     
     main()
