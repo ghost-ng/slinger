@@ -178,56 +178,67 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
         return False, "Error unpacking data: " + str(e), None
 
 
-
-
 def parse_perf_object_type(data, pos=0, is_64bit=False):
+    print_debug("MSRPC: Entering parse_perf_object_type()")
     try:
-        # Define format strings for DWORD and LONG
+        # Define formats
         dword_fmt = '<I'
         long_fmt = '<l'
-        large_integer_fmt = '<Q'  # LARGE_INTEGER is a 64-bit integer
+        large_integer_fmt = '<Q'
 
-        # Initialize the object type dictionary
+        # Initialize result dictionary
         object_type = {}
 
-        # Unpack fields strictly in the order they appear in the struct
         # Unpack DWORD fields
         for field in ['TotalByteLength', 'DefinitionLength', 'HeaderLength', 'ObjectNameTitleIndex']:
+            if pos + 4 > len(data):
+                return False, "Insufficient data for field: " + field, None
             object_type[field], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
 
-        # 64-bit systems have additional DWORDs instead of LPWSTR pointers
+        # Handle LPWSTR pointer or DWORD based on architecture
         if is_64bit:
             object_type['ObjectNameTitle'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
         else:
-            # Skip LPWSTR pointer in 32-bit systems (4 bytes)
-            pos += 4
+            pos += 4  # Skip 32-bit pointer
 
         for field in ['ObjectHelpTitleIndex']:
+            if pos + 4 > len(data):
+                return False, "Insufficient data for field: " + field, None
             object_type[field], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
 
         if is_64bit:
             object_type['ObjectHelpTitle'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
         else:
-            # Skip LPWSTR pointer in 32-bit systems (4 bytes)
-            pos += 4
+            pos += 4  # Skip 32-bit pointer
 
-        # Unpack remaining fields in the strict order
-        object_type['DetailLevel'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-        object_type['NumCounters'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-        object_type['DefaultCounter'], pos = struct.unpack_from(long_fmt, data, pos)[0], pos + 4
-        object_type['NumInstances'], pos = struct.unpack_from(long_fmt, data, pos)[0], pos + 4
-        object_type['CodePage'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-        object_type['PerfTime'], pos = struct.unpack_from(large_integer_fmt, data, pos)[0], pos + 8
-        object_type['PerfFreq'], pos = struct.unpack_from(large_integer_fmt, data, pos)[0], pos + 8
+        # Unpack remaining fields
+        for field, fmt, size in [
+            ('DetailLevel', dword_fmt, 4),
+            ('NumCounters', dword_fmt, 4),
+            ('DefaultCounter', long_fmt, 4),
+            ('NumInstances', long_fmt, 4),
+            ('CodePage', dword_fmt, 4),
+            ('PerfTime', large_integer_fmt, 8),
+            ('PerfFreq', large_integer_fmt, 8),
+        ]:
+            if pos + size > len(data):
+                return False, f"Insufficient data for field: {field}", None
+            object_type[field], pos = struct.unpack_from(fmt, data, pos)[0], pos + size
+
+        # Validate TotalByteLength
+        if object_type['TotalByteLength'] <= 0 or object_type['TotalByteLength'] > len(data):
+            return False, "Invalid TotalByteLength value", object_type
 
         return True, pos, object_type
+
     except struct.error as e:
-        print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: " + str(e), None
 
 
 
+
 def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
+    print_debug("MSRPC: Entering parse_perf_counter_block()")
     # Define format string for DWORD (32-bit unsigned integer)
     dword_fmt = '<I'  # Little-endian format
 
@@ -240,62 +251,33 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
         print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: {}".format(e), None
 
-def parse_perf_title_database(data, pos=0):     #validated
-    #print(data)
-    result = {}
-    split_data = data.split('\x00')[2:]
-     # Iterate over the list in steps of 2
-    for i in range(0, len(split_data), 2):
-        if i + 1 >= len(split_data):
-            break
-        number = split_data[i]
-        name = split_data[i + 1]
+def parse_perf_counter_block_test(data, pos=0):
+    print_debug("MSRPC: Entering parse_perf_counter_block_test()")
+    dword_fmt = '<I'  # Little-endian format for DWORD
 
-        # Convert number to integer if needed
-        try:
-            number_key = int(number)
-        except ValueError:
-           continue
-
-        # Store the pair in the dictionary
-        result[number_key] = name
-
-    return True, pos, result
-
-def parse_perf_counter_block_test(data, final_counter_block_pos):
-    """
-    Parses the performance counter block and ensures safe padding.
-    """
     try:
-        # Ensure data is a mutable bytearray to avoid memory errors
-        data = bytearray(data)
-        current_pos = len(data)
-        required_length = final_counter_block_pos
-        padding_needed = required_length - current_pos
-
-        # Debug information
-        print_debug(f"DEBUG: Current position: {current_pos}, Required length: {required_length}, Padding needed: {padding_needed}")
-
-        # Set a maximum padding limit to prevent excessive memory allocation
-        MAX_PADDING_LIMIT = 4096
-        if padding_needed > MAX_PADDING_LIMIT:
-            print_debug(f"WARNING: Padding needed ({padding_needed}) exceeds the limit ({MAX_PADDING_LIMIT}). Truncating to maximum allowed padding.")
-            padding_needed = MAX_PADDING_LIMIT
-
-        # Add necessary padding
-        if padding_needed > 0:
+        byte_length, pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+    except struct.error as e:
+        # Check if the buffer is too short for unpacking
+        required_length = pos + 4  # Needed length for DWORD
+        if len(data) < required_length:
+            padding_needed = required_length - len(data)
+            # Pad the data appropriately
             data += b'\x00' * padding_needed
+            # Try unpacking again
+            try:
+                byte_length, pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+            except struct.error as e:
+                # Handle error if unpacking still fails
+                print_debug(f"MSRPC: ERROR: Error unpacking data after padding: {e}", sys.exc_info())
+                return False, "Error unpacking data after padding", None
+        else:
+            # Handle other unpacking errors
+            print_debug(f"MSRPC: ERROR: Error unpacking data: {e}", sys.exc_info())
+            return False, "Error unpacking data", None
 
-        # Assuming `pos` is the current position after padding
-        pos = len(data)
+    return True, pos, {'ByteLength': byte_length}
 
-        # Example object to simulate processing output
-        byte_length = len(data)
-        return True, pos, {'ByteLength': byte_length}
-
-    except Exception as e:
-        print_debug(f"ERROR: Exception occurred in parse_perf_counter_block_test: {e}")
-        return False, None, {}
 
 
 def remove_null_terminator(s):
