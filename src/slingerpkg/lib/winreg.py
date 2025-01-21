@@ -1,3 +1,4 @@
+import json
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
@@ -709,10 +710,13 @@ class winreg():
 
     def show_avail_counters(self, args):
         """
-        Retrieve and display the Title Database (performance counters) and save it to a local file.
+        Retrieve and display the Title Database (performance counters) and optionally save it to a local file.
 
         Args:
             args (Namespace): Arguments for filtering results (optional).
+                - args.save: Filepath to save counters (optional).
+                - args.filter: Filter string to match counter numbers or descriptions (optional).
+                - args.print: Always print counters to the screen.
         """
         try:
             self.setup_dce_transport()
@@ -720,7 +724,7 @@ class winreg():
 
             # If the titledb_list is already cached, use it
             if self.titledb_list:
-                self._save_counters_to_file(self.titledb_list, args)
+                self._display_and_save_counters(self.titledb_list, args)
                 return
 
             # Connect to the WinReg service
@@ -733,41 +737,50 @@ class winreg():
             # Remove non-ASCII characters and populate titledb_list
             for k, v in result.items():
                 desc = re.sub(r'[^\x00-\x7f]', r'', v)
-                self.titledb_list.append({k: desc})
+                self.titledb_list.append({str(k): desc})  # Store the counter number as a string for filtering
 
-            # Save to file and display results
-            self._save_counters_to_file(self.titledb_list, args)
+            # Display results and optionally save
+            self._display_and_save_counters(self.titledb_list, args)
 
         except Exception as e:
             print_bad(f"An error occurred while retrieving counters: {e}")
             print_debug("Detailed exception information:", e)
 
 
-    def _save_counters_to_file(self, titledb_list, args):
+    def _display_and_save_counters(self, titledb_list, args):
         """
-        Save the Title Database to a file and display filtered or complete results.
+        Display the Title Database and optionally save filtered or complete results to a file.
 
         Args:
             titledb_list (list): The list of performance counters.
-            args (Namespace): Arguments for filtering results (optional).
+            args (Namespace): Arguments for filtering and saving results (optional).
+                - args.save: Filepath to save counters (optional).
+                - args.filter: Filter string to match counter numbers or descriptions (optional).
+                - args.print: Always print counters to the screen.
         """
         try:
-            output_file = "available_counters.txt"
-            with open(output_file, "w", encoding="utf-8") as file:
-                for elem in titledb_list:
-                    for k, v in elem.items():
-                        if args.filter:
-                            if args.filter.lower() in v.lower():
-                                file.write(f"{k} - {v}\n")
-                                print_info(f"{k} - {v}")
-                        else:
-                            file.write(f"{k} - {v}\n")
-                            print_info(f"{k} - {v}")
+            # Prepare output based on filter
+            output = []
+            for elem in titledb_list:
+                for k, v in elem.items():
+                    # Apply filter to both counter key and description
+                    if args.filter and args.filter.lower() not in k.lower() and args.filter.lower() not in v.lower():
+                        continue
+                    output.append(f"{k} - {v}")
 
-            print_good(f"Counters saved to {os.path.abspath(output_file)}")
+            # Print results if args.print is provided or save is not specified
+            if args.print or not args.save:
+                for line in output:
+                    print_info(line)
+
+            # Save to file if args.save is provided
+            if args.save:
+                with open(args.save, "w", encoding="utf-8") as file:
+                    file.write("\n".join(output) + "\n")
+                print_good(f"Counters saved to {os.path.abspath(args.save)}")
 
         except Exception as e:
-            print_bad(f"Failed to save counters to file: {e}")
+            print_bad(f"Failed to display or save counters: {e}")
             print_debug("Detailed exception information:", e)
 
 
@@ -797,10 +810,40 @@ class winreg():
         # remove the title database entry
         title_db = result[2].pop("title_database")
         perfData = result[2]
-        print_good("'result'\tAccess the entire Performance Counter dictionary")
-        print_good("'perfData'\tAccess the Performance Counter Data only")
-        combined_scope = globals().copy()
-        combined_scope.update(locals())
-        enter_interactive_debug_mode(local=locals())
-        set_config_value("debug", original_debug_value)
+
+        if args.interactive:
+            print_info("'result'\tAccess the entire Performance Counter dictionary")
+            print_info("'perfData'\tAccess the Performance Counter Data only")
+            print_info("'title_db'\tAccess the Title Database")
+            print_info("Helper functions: 'self.write_to_file(data, filename)'")
+            combined_scope = globals().copy()
+            combined_scope.update(locals())
+            enter_interactive_debug_mode(local=locals())
+            set_config_value("debug", original_debug_value)
+        else:
+            print_info("Performance Counter Data for:")
+            counter_name = title_db[args.counter]
+            print_info(f"{args.counter} - {counter_name}")
+            print_debug("Result: \n" + str(result))
+            set_config_value("debug", original_debug_value)
         
+    def write_to_file(self, data, filename):
+        """
+        Writes the specified data to a file.
+
+        Args:
+            data (dict,str,tuple): The data to write to the file.
+            filename (str): The name of the file to write the data to.
+
+        Returns:
+            None
+        """
+        # if dict convert to printable string
+        if isinstance(data, dict):
+            data = json.dumps(data, indent=4)
+        # if tuple convert to printable string
+        if isinstance(data, tuple):
+            data = str(data)
+        with open(filename, "w") as file:
+            file.write(data)
+        print_good(f"Data written to {filename}")
