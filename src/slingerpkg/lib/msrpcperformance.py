@@ -241,38 +241,39 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
         return False, "Error unpacking data: {}".format(e), None
 
 def parse_perf_counter_block_test(data, pos=0):
+    """
+    Parse a performance counter block with proper error handling and debugging.
+    """
     import struct
 
-    dword_fmt = '<I'  # Little-endian format for DWORD
+    dword_fmt = '<I'  # Little-endian DWORD format
 
     try:
-        byte_length, pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-    except struct.error as e:
-        # Check if the buffer is too short for unpacking
-        required_length = pos + 4  # Needed length for DWORD
-        actual_length = len(data)
+        # Ensure sufficient data exists for unpacking
+        if len(data) < pos + 4:
+            required_length = pos + 4
+            padding_needed = required_length - len(data)
+            print_debug(f"DEBUG: Insufficient data length. Padding needed: {padding_needed} bytes")
 
-        if actual_length < required_length:
-            padding_needed = required_length - actual_length
-            print_debug(f"DEBUG: Insufficient data length. Padding needed: {padding_needed}")
+            # Limit padding to a reasonable size
+            max_padding = 1024  # Arbitrary limit to prevent runaway memory usage
+            if padding_needed > max_padding:
+                print_debug(f"ERROR: Excessive padding required: {padding_needed}")
+                return False, f"Excessive padding required: {padding_needed} bytes", None
 
-            # Avoid excessive padding
-            if padding_needed > 1024:  # Arbitrary limit for padding
-                print_debug(f"MSRPC: ERROR: Excessive padding required: {padding_needed}", sys.exc_info())
-                return False, f"Excessive padding required ({padding_needed} bytes)", None
-
-            # Create a new padded buffer
+            # Create a padded copy instead of modifying the original data
             padded_data = data + b'\x00' * padding_needed
-
-            try:
-                byte_length, pos = struct.unpack_from(dword_fmt, padded_data, pos)[0], pos + 4
-            except struct.error as e:
-                print_debug(f"MSRPC: ERROR: Error unpacking data after padding: {e}", sys.exc_info())
-                return False, "Error unpacking data after padding", None
         else:
-            print_debug(f"MSRPC: ERROR: Error unpacking data: {e}", sys.exc_info())
-            return False, "Error unpacking data", None
+            padded_data = data
 
+        # Attempt to unpack the DWORD
+        byte_length, pos = struct.unpack_from(dword_fmt, padded_data, pos)[0], pos + 4
+
+    except struct.error as e:
+        print_debug(f"ERROR: Failed to unpack DWORD: {e}", sys.exc_info())
+        return False, "Error unpacking data", None
+
+    # Return successfully parsed results
     return True, pos, {'ByteLength': byte_length}
 
 
