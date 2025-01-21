@@ -828,17 +828,30 @@ class DCETransport:
             # Get the type of the object
             
             status, pos, object_type = parse_perf_object_type(queryvalue_result[1], pos, is_64bit=bitwise)    # correct up to here
+            print_debug(f"Object #{i} - Object Type: " + str(object_type), sys.exc_info())
+            print_debug(f"New Position: {pos}")
+
+            # Validate DefinitionLength
+            if object_type['DefinitionLength'] > len(queryvalue_result[1]):
+                print_warning(f"DefinitionLength {object_type['DefinitionLength']} exceeds available data size {len(queryvalue_result[1])}")
+                print_debug(f"Object Type: {object_type}")
+                pos = object_start + object_type['TotalByteLength']
+                continue
+
+            # Ensure the position calculation stays within bounds
+            if pos + object_type['DefinitionLength'] > len(queryvalue_result[1]):
+                print_warning("Position after adding DefinitionLength exceeds available data")
+                print_debug(f"Object Start: {object_start}, Current Pos: {pos}, DefinitionLength: {object_type['DefinitionLength']}")
+                pos = object_start + object_type['TotalByteLength']
+                continue
+
+
 
             object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
 
             print_debug(f"Object #{i} - Object Name: " + str(object_name), sys.exc_info())
-            print_debug(f"Object #{i} - Object Type: " + str(object_type), sys.exc_info())
+            
 
-            # skip and increment the position if the object name is not Process
-            # if object_name != "Process":
-            #     print_debug("Skipping object name with name not equal to Process")
-            #     pos = object_start + object_type['TotalByteLength']
-            #     continue
             if not status:
                 return False, pos
 
@@ -853,39 +866,42 @@ class DCETransport:
             pos = object_start + object_type['HeaderLength']
 
             # Parse the counter definitions
-            for j in range(object_type['NumCounters']):
-                status, pos, counter_definitions[j] = parse_perf_counter_definition(queryvalue_result[1], pos, is_64bit=bitwise)
-                #print("Current Position after Counter Definition: " + str(pos))
-                #print_info("Added Counter Definition: " + str(counter_definitions[j]))
-                if not status:
-                    print_debug("Error parsing counter definitions", sys.exc_info())
-                    return False, pos
+            print_debug("Found NumCounters: " + str(object_type['NumCounters']))
+            if object_type['NumCounters'] > 0:
+                for j in range(object_type['NumCounters']):
+                    status, pos, counter_definitions[j] = parse_perf_counter_definition(queryvalue_result[1], pos, is_64bit=bitwise)
+                    print_debug("Current Position after Counter Definition: " + str(pos))
+                    print_debug("Added Counter Definition: " + str(counter_definitions[j]))
+                    if not status:
+                        print_debug("Error parsing counter definitions", sys.exc_info())
+                        return False, pos
 
-            print_debug("Counter Definitions: \n" + str(counter_definitions))  # correct up to here
-
-            
+                print_debug("Counter Definitions: \n" + str(counter_definitions))  # correct up to here
+            else:
+                print_debug("No counter definitions found")            
 
             # Check if we have any instances
             print_debug("Found NumInstances: " + str(object_type['NumInstances']))
             if object_type['NumInstances'] > 0:
+
                 # Bring the position to the beginning of the instances (or counters)
                 pos = object_start + object_type['DefinitionLength']
-                print_debug(f"Found {str(object_type['NumInstances'])} instances")
                 # Parse the object instances and counters
                 for j in range(object_type['NumInstances']):
                     print_debug(f"Instance #{j}")
                     instance_start = pos
 
                     # Instance definition
-                    #print("Current Position for Instance Definition: " + str(pos))
+                    print_debug("Current Position for Instance Definition: " + str(pos))
                     status, pos, object_instances[j] = parse_perf_instance_definition(queryvalue_result[1], pos)       # this works
-                    #print_info("Instance Definition: " + str(object_instances[j]))
+                    print_debug("Instance Definition: " + str(object_instances[j]))
                     if not status:
                         print_debug("Error parsing instance definitions", sys.exc_info())
                         return False, pos
 
                     # Set up the instance array
                     instance_name = object_instances[j]['InstanceName']
+                    print_debug(f"Instance Name: " + str(instance_name))
                     # check if the instance name already exists
                     if instance_name in result[object_name]:
                         instance_name = instance_name + " (uuid:" + generate_random_string(6) + ")"
@@ -921,7 +937,7 @@ class DCETransport:
             else:  # if NumInstances == 0
                 #https://learn.microsoft.com/en-us/windows/win32/perfctrs/performance-data-format
                 # start at the end of the PERF_COUNTER_DEFINITIONS and PERF_OBJECT_TYPE
-                print_debug(f"Found {str(object_type['NumInstances'])} instances")
+                print_debug(f"Found NumInstances == 0")
 
                 # Calculate the total length of all counter definitions
                 total_counter_definitions_length = sum(cd['ByteLength'] for cd in counter_definitions.values())

@@ -808,23 +808,37 @@ class winreg():
         self.dce_transport._connect('winreg')
         result = self.dce_transport._hQueryPerformaceData(str(args.counter), int(arch))
         # remove the title database entry
-        title_db = result[2].pop("title_database")
-        perfData = result[2]
+        
+            
 
         if args.interactive:
             print_info("'result'\tAccess the entire Performance Counter dictionary")
-            print_info("'perfData'\tAccess the Performance Counter Data only")
-            print_info("'title_db'\tAccess the Title Database")
+            try:
+                perfData = result[2]
+                print_info("'perfData'\tAccess the Performance Counter Data only")
+            except (KeyError, IndexError, UnboundLocalError):
+                print_warning("Failed to retrieve Performance Counter Data")
+            try:
+                title_db = result[2].pop("title_database")
+                print_info("'title_db'\tAccess the Title Database")
+            except (KeyError, IndexError, UnboundLocalError):
+                print_warning("Failed to retrieve Title Database")
             print_info("Helper functions: 'self.write_to_file(data, filename)'")
             combined_scope = globals().copy()
             combined_scope.update(locals())
             enter_interactive_debug_mode(local=locals())
             set_config_value("debug", original_debug_value)
         else:
-            print_info("Performance Counter Data for:")
-            counter_name = title_db[args.counter]
-            print_info(f"{args.counter} - {counter_name}")
-            print_debug("Result: \n" + str(result))
+            try:
+                print_info("Performance Counter Data for:")
+                title_db = result[2].pop("title_database")
+                counter_name = title_db[args.counter]
+                print_info(f"{args.counter} - {counter_name}")
+                print_debug("Result: \n" + str(result))
+            except (KeyError, IndexError, UnboundLocalError):
+                print_warning("Failed to retrieve Performance Counter Data")
+                print_debug("Result: \n" + str(result))
+
             set_config_value("debug", original_debug_value)
         
     def write_to_file(self, data, filename):

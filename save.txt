@@ -1,0 +1,66 @@
+6 - % Processor Time
+44 - Processor Queue Length
+230 - Process
+238 - Processor
+240 - % Total Processor Time
+248 - Processes
+784 - ID Process
+786 - Process Address Space
+1410 - Creating Process ID
+1502 - Current % Processor Time
+1508 - This Period mSec - Processor
+1516 - Process Count - Total
+1518 - Process Count - Active
+1520 - Process Count - Terminated
+1522 - Total mSec - Processor
+1670 - Security Per-Process Statistics
+1884 - Process ID
+1896 - Processor Information
+1898 - % Processor Time
+1932 - Processor Frequency
+1936 - Processor State Flags
+1946 - % Processor Performance
+1950 - % Processor Utility
+2524 - Activity Host Manager: # of busy host processes
+2534 - Activity Host Manager: # of created host processes
+2536 - Activity Host Manager: # of disposed host processes
+2538 - Activity Host Manager: host processes pool size
+3874 - Events processed/DPC
+4814 - IPv4 outbound NBLs not processed via fast path
+4816 - IPv4 outbound NBLs/sec not processed via fast path
+4818 - IPv6 outbound NBLs not processed via fast path
+4820 - IPv6 outbound NBLs/sec not processed via fast path
+4822 - TCP inbound segments not processed via fast path
+4824 - TCP inbound segments/sec not processed via fast path
+5134 - GPU Process Memory
+5434 - Per Processor Network Interface Card Activity
+5486 - Per Processor Network Activity Cycles
+5584 - Processor Number
+5604 - % Processing Time
+5838 - Processed Documents
+5840 - Processed Documents Rate
+5944 - Filter Processes
+5946 - Filter Processes Max
+5948 - Filter Process Created
+7964 - Process ID
+8264 - User Input Delay per Process
+8810 - Logical Processors
+8816 - Virtual Processors
+8826 - Hyper-V Hypervisor Logical Processor
+8838 - Inter-Processor Interrupts/sec
+8844 - Inter-Processor Interrupts Sent/sec
+8846 - Processor Halts/sec
+8870 - Processor State Flags
+8916 - Virtual Processors
+8980 - Hyper-V Hypervisor Root Virtual Processor
+9066 - Logical Processor Migrations/sec
+9102 - Logical Processor Hypercalls/sec
+9114 - Virtual Processor Hypercalls/sec
+9124 - Logical Processor Dispatches/sec
+9328 - Logical Processor Dispatches Base
+9794 - iSCSI Request Processing Time
+9796 - Average Request Processing Time
+9798 - Max Request Processing Time
+9816 - Processor Performance
+9818 - Processor Frequency
+9822 - Processor State Flags
