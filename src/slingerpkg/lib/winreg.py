@@ -708,6 +708,77 @@ class winreg():
         print(tabulate(psl.values(), headers="keys"))
         print_good("Processes with '(uuid:<random chars>)' have duplicate names but are unique processes")
 
+    def show_network_info_handler(self, args):
+        """
+        Display network performance stats in a human-readable format.
+
+        Args:
+            args: Arguments provided for filtering or display options.
+        """
+        arch = self.get_processor_architecture()
+        self.dce_transport._connect('winreg')
+
+        # Query performance data for network stats
+        
+        
+        if args.tcp:
+            result = self.dce_transport._hQueryPerformaceData("638", int(arch))
+            print_debug("Result: \n" + str(result))
+            self.show_tcp_info(result)
+        elif args.rdp:
+            result = self.dce_transport._hQueryPerformaceData("5736", int(arch))
+            print_debug("Result: \n" + str(result))
+            self.show_rdp_connections(result)
+        
+
+    def show_tcp_info(self, result):
+        network_iface = result[2]["Network Interface"]
+        network_tcpv4 = result[2]["TCPv4"]
+        network_tcpv6 = result[2]["TCPv6"]
+
+        # Display network interface names
+        iface_names = [key for key in network_iface if key != "_Total"]
+        iface_names.sort(key=lambda x: network_iface[x]["Bytes Received/sec"], reverse=True)
+
+        print_info("Network Interfaces:")
+        for name in iface_names:
+            print_info(f"{name}")
+
+        # Display TCPv4 stats
+        print_info("TCPv4 Stats:")
+        print_info(f"  Connections Active: {network_tcpv4['Connections Active']}")
+        print_info(f"  Connections Established: {network_tcpv4['Connections Established']}")
+        print_info(f"  Connections Passive: {network_tcpv4['Connections Passive']}")
+        print_info(f"  Connections Reset: {network_tcpv4['Connections Reset']}")
+        print_info(f"  Segments Received/sec: {network_tcpv4['Segments Received/sec']}")
+        print_info(f"  Segments Sent/sec: {network_tcpv4['Segments Sent/sec']}")
+        print("")
+
+        # Display TCPv6 stats
+        print_info("TCPv6 Stats:")
+        print_info(f"  Connections Active: {network_tcpv6['Connections Active']}")
+        print_info(f"  Connections Established: {network_tcpv6['Connections Established']}")
+        print_info(f"  Connections Passive: {network_tcpv6['Connections Passive']}")
+        print_info(f"  Connections Reset: {network_tcpv6['Connections Reset']}")
+        print_info(f"  Segments Received/sec: {network_tcpv6['Segments Received/sec']}")
+        print_info(f"  Segments Sent/sec: {network_tcpv6['Segments Sent/sec']}")
+
+    def show_rdp_connections(self, result):
+        arch = self.get_processor_architecture()
+        self.dce_transport._connect('winreg')
+
+        
+        term_serv = result[2]["Terminal Services Session"] # Terminal Services Session
+        print_info("RDP Connections:")
+        # look for RDP-Tcp and count
+        rdp_count = 0
+        for key in term_serv:
+            if "RDP-Tcp" in key:
+                rdp_count += 1
+                print_info(f"  {key}")
+        print_info(f"Total RDP Connections: {rdp_count}")
+
+
     def show_avail_counters(self, args):
         """
         Retrieve and display the Title Database (performance counters) and optionally save it to a local file.
@@ -806,10 +877,7 @@ class winreg():
         elif args.arch == "x64":
             arch = "64"
         self.dce_transport._connect('winreg')
-        result = self.dce_transport._hQueryPerformaceData(str(args.counter), int(arch))
-        # remove the title database entry
-        
-            
+        result = self.dce_transport._hQueryPerformaceData(str(args.counter), int(arch))        
 
         if args.interactive:
             print_info("'result'\tAccess the entire Performance Counter dictionary")

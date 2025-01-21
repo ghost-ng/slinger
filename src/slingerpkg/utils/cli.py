@@ -404,6 +404,12 @@ def setup_cli_parser(slingerClient):
     parser_getCounter.add_argument('-i', '--interactive', help='Run the counter in interactive mode', action='store_true', default=False)
 
     parser_getCounter.set_defaults(func=slingerClient.show_perf_counter)
+
+    parser_network = subparsers.add_parser('network', help='Display network information', description='Display network information on the remote server', epilog='Example Usage: network')
+    parser_network.add_argument('-tcp', help='Display TCP information', action='store_true', default=False)
+    parser_network.add_argument('-rdp', help='Display RDP information', action='store_true', default=False)
+    parser_network.set_defaults(func=slingerClient.show_network_info_handler)
+
     
     parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
 
