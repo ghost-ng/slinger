@@ -834,6 +834,11 @@ class DCETransport:
             print_debug(f"Object #{i} - Object Name: " + str(object_name), sys.exc_info())
             print_debug(f"Object #{i} - Object Type: " + str(object_type), sys.exc_info())
 
+            # skip and increment the position if the object name is not Process
+            if object_name != "Process":
+                print_debug("Skipping object type with name not equal to Process")
+                pos = object_start + object_type['TotalByteLength']
+                continue
             if not status:
                 return False, pos
 
