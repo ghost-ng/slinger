@@ -241,6 +241,8 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
         return False, "Error unpacking data: {}".format(e), None
 
 def parse_perf_counter_block_test(data, pos=0):
+    import struct
+
     dword_fmt = '<I'  # Little-endian format for DWORD
 
     try:
@@ -248,23 +250,31 @@ def parse_perf_counter_block_test(data, pos=0):
     except struct.error as e:
         # Check if the buffer is too short for unpacking
         required_length = pos + 4  # Needed length for DWORD
-        if len(data) < required_length:
-            padding_needed = required_length - len(data)
-            # Pad the data appropriately
-            data += b'\x00' * padding_needed
-            # Try unpacking again
+        actual_length = len(data)
+
+        if actual_length < required_length:
+            padding_needed = required_length - actual_length
+            print_debug(f"DEBUG: Insufficient data length. Padding needed: {padding_needed}")
+
+            # Avoid excessive padding
+            if padding_needed > 1024:  # Arbitrary limit for padding
+                print_debug(f"MSRPC: ERROR: Excessive padding required: {padding_needed}", sys.exc_info())
+                return False, f"Excessive padding required ({padding_needed} bytes)", None
+
+            # Create a new padded buffer
+            padded_data = data + b'\x00' * padding_needed
+
             try:
-                byte_length, pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+                byte_length, pos = struct.unpack_from(dword_fmt, padded_data, pos)[0], pos + 4
             except struct.error as e:
-                # Handle error if unpacking still fails
                 print_debug(f"MSRPC: ERROR: Error unpacking data after padding: {e}", sys.exc_info())
                 return False, "Error unpacking data after padding", None
         else:
-            # Handle other unpacking errors
             print_debug(f"MSRPC: ERROR: Error unpacking data: {e}", sys.exc_info())
             return False, "Error unpacking data", None
 
     return True, pos, {'ByteLength': byte_length}
+
 
 
 
