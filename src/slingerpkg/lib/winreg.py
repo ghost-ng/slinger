@@ -672,24 +672,29 @@ class winreg():
     def show_process_list(self, args):
         """
         Retrieves and prints the list of running processes.
-
-        Returns:
-            None
         """
-        #https://learn.microsoft.com/en-us/windows/win32/perfctrs/about-performance-counters
-        
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         print_info("Retrieving Processes List...")
-        #counter_name = "ID Process"
+
+        # Ensure proper processor architecture is determined
         arch = self.get_processor_architecture()
         self.dce_transport._connect('winreg')
+
+        # Get performance data
         result = self.dce_transport._hQueryPerformaceData("230", int(arch))
+        if not result or len(result) < 3 or not isinstance(result[2], dict) or "Process" not in result[2]:
+            print_debug("ERROR: Invalid or incomplete result structure")
+            return
+
+        # Extract process list
         process_list = result[2]["Process"]
-        names = {}
+
+        # Extract and sort process names
         names = [key for key in process_list if key != "_Total"]
         names.sort(key=lambda x: process_list[x]["ID Process"])
 
+        # Generate process information
         psl = {}
         for name in names:
             if name != "_Total":
@@ -701,8 +706,10 @@ class winreg():
                     'Threads': process_list[name]["Thread Count"],
                     'Handles': process_list[name]["Handle Count"],
                 }
+
+        # Display the process table
         print(tabulate(psl.values(), headers="keys"))
-        print_good("Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes")
+        print_good("Processes with '(uuid:<random chars>)' have duplicate names but are unique processes")
 
     def show_avail_counters(self, args):
         self.setup_dce_transport()
