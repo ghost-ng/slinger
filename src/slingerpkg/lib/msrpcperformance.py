@@ -241,40 +241,42 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
         return False, "Error unpacking data: {}".format(e), None
 
 def parse_perf_counter_block_test(data, pos=0):
-    """
-    Parse a performance counter block with proper error handling and debugging.
-    """
     import struct
 
     dword_fmt = '<I'  # Little-endian DWORD format
 
     try:
+        # Validate position
+        if pos < 0 or pos >= len(data):
+            print_debug(f"ERROR: Invalid position {pos} for data length {len(data)}")
+            return False, "Invalid position", None
+
         # Ensure sufficient data exists for unpacking
         if len(data) < pos + 4:
             required_length = pos + 4
             padding_needed = required_length - len(data)
             print_debug(f"DEBUG: Insufficient data length. Padding needed: {padding_needed} bytes")
 
-            # Limit padding to a reasonable size
-            max_padding = 1024  # Arbitrary limit to prevent runaway memory usage
+            # Cap excessive padding
+            max_padding = 4096
             if padding_needed > max_padding:
                 print_debug(f"ERROR: Excessive padding required: {padding_needed}")
                 return False, f"Excessive padding required: {padding_needed} bytes", None
 
-            # Create a padded copy instead of modifying the original data
+            # Create a padded copy
             padded_data = data + b'\x00' * padding_needed
         else:
             padded_data = data
 
-        # Attempt to unpack the DWORD
+        # Unpack the DWORD
         byte_length, pos = struct.unpack_from(dword_fmt, padded_data, pos)[0], pos + 4
 
     except struct.error as e:
         print_debug(f"ERROR: Failed to unpack DWORD: {e}", sys.exc_info())
         return False, "Error unpacking data", None
 
-    # Return successfully parsed results
     return True, pos, {'ByteLength': byte_length}
+
 
 
 
