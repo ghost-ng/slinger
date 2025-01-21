@@ -194,6 +194,7 @@ def parse_perf_object_type(data, pos=0, is_64bit=False):
             if pos + 4 > len(data):
                 return False, "Insufficient data for field: " + field, None
             object_type[field], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+            print_debug(f"MSRPC: {field} = {object_type[field]}")
 
         # Handle LPWSTR pointer or DWORD based on architecture
         if is_64bit:
