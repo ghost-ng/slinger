@@ -668,7 +668,7 @@ class winreg():
                     connect_addr, connect_port = rule[2].split("/")
                     self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})
                 return True
-            
+    
     def show_process_list(self, args):
         """
         Retrieves and prints the list of running processes.
@@ -684,6 +684,8 @@ class winreg():
         #counter_name = "ID Process"
         arch = self.get_processor_architecture()
         self.dce_transport._connect('winreg')
+        # local counters: typeperf -q
+        # typeperf -q | findstr /C:Processes
         result = self.dce_transport._hQueryPerformaceData("230", int(arch))
         print_debug("Result: \n" + str(result))
         process_list = result[2]["Process"]
@@ -706,35 +708,68 @@ class winreg():
         print_good("Processes with '(uuid:<random chars>)' have duplicate names but are unique processes")
 
     def show_avail_counters(self, args):
-        self.setup_dce_transport()
-        print_info("Retrieving Title Database")
-        if self.titledb_list:
-            for elem in self.titledb_list:
-                for k,v in elem.items():
-                    if args.filter:
-                        if args.filter.lower() in v.lower():
-                            print(f"{k} - {v}")
-                    else:
-                        print(f"{k} - {v}")
-            return
-        self.dce_transport._connect('winreg')
-        result = self.dce_transport._GetTitleDatabase()
-        # sort result by key
-        result = dict(sorted(result.items()))
-        #enter_interactive_mode(local=locals())
-        # remove all non-ascii characters
-        for k,v in result.items():
-            desc = re.sub(r'[^\x00-\x7f]',r'', v)
-            self.titledb_list.append({k: desc})
-        
-        
-        for elem in self.titledb_list:
-            for k,v in elem.items():
-                if args.filter:
-                    if args.filter.lower() in v.lower():
-                        print(f"{k} - {v}")
-                else:
-                    print(f"{k} - {v}")
+        """
+        Retrieve and display the Title Database (performance counters) and save it to a local file.
+
+        Args:
+            args (Namespace): Arguments for filtering results (optional).
+        """
+        try:
+            self.setup_dce_transport()
+            print_info("Retrieving Title Database")
+
+            # If the titledb_list is already cached, use it
+            if self.titledb_list:
+                self._save_counters_to_file(self.titledb_list, args)
+                return
+
+            # Connect to the WinReg service
+            self.dce_transport._connect('winreg')
+
+            # Get title database
+            result = self.dce_transport._GetTitleDatabase()
+            result = dict(sorted(result.items()))  # Sort results by key
+
+            # Remove non-ASCII characters and populate titledb_list
+            for k, v in result.items():
+                desc = re.sub(r'[^\x00-\x7f]', r'', v)
+                self.titledb_list.append({k: desc})
+
+            # Save to file and display results
+            self._save_counters_to_file(self.titledb_list, args)
+
+        except Exception as e:
+            print_bad(f"An error occurred while retrieving counters: {e}")
+            print_debug("Detailed exception information:", e)
+
+
+    def _save_counters_to_file(self, titledb_list, args):
+        """
+        Save the Title Database to a file and display filtered or complete results.
+
+        Args:
+            titledb_list (list): The list of performance counters.
+            args (Namespace): Arguments for filtering results (optional).
+        """
+        try:
+            output_file = "available_counters.txt"
+            with open(output_file, "w", encoding="utf-8") as file:
+                for elem in titledb_list:
+                    for k, v in elem.items():
+                        if args.filter:
+                            if args.filter.lower() in v.lower():
+                                file.write(f"{k} - {v}\n")
+                                print_info(f"{k} - {v}")
+                        else:
+                            file.write(f"{k} - {v}\n")
+                            print_info(f"{k} - {v}")
+
+            print_good(f"Counters saved to {os.path.abspath(output_file)}")
+
+        except Exception as e:
+            print_bad(f"Failed to save counters to file: {e}")
+            print_debug("Detailed exception information:", e)
+
 
     def show_perf_counter(self, args):
         
