@@ -270,6 +270,13 @@ def parse_perf_counter_block_test(data, pos=0):
     except struct.error as e:
         # Check if the buffer is too short for unpacking
         required_length = pos + 4  # Needed length for DWORD
+        padding_needed = max(0, required_length - len(data))
+        MAX_PADDING = 4096  # Set an upper bound for padding
+        if padding_needed > 1000:  # Add a reasonable limit for debugging
+            print_debug(f"Padding needed is unusually large: {padding_needed}. Data length: {len(data)}, Required length: {required_length}")
+        if padding_needed > MAX_PADDING:
+            print_debug(f"Excessive padding needed: {padding_needed}. Truncating to {MAX_PADDING}.")
+            padding_needed = MAX_PADDING
         if len(data) < required_length:
             padding_needed = required_length - len(data)
             # Pad the data appropriately
