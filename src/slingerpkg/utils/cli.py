@@ -143,6 +143,7 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'exit' command
     parser_exit = subparsers.add_parser('exit', help='Exit the program', description='Exit the application', epilog='Example Usage: exit', aliases=['quit', 'logout', 'logoff'])
 
+    parser_clear = subparsers.add_parser('clear', help='Clear the screen', description='Clear the screen', epilog='Example Usage: clear')
     # Subparser for 'help' command
     parser_help = subparsers.add_parser('help', help='Show help message', description='Display help information for the application', epilog='Example Usage: help')
     parser_help.add_argument('cmd', nargs='?', help='Specify a command to show help for')

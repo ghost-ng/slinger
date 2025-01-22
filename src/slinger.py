@@ -228,7 +228,8 @@ def main():
                         force_help(slinger_parser, args.cmd)
                 else:
                     slinger_parser.print_help()
-                
+            elif args.command == "clear":
+                os.system('clear')
             elif args.command == "exit":
                 slingerClient.exit()
                 break
@@ -273,6 +274,6 @@ if __name__ == "__main__":
     print_debug("Python Platform: " + sys.platform)
     print_debug("Python Version Info: " + str(sys.version_info))
 
-    
+
     
     main()
