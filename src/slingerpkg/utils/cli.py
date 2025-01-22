@@ -143,6 +143,7 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'exit' command
     parser_exit = subparsers.add_parser('exit', help='Exit the program', description='Exit the application', epilog='Example Usage: exit', aliases=['quit', 'logout', 'logoff'])
 
+    parser_clear = subparsers.add_parser('clear', help='Clear the screen', description='Clear the screen', epilog='Example Usage: clear')
     # Subparser for 'help' command
     parser_help = subparsers.add_parser('help', help='Show help message', description='Display help information for the application', epilog='Example Usage: help')
     parser_help.add_argument('cmd', nargs='?', help='Specify a command to show help for')
@@ -394,12 +395,22 @@ def setup_cli_parser(slingerClient):
 
     parser_availCounters = subparsers.add_parser('debug-availcounters', help='Display available performance counters.  This is for debug use only, it doesn\'t really give you anything.', description='Display available performance counters on the remote server.  This is for debug use only, it doesn\'t really give you anything.', epilog='Example Usage: availcounters')
     parser_availCounters.add_argument('-f', '--filter', help='Simple filter for case insenstive counters containing a given string', default=None, type=str)
+    parser_availCounters.add_argument('-p', '--print', help='Print the available counters to the screen.  Must be provide with -s if you want to print to screen.', action='store_true', default=False)
+    parser_availCounters.add_argument('-s', '--save', help='Save the available counters to a file', default=None, type=str, required=False, metavar='filename')
     parser_availCounters.set_defaults(func=slingerClient.show_avail_counters)
 
     parser_getCounter = subparsers.add_parser('debug-counter', help='Display a performance counter.  This is for debug use only, it doesn\'t really give you anything.', description='Display a performance counter on the remote server.  This is for debug use only, it doesn\'t really give you anything.', epilog='Example Usage: counter -c 123 [-a x86]')
     parser_getCounter.add_argument('-c','--counter', help='Specify the counter to display', default=None, type=int)
     parser_getCounter.add_argument('-a', '--arch', help='Specify the architecture of the remote server', choices=['x86','x64', 'unk'], default='unk')
+    parser_getCounter.add_argument('-i', '--interactive', help='Run the counter in interactive mode', action='store_true', default=False)
+
     parser_getCounter.set_defaults(func=slingerClient.show_perf_counter)
+
+    parser_network = subparsers.add_parser('network', help='Display network information', description='Display network information on the remote server', epilog='Example Usage: network')
+    parser_network.add_argument('-tcp', help='Display TCP information', action='store_true', default=False)
+    parser_network.add_argument('-rdp', help='Display RDP information', action='store_true', default=False)
+    parser_network.set_defaults(func=slingerClient.show_network_info_handler)
+
     
     parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
 
