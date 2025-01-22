@@ -709,7 +709,6 @@ class winreg():
             print_debug("Detailed exception information:", e)
             return None
 
-
     def get_counter_num(self, counter_name):
         """
         Retrieves the number of a performance counter using its name.
@@ -738,8 +737,6 @@ class winreg():
             print_debug("Detailed exception information:", e)
             return None
 
-
-
     def show_process_list(self, args):
         """
         Retrieves and prints the list of running processes.
@@ -759,6 +756,7 @@ class winreg():
         # typeperf -q | findstr /C:Processes
         counter_num = self.get_counter_num("Process")
         print_debug("Counter Num: " + str(counter_num))
+        self.dce_transport._connect('winreg')
         result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
         print_debug("Result: \n" + str(result))
         process_list = result[2]["Process"]
@@ -798,6 +796,7 @@ class winreg():
             counter_name = "TCPv4"
             counter_num = self.get_counter_num(counter_name)
             print_info(f"Found Counter ({counter_name}): {counter_num}")
+            self.dce_transport._connect('winreg')
             result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
             self.show_tcp_info(result)
         elif args.rdp:
@@ -805,6 +804,7 @@ class winreg():
             counter_name = "Terminal Services Session"
             counter_num = self.get_counter_num(counter_name)
             print_info(f"Found Counter ({counter_name}): {counter_num}")
+            self.dce_transport._connect('winreg')
             result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
             #print_debug("Result: \n" + str(result))
             self.show_rdp_connections(result)

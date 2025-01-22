@@ -786,8 +786,6 @@ class DCETransport:
         # Open Performance Data
         openhkpd_result = rrp.hOpenPerformanceData(self.dce)
         
-
-        
         queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
 
         pos = 0
