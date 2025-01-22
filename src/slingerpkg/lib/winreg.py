@@ -670,6 +670,53 @@ class winreg():
                     self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})
                 return True
     
+    def store_title_db(self):
+        """
+        Retrieves and stores the Title Database (performance counters) in a list.
+
+        Returns:
+            None
+        """
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        print_info("Retrieving Title Database")
+        self.titledb_list = self.dce_transport._GetTitleDatabase()
+
+
+    def get_counter_name(self, counter_num):
+        """
+        Retrieves the name of a performance counter using its number.
+
+        Args:
+            counter_num (str): The number of the performance counter.
+
+        Returns:
+            str: The name of the performance counter.
+        """
+        try:
+            if not self.titledb_list:
+                self.store_title_db()
+            return self.titledb_list[counter_num]
+        except IndexError:
+            return None
+        
+    def get_counter_num(self, counter_name):
+        """
+        Retrieves the number of a performance counter using its name.
+
+        Args:
+            counter_name (str): The name of the performance counter.
+
+        Returns:
+            str: The number of the performance counter.
+        """
+        try:
+            if not self.titledb_list:
+                self.store_title_db()
+            return self.titledb_list.index(counter_name)
+        except ValueError:
+            return None
+
     def show_process_list(self, args):
         """
         Retrieves and prints the list of running processes.

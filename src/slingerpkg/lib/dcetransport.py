@@ -796,11 +796,12 @@ class DCETransport:
         status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result[1], pos)
 
         result['title_database'][0] = "<null>"  # correct up to here
-
+        #sort numerically by key
+        result['title_database'] = dict(sorted(result['title_database'].items(), key=lambda item: item[0]))
         #print(result['title_database']) 
-
+        perfmon_name = result['title_database'][int(object_num)]
+        print_info(f"Querying Performance Data for {perfmon_name} (#{object_num})")
         queryvalue_result =rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], object_num, 600000)
-
 
         pos = 0
         status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)
@@ -844,8 +845,6 @@ class DCETransport:
                 print_debug(f"Object Start: {object_start}, Current Pos: {pos}, DefinitionLength: {object_type['DefinitionLength']}")
                 pos = object_start + object_type['TotalByteLength']
                 continue
-
-
 
             object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
 
