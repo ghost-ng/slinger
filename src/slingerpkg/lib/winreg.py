@@ -1,8 +1,10 @@
+import json
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
 from time import sleep
 from slingerpkg.utils.common import reduce_slashes, enter_interactive_debug_mode
+import datetime
 
 import struct
 
@@ -48,10 +50,13 @@ class winreg():
         self.fwrule = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules\\"
         self.fwpolicy_std = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\"
         self.portproxy_root = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\PortProxy\\"
+        self.processor_info = "HKLM\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0\\"
+        self.system_time = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\W32Time\\Config"
+        self.last_shutdown = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Windows"
         self.active_portfwd_rules = []
         self.titledb_list = []
 
-    def enum_key_value(self, keyName, hex_dump=True, return_val=False, echo=True):
+    def enum_key_value(self, keyName, hex_dump=False, return_val=False, echo=True):
         """
         Enumerate the values of a given registry key.
 
@@ -73,8 +78,7 @@ class winreg():
             print_info("Enumerating Key: " + keyName)
         hKey = self.dce_transport._get_key_handle(keyName)
 
-        ans = self.dce_transport._get_key_values(hKey, hex_dump=False)
-        #enter_interactive_mode(local=locals())
+        ans = self.dce_transport._get_key_values(hKey, hex_dump=hex_dump)
 
         if not return_val:
             print_log(keyName)
@@ -226,6 +230,65 @@ class winreg():
             #print(values)
             _iface = iface.split("\\")[-1]
             print_log(iface_banner.format(interface=_iface, **values))
+
+    def _sys_proc_info(self, args, echo=True):
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        ans = self.enum_key_value(self.processor_info, return_val=True, echo=echo)
+        values = extract_reg_values(ans, ["ProcessorNameString", "Identifier", "VendorIdentifier"])        
+        return values
+
+    def _sys_time_info(self, args, echo=True):
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        ans = self.enum_key_value(self.system_time, return_val=True, echo=echo)
+        values = extract_reg_values(ans, ["LastKnownGoodTime"])
+        return values
+
+    def _get_binary_value(self, keyName, valueName):
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        hKey = self.dce_transport._get_key_handle(keyName)
+        ans = self.dce_transport._get_binary_value(hKey, valueName)
+
+    def _sys_shutdown_info(self, args, hex_dump=True, echo=True):
+        """
+        Retrieves and displays the last shutdown time from the registry.
+
+        Args:
+            args: Optional arguments.
+            hex_dump (bool): Whether to include a hex dump.
+            echo (bool): Whether to print the result.
+
+        Returns:
+            str: The last shutdown time in a human-readable format, or an error message.
+        """
+        try:
+            self.setup_dce_transport()
+            self.dce_transport._connect('winreg')
+
+            binary_data = self.dce_transport._get_binary_data(self.last_shutdown, "ShutdownTime")
+
+            # Parse binary data (assume it's a FILETIME format)
+            if binary_data:
+                filetime = struct.unpack("<Q", binary_data)[0]
+                unix_time = (filetime - 116444736000000000) // 10000000
+                shutdown_time = datetime.datetime.fromtimestamp(unix_time).strftime("%Y-%m-%d %H:%M:%S")
+
+                if echo:
+                    print_info(f"Last Shutdown Time: {shutdown_time}")
+                return shutdown_time
+            else:
+                raise ValueError("ShutdownTime data is empty or invalid.")
+
+        except Exception as e:
+            error_message = f"Failed to retrieve shutdown info: {str(e)}"
+            print_debug(error_message, sys.exc_info())
+            line_num = sys.exc_info()[-1].tb_lineno
+            print_debug(f"Error occurred on line {line_num}")
+            return error_message
+
+
 
     def hostname(self, args):
         """
@@ -668,7 +731,74 @@ class winreg():
                     connect_addr, connect_port = rule[2].split("/")
                     self.active_portfwd_rules.append({"Listen Address": listen_addr+":"+listen_port, "Connect Address": connect_addr+":"+connect_port})
                 return True
-            
+    
+    def store_title_db(self):
+        """
+        Retrieves and stores the Title Database (performance counters) in a list.
+
+        Returns:
+            None
+        """
+        if self.titledb_list:
+            return
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        print_info("Retrieving Title Database")
+        self.titledb_list = self.dce_transport._GetTitleDatabase()
+
+
+    def get_counter_name(self, counter_num):
+        """
+        Retrieves the name of a performance counter using its number.
+
+        Args:
+            counter_num (int): The number of the performance counter.
+
+        Returns:
+            str: The name of the performance counter, or None if not found.
+        """
+        print_debug("Looking up counter: " + str(counter_num))
+        try:
+            # Ensure the title database is populated
+            if not self.titledb_list:
+                self.store_title_db()
+
+            # Retrieve the counter name by number
+            return self.titledb_list.get(counter_num, None)
+
+        except Exception as e:
+            print_bad(f"An error occurred while retrieving the counter name: {e}")
+            print_debug("Detailed exception information:", e)
+            return None
+
+    def get_counter_num(self, counter_name):
+        """
+        Retrieves the number of a performance counter using its name.
+
+        Args:
+            counter_name (str): The name of the performance counter.
+
+        Returns:
+            int: The number of the performance counter, or None if not found.
+        """
+        print_debug("Looking up counter: " + counter_name)
+        try:
+            # Ensure the title database is populated
+            if not self.titledb_list:
+                self.store_title_db()
+
+            # Search for the counter name
+            for counter_num, name in self.titledb_list.items():
+                if name.lower() == counter_name.lower():  # Case-insensitive match
+                    return counter_num
+
+            return None  # Counter name not found
+
+        except Exception as e:
+            print_bad(f"An error occurred while retrieving the counter number: {e}")
+            print_debug("Detailed exception information:", e)
+            return None
+
     def show_process_list(self, args):
         """
         Retrieves and prints the list of running processes.
@@ -684,7 +814,13 @@ class winreg():
         #counter_name = "ID Process"
         arch = self.get_processor_architecture()
         self.dce_transport._connect('winreg')
-        result = self.dce_transport._hQueryPerformaceData("230", int(arch))
+        # local counters: typeperf -q
+        # typeperf -q | findstr /C:Processes
+        counter_num = self.get_counter_num("Process")
+        print_debug("Counter Num: " + str(counter_num))
+        self.dce_transport._connect('winreg')
+        result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
+        print_debug("Result: \n" + str(result))
         process_list = result[2]["Process"]
         names = {}
         names = [key for key in process_list if key != "_Total"]
@@ -702,38 +838,157 @@ class winreg():
                     'Handles': process_list[name]["Handle Count"],
                 }
         print(tabulate(psl.values(), headers="keys"))
-        print_good("Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes")
+        print_good("Processes with '(uuid:<random chars>)' have duplicate names but are unique processes")
+
+    def show_network_info_handler(self, args):
+        """
+        Display network performance stats in a human-readable format.
+
+        Args:
+            args: Arguments provided for filtering or display options.
+        """
+        arch = self.get_processor_architecture()
+        self.dce_transport._connect('winreg')
+
+        # Query performance data for network stats
+        
+        
+        if args.tcp:
+            # lookup TCPv4 and TCPv6 stats
+            counter_name = "TCPv4"
+            counter_num = self.get_counter_num(counter_name)
+            print_info(f"Found Counter ({counter_name}): {counter_num}")
+            self.dce_transport._connect('winreg')
+            result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
+            self.show_tcp_info(result)
+        elif args.rdp:
+            # lookup Terminal Services Session
+            counter_name = "Terminal Services Session"
+            counter_num = self.get_counter_num(counter_name)
+            print_info(f"Found Counter ({counter_name}): {counter_num}")
+            self.dce_transport._connect('winreg')
+            result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
+            #print_debug("Result: \n" + str(result))
+            self.show_rdp_connections(result)
+        
+
+    def show_tcp_info(self, result):
+        network_iface = result[2]["Network Interface"]
+        network_tcpv4 = result[2]["TCPv4"]
+        network_tcpv6 = result[2]["TCPv6"]
+
+        # Display network interface names
+        iface_names = [key for key in network_iface if key != "_Total"]
+        iface_names.sort(key=lambda x: network_iface[x]["Bytes Received/sec"], reverse=True)
+
+        print_info("Network Interfaces:")
+        for name in iface_names:
+            print_info(f"{name}")
+
+        # Display TCPv4 stats
+        print_info("TCPv4 Stats:")
+        print_info(f"  Connections Active: {network_tcpv4['Connections Active']}")
+        print_info(f"  Connections Established: {network_tcpv4['Connections Established']}")
+        print_info(f"  Connections Passive: {network_tcpv4['Connections Passive']}")
+        print_info(f"  Connections Reset: {network_tcpv4['Connections Reset']}")
+        print_info(f"  Segments Received/sec: {network_tcpv4['Segments Received/sec']}")
+        print_info(f"  Segments Sent/sec: {network_tcpv4['Segments Sent/sec']}")
+        print("")
+
+        # Display TCPv6 stats
+        print_info("TCPv6 Stats:")
+        print_info(f"  Connections Active: {network_tcpv6['Connections Active']}")
+        print_info(f"  Connections Established: {network_tcpv6['Connections Established']}")
+        print_info(f"  Connections Passive: {network_tcpv6['Connections Passive']}")
+        print_info(f"  Connections Reset: {network_tcpv6['Connections Reset']}")
+        print_info(f"  Segments Received/sec: {network_tcpv6['Segments Received/sec']}")
+        print_info(f"  Segments Sent/sec: {network_tcpv6['Segments Sent/sec']}")
+
+    def show_rdp_connections(self, result):
+        arch = self.get_processor_architecture()
+        self.dce_transport._connect('winreg')
+
+        
+        term_serv = result[2]["Terminal Services Session"] # Terminal Services Session
+        print_info("RDP Connections:")
+        # look for RDP-Tcp and count
+        rdp_count = 0
+        for key in term_serv:
+            if "RDP-Tcp" in key:
+                rdp_count += 1
+                print_info(f"  {key}")
+        print_info(f"Total RDP Connections: {rdp_count}")
+
 
     def show_avail_counters(self, args):
-        self.setup_dce_transport()
-        print_info("Retrieving Title Database")
-        if self.titledb_list:
+        """
+        Retrieve and display the Title Database (performance counters) and optionally save it to a local file.
+
+        Args:
+            args (Namespace): Arguments for filtering results (optional).
+                - args.save: Filepath to save counters (optional).
+                - args.filter: Filter string to match counter numbers or descriptions (optional).
+                - args.print: Always print counters to the screen.
+        """
+        try:
+            self.setup_dce_transport()
+            print_info("Retrieving Title Database")
+
+            # If the titledb_list is already cached, use it
+            if self.titledb_list:
+                self._display_and_save_counters(args)
+            else:
+                self.store_title_db()
+
+            # Display results and optionally save
+            self._display_and_save_counters(args)
+
+        except Exception as e:
+            print_bad(f"An error occurred while retrieving counters: {e}")
+            print_debug("Detailed exception information:", e)
+
+
+    def _display_and_save_counters(self, args):
+        """
+        Display the Title Database and optionally save filtered or complete results to a file.
+
+        Args:
+            titledb_list (list): The list of performance counters.
+            args (Namespace): Arguments for filtering and saving results (optional).
+                - args.save: Filepath to save counters (optional).
+                - args.filter: Filter string to match counter numbers or descriptions (optional).
+                - args.print: Always print counters to the screen.
+        """
+        try:
+            # Prepare output based on filter
+            output = []
+            # {2: 'System', 4: 'Memory', 6: '% Processor Time',
             for elem in self.titledb_list:
-                for k,v in elem.items():
-                    if args.filter:
-                        if args.filter.lower() in v.lower():
-                            print(f"{k} - {v}")
-                    else:
-                        print(f"{k} - {v}")
-            return
-        self.dce_transport._connect('winreg')
-        result = self.dce_transport._GetTitleDatabase()
-        # sort result by key
-        result = dict(sorted(result.items()))
-        #enter_interactive_mode(local=locals())
-        # remove all non-ascii characters
-        for k,v in result.items():
-            desc = re.sub(r'[^\x00-\x7f]',r'', v)
-            self.titledb_list.append({k: desc})
-        
-        
-        for elem in self.titledb_list:
-            for k,v in elem.items():
-                if args.filter:
-                    if args.filter.lower() in v.lower():
-                        print(f"{k} - {v}")
-                else:
-                    print(f"{k} - {v}")
+                key = elem
+                value = self.titledb_list[elem]
+                # Apply filter to both counter key and description
+                if args.filter and args.filter.lower() not in key.lower() and args.filter.lower() not in value.lower():
+                    continue
+                output.append(f"{key} - {value}")
+            
+            # sort the output str ## - str
+            output.sort(key=lambda x: int(x.split(" - ")[0]))
+            
+            # Print results if args.print is provided or save is not specified
+            if args.print or not args.save:
+                for line in output:
+                    print_info(line)
+
+            # Save to file if args.save is provided
+            if args.save:
+                with open(args.save, "w", encoding="utf-8") as file:
+                    file.write("\n".join(output) + "\n")
+                print_good(f"Counters saved to {os.path.abspath(args.save)}")
+
+        except Exception as e:
+            print_bad(f"Failed to display or save counters: {e}")
+            print_debug("Detailed exception information:", e)
+
 
     def show_perf_counter(self, args):
         
@@ -743,7 +998,7 @@ class winreg():
 
 
         if not args.counter:
-            print_warning("Invalid arguments.  Usage: debug-counter <counter>")
+            print_warning("Invalid arguments.  Usage: debug-counter -c <counter>")
             return
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
@@ -757,14 +1012,55 @@ class winreg():
         elif args.arch == "x64":
             arch = "64"
         self.dce_transport._connect('winreg')
-        result = self.dce_transport._hQueryPerformaceData(str(args.counter), int(arch))
-        # remove the title database entry
-        title_db = result[2].pop("title_database")
-        perfData = result[2]
-        print_good("'result'\tAccess the entire Performance Counter dictionary")
-        print_good("'perfData'\tAccess the Performance Counter Data only")
-        combined_scope = globals().copy()
-        combined_scope.update(locals())
-        enter_interactive_debug_mode(local=locals())
-        set_config_value("debug", original_debug_value)
+        result = self.dce_transport._hQueryPerformaceData(str(args.counter), int(arch))        
+
+        if args.interactive:
+            print_info("'result'\tAccess the entire Performance Counter dictionary")
+            try:
+                perfData = result[2]
+                print_info("'perfData'\tAccess the Performance Counter Data only")
+            except (KeyError, IndexError, UnboundLocalError):
+                print_warning("Failed to retrieve Performance Counter Data")
+            try:
+                title_db = result[2].pop("title_database")
+                print_info("'title_db'\tAccess the Title Database")
+            except (KeyError, IndexError, UnboundLocalError):
+                print_warning("Failed to retrieve Title Database")
+            print_info("Helper functions: 'self.write_to_file(data, filename)'")
+            combined_scope = globals().copy()
+            combined_scope.update(locals())
+            enter_interactive_debug_mode(local=locals())
+            set_config_value("debug", original_debug_value)
+        else:
+            try:
+                print_info("Performance Counter Data for:")
+                title_db = result[2].pop("title_database")
+                counter_name = title_db[args.counter]
+                print_info(f"{args.counter} - {counter_name}")
+                print_debug("Result: \n" + str(result))
+            except (KeyError, IndexError, UnboundLocalError):
+                print_warning("Failed to retrieve Performance Counter Data")
+                print_debug("Result: \n" + str(result))
+
+            set_config_value("debug", original_debug_value)
         
+    def write_to_file(self, data, filename):
+        """
+        Writes the specified data to a file.
+
+        Args:
+            data (dict,str,tuple): The data to write to the file.
+            filename (str): The name of the file to write the data to.
+
+        Returns:
+            None
+        """
+        # if dict convert to printable string
+        if isinstance(data, dict):
+            data = json.dumps(data, indent=4)
+        # if tuple convert to printable string
+        if isinstance(data, tuple):
+            data = str(data)
+        with open(filename, "w") as file:
+            file.write(data)
+        print_good(f"Data written to {filename}")

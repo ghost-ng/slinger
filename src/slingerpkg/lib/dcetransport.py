@@ -52,8 +52,10 @@ def parse_lp_data(valueType, valueData, hex_dump=True):
                 result += hexdump(valueData)
     except Exception as e:
         result += 'Exception thrown when printing reg value %s' % str(e)
+        line_num = sys.exc_info()[-1].tb_lineno
+        print_debug(f"Error in parsing reg data: {str(e)}", line_num)
         result += 'Invalid data'
-        print_debug("",sys.exc_info())
+        print_debug("LP Data Parsing Error",sys.exc_info())
     return result
 
 
@@ -637,7 +639,43 @@ class DCETransport:
                 if e.get_error_code() == ERROR_NO_MORE_ITEMS:
                     print_debug(str(e))
                     break
+            except Exception as e:
+                print_debug(str(e), sys.exc_info())
+                break
         return key_value
+
+    def _get_binary_data(self, keyName, valueName):
+        """
+        Retrieves binary data from the specified registry key.
+
+        Args:
+            keyName: Registry key name.
+            valueName: Value name to retrieve binary data.
+
+        Returns:
+            The binary data, or raises an exception if retrieval fails.
+        """
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+
+        hRootKey, subKey = self._get_root_key(keyName)
+        try:
+            ans2 = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
+                                    samDesired=READ_CONTROL | rrp.KEY_QUERY_VALUE)
+            ans3 = rrp.hBaseRegQueryValue(self.dce, ans2['phkResult'], valueName)
+
+            # Extract binary data (assume it's the second element of the tuple)
+            if isinstance(ans3, tuple) and len(ans3) > 1:
+                return ans3[1]
+            else:
+                raise ValueError("Unexpected data structure for ans3: {ans3}")
+        except Exception as e:
+            print_debug(f"Error in _get_binary_data: {str(e)}", sys.exc_info())
+            raise
+
+
 
     def _reg_add(self, keyName, valueName, valueData, valueType, bind=True):
         if not self.is_connected:
@@ -786,8 +824,6 @@ class DCETransport:
         # Open Performance Data
         openhkpd_result = rrp.hOpenPerformanceData(self.dce)
         
-
-        
         queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
 
         pos = 0
@@ -796,14 +832,15 @@ class DCETransport:
         status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result[1], pos)
 
         result['title_database'][0] = "<null>"  # correct up to here
-
+        #sort numerically by key
+        result['title_database'] = dict(sorted(result['title_database'].items(), key=lambda item: item[0]))
         #print(result['title_database']) 
-
+        perfmon_name = result['title_database'][int(object_num)]
+        print_info(f"Querying Performance Data for {perfmon_name} (#{object_num})")
         queryvalue_result =rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], object_num, 600000)
 
-
         pos = 0
-        status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)      # works up to here
+        status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)
         # store values in a list    
         dbg_perf_block_list = []    
         for key, value in data_block.items():
@@ -828,11 +865,27 @@ class DCETransport:
             # Get the type of the object
             
             status, pos, object_type = parse_perf_object_type(queryvalue_result[1], pos, is_64bit=bitwise)    # correct up to here
+            print_debug(f"Object #{i} - Object Type: " + str(object_type), sys.exc_info())
+            print_debug(f"New Position: {pos}")
+
+            # Validate DefinitionLength
+            if object_type['DefinitionLength'] > len(queryvalue_result[1]):
+                print_warning(f"DefinitionLength {object_type['DefinitionLength']} exceeds available data size {len(queryvalue_result[1])}")
+                print_debug(f"Object Type: {object_type}")
+                pos = object_start + object_type['TotalByteLength']
+                continue
+
+            # Ensure the position calculation stays within bounds
+            if pos + object_type['DefinitionLength'] > len(queryvalue_result[1]):
+                print_warning("Position after adding DefinitionLength exceeds available data")
+                print_debug(f"Object Start: {object_start}, Current Pos: {pos}, DefinitionLength: {object_type['DefinitionLength']}")
+                pos = object_start + object_type['TotalByteLength']
+                continue
 
             object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
 
             print_debug(f"Object #{i} - Object Name: " + str(object_name), sys.exc_info())
-            print_debug(f"Object #{i} - Object Type: " + str(object_type), sys.exc_info())
+            
 
             if not status:
                 return False, pos
@@ -848,38 +901,42 @@ class DCETransport:
             pos = object_start + object_type['HeaderLength']
 
             # Parse the counter definitions
-            for j in range(object_type['NumCounters']):
-                status, pos, counter_definitions[j] = parse_perf_counter_definition(queryvalue_result[1], pos, is_64bit=bitwise)
-                #print("Current Position after Counter Definition: " + str(pos))
-                #print_info("Added Counter Definition: " + str(counter_definitions[j]))
-                if not status:
-                    print_debug("Error parsing counter definitions", sys.exc_info())
-                    return False, pos
+            print_debug("Found NumCounters: " + str(object_type['NumCounters']))
+            if object_type['NumCounters'] > 0:
+                for j in range(object_type['NumCounters']):
+                    status, pos, counter_definitions[j] = parse_perf_counter_definition(queryvalue_result[1], pos, is_64bit=bitwise)
+                    print_debug("Current Position after Counter Definition: " + str(pos))
+                    print_debug("Found Counter Definition: " + str(counter_definitions[j]))
+                    if not status:
+                        print_debug("Error parsing counter definitions", sys.exc_info())
+                        return False, pos
 
-            print_debug("Counter Definitions: \n" + str(counter_definitions))  # correct up to here
-
-            
+                print_debug("Counter Definitions: \n" + str(counter_definitions))  # correct up to here
+            else:
+                print_debug("No counter definitions found")            
 
             # Check if we have any instances
-            #print_info("NumInstances: " + str(object_type['NumInstances']))
+            print_debug("Found NumInstances: " + str(object_type['NumInstances']))
             if object_type['NumInstances'] > 0:
+
                 # Bring the position to the beginning of the instances (or counters)
                 pos = object_start + object_type['DefinitionLength']
-                print_debug(f"Found {str(object_type['NumInstances'])} instances")
                 # Parse the object instances and counters
                 for j in range(object_type['NumInstances']):
+                    print_debug(f"Instance #{j}")
                     instance_start = pos
 
                     # Instance definition
-                    #print("Current Position for Instance Definition: " + str(pos))
+                    print_debug("Current Position for Instance Definition: " + str(pos))
                     status, pos, object_instances[j] = parse_perf_instance_definition(queryvalue_result[1], pos)       # this works
-                    #print_info("Instance Definition: " + str(object_instances[j]))
+                    print_debug("Instance Definition: " + str(object_instances[j]))
                     if not status:
                         print_debug("Error parsing instance definitions", sys.exc_info())
                         return False, pos
 
                     # Set up the instance array
                     instance_name = object_instances[j]['InstanceName']
+                    print_debug(f"Instance Name: " + str(instance_name))
                     # check if the instance name already exists
                     if instance_name in result[object_name]:
                         instance_name = instance_name + " (uuid:" + generate_random_string(6) + ")"
@@ -915,7 +972,7 @@ class DCETransport:
             else:  # if NumInstances == 0
                 #https://learn.microsoft.com/en-us/windows/win32/perfctrs/performance-data-format
                 # start at the end of the PERF_COUNTER_DEFINITIONS and PERF_OBJECT_TYPE
-                print_debug(f"Found {str(object_type['NumInstances'])} instances")
+                print_debug(f"Found NumInstances == 0")
 
                 # Calculate the total length of all counter definitions
                 total_counter_definitions_length = sum(cd['ByteLength'] for cd in counter_definitions.values())
@@ -941,6 +998,7 @@ class DCETransport:
                 #https://learn.microsoft.com/en-us/windows/win32/api/winperf/ns-winperf-perf_counter_block
                 
                 status, pos, counter_block = parse_perf_counter_block_test(queryvalue_result[1], final_counter_block_pos)
+                #status, pos, counter_block = parse_perf_counter_block(queryvalue_result[1], final_counter_block_pos)
                 print_debug("Counter Block: " + str(counter_block))
                 
                 if not status:

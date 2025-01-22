@@ -250,8 +250,44 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets):
         print_log(f"Server version: {info['sv101_version_major']}.{info['sv101_version_minor']}")
         print_log(f"Server type: {info['sv101_type']}")
         print_log(f"Server comment: {info['sv101_comment']}")
+        
+
+        # Processor Arch
+        response = self.get_processor_architecture()
+        print_info(f"Processor Architecture:")
+        print_log(f"Architecture: {response}-bit")
+
+        # Enumerate the server disk drives
         print_info("Server Disk Info:")
         self.enum_server_disk()
+        
+        # Processor Info
+        print_info("Processor Info:")
+        response = self._sys_proc_info(args, echo=False)
+        print_log(f"Processor Name:\t{response['ProcessorNameString']}")
+        print_log(f"Processor ID:\t{response['Identifier']}")
+        print_log(f"Vendor ID:\t{response['VendorIdentifier']}")
+
+        # System time
+        print_info("System Time:")
+        response = self._sys_time_info(args, echo=False)
+        # convert the time to a readable format
+        last_known_good_time_hex = response['LastKnownGoodTime']  # Example: '0x1db6cdf8f0b399a'
+        # Convert hex string to an integer
+        last_known_good_time_int = int(last_known_good_time_hex, 16)
+        # Convert Windows File Time to seconds since UNIX epoch
+        # Windows File Time is the number of 100-nanosecond intervals since January 1, 1601 UTC
+        unix_time = (last_known_good_time_int - 116444736000000000) // 10000000
+        # Convert to a human-readable datetime
+        sys_time = datetime.datetime.fromtimestamp(unix_time, tz=datetime.timezone.utc)
+        print_log(f"Time (UTC):\t{sys_time}")
+        last_shutdown_str = self._sys_shutdown_info(args, hex_dump=True, echo=False)
+        last_shutdown = datetime.datetime.strptime(last_shutdown_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+        print_log(f"Last Shutdown Time (UTC): {last_shutdown_str}")
+        # calc uptime sys_time - last_shutdown
+        uptime = sys_time - last_shutdown
+        uptime_str = str(uptime).split(".")[0]
+        print_log(f"Uptime: {uptime_str}")
 
 
     def get_server_time(self, args=None):

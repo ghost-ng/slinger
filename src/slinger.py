@@ -10,6 +10,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import to_formatted_text, ANSI
 from prompt_toolkit.completion import Completer, Completion
+import getpass
 
 
 session = None
@@ -52,7 +53,7 @@ def main():
     parser.add_argument('-nojoy', action='store_true', help='Turn off emojis')
     # authentication mutually exclusive group
     auth_group = parser.add_mutually_exclusive_group(required=True)
-    auth_group.add_argument('-pass', '--password', help='Password for authentication')
+    auth_group.add_argument('-pass', '--password', help='Password for authentication', nargs='?')
     auth_group.add_argument('-ntlm', help='NTLM hash for authentication')
     auth_group.add_argument('-kerberos', action='store_true', help='Use Kerberos for authentication')
     parser.add_argument('-debug', action='store_true', help='Turn on debug output')
@@ -64,7 +65,11 @@ def main():
     prgm_args = parser.parse_args()
     if prgm_args.debug:
         set_config_value('debug', True)
-    slingerClient = SlingerClient(prgm_args.host, prgm_args.username, prgm_args.password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
+    if prgm_args.password is None:
+        password = getpass.getpass(prompt='Password: ')
+    else:
+        password = prgm_args.password
+    slingerClient = SlingerClient(prgm_args.host, prgm_args.username, password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
 
     slinger_parser = setup_cli_parser(slingerClient)
 
@@ -223,7 +228,8 @@ def main():
                         force_help(slinger_parser, args.cmd)
                 else:
                     slinger_parser.print_help()
-                
+            elif args.command == "clear":
+                os.system('clear')
             elif args.command == "exit":
                 slingerClient.exit()
                 break
@@ -260,5 +266,14 @@ def main():
 
 if __name__ == "__main__":
     print_log(banner_art)
+    # print python debug info
+    print_debug("Python Version: " + sys.version)
+    print_debug("Python Path: " + sys.executable)
+    print_debug("Python Prefix: " + sys.prefix)
+    print_debug("Python Path: " + sys.path[0])
+    print_debug("Python Platform: " + sys.platform)
+    print_debug("Python Version Info: " + str(sys.version_info))
+
+
     
     main()

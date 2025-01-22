@@ -124,6 +124,8 @@ def parse_perf_title_database(data, pos=0):     #validated
     split_data = data.split('\x00')[2:]
      # Iterate over the list in steps of 2
     for i in range(0, len(split_data), 2):
+        if i + 1 >= len(split_data):
+            break
         number = split_data[i]
         name = split_data[i + 1]
 
@@ -140,6 +142,7 @@ def parse_perf_title_database(data, pos=0):     #validated
 
 
 def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # need to do 64 bit handling
+    print_debug("MSRPC: Entering parse_perf_counter_definition(): pos = {}".format(pos))
     try:
         # Define format strings for DWORD (32-bit unsigned integer) and LONG (32-bit signed integer)
         dword_fmt = '<I'
@@ -151,6 +154,8 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
         # Unpack fields strictly in the order they appear in the struct
         counter_def['ByteLength'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
         counter_def['CounterNameTitleIndex'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+        if counter_def['CounterNameTitleIndex'] <= 0:
+            print_debug("MSRPC: Warning - Invalid CounterNameTitleIndex value detected")
 
         if is_64bit:
             counter_def['CounterNameTitle'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
@@ -174,58 +179,77 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
     except struct.error as e:
         print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: " + str(e), None
-
-
+    except Exception as e:
+        print_debug(f"MSRPC: ERROR in parse_perf_counter_definition: {e}", sys.exc_info())
+        return False, "Error unpacking data", None
 
 
 def parse_perf_object_type(data, pos=0, is_64bit=False):
+    print_debug("MSRPC: Entering parse_perf_object_type(): pos = {}".format(pos))
     try:
-        # Define format strings for DWORD and LONG
+        # Define formats
         dword_fmt = '<I'
         long_fmt = '<l'
-        large_integer_fmt = '<Q'  # LARGE_INTEGER is a 64-bit integer
+        large_integer_fmt = '<Q'
 
-        # Initialize the object type dictionary
+        # Initialize result dictionary
         object_type = {}
 
-        # Unpack fields strictly in the order they appear in the struct
         # Unpack DWORD fields
         for field in ['TotalByteLength', 'DefinitionLength', 'HeaderLength', 'ObjectNameTitleIndex']:
+            if pos + 4 > len(data):
+                return False, "Insufficient data for field: " + field, None
             object_type[field], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+            print_debug(f"MSRPC: {field} = {object_type[field]}")
 
-        # 64-bit systems have additional DWORDs instead of LPWSTR pointers
+        # Handle LPWSTR pointer or DWORD based on architecture
         if is_64bit:
             object_type['ObjectNameTitle'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
         else:
-            # Skip LPWSTR pointer in 32-bit systems (4 bytes)
-            pos += 4
+            pos += 4  # Skip 32-bit pointer
 
         for field in ['ObjectHelpTitleIndex']:
+            if pos + 4 > len(data):
+                return False, "Insufficient data for field: " + field, None
             object_type[field], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
 
         if is_64bit:
             object_type['ObjectHelpTitle'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
         else:
-            # Skip LPWSTR pointer in 32-bit systems (4 bytes)
-            pos += 4
+            pos += 4  # Skip 32-bit pointer
 
-        # Unpack remaining fields in the strict order
-        object_type['DetailLevel'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-        object_type['NumCounters'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-        object_type['DefaultCounter'], pos = struct.unpack_from(long_fmt, data, pos)[0], pos + 4
-        object_type['NumInstances'], pos = struct.unpack_from(long_fmt, data, pos)[0], pos + 4
-        object_type['CodePage'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
-        object_type['PerfTime'], pos = struct.unpack_from(large_integer_fmt, data, pos)[0], pos + 8
-        object_type['PerfFreq'], pos = struct.unpack_from(large_integer_fmt, data, pos)[0], pos + 8
+        # Unpack remaining fields
+        for field, fmt, size in [
+            ('DetailLevel', dword_fmt, 4),
+            ('NumCounters', dword_fmt, 4),
+            ('DefaultCounter', long_fmt, 4),
+            ('NumInstances', long_fmt, 4),
+            ('CodePage', dword_fmt, 4),
+            ('PerfTime', large_integer_fmt, 8),
+            ('PerfFreq', large_integer_fmt, 8),
+        ]:
+            if pos + size > len(data):
+                return False, f"Insufficient data for field: {field}", None
+            object_type[field], pos = struct.unpack_from(fmt, data, pos)[0], pos + size
+
+        # Validate TotalByteLength
+        if object_type['TotalByteLength'] <= 0:# or object_type['TotalByteLength'] > len(data):
+            print_debug("MSRPC: ERROR: Invalid TotalByteLength value")
+            print_debug(object_type)
+            print_debug(f"MSRPC: TotalByteLength = {object_type['TotalByteLength']}, data length = {len(data)}")
+            return False, pos, {}
 
         return True, pos, object_type
+
     except struct.error as e:
         print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
-        return False, "Error unpacking data: " + str(e), None
+        return False, pos, {}
+
 
 
 
 def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
+    print_debug("MSRPC: Entering parse_perf_counter_block()")
     # Define format string for DWORD (32-bit unsigned integer)
     dword_fmt = '<I'  # Little-endian format
 
@@ -239,6 +263,7 @@ def parse_perf_counter_block(data, pos=0):      # no need for 64 bit handling
         return False, "Error unpacking data: {}".format(e), None
 
 def parse_perf_counter_block_test(data, pos=0):
+    print_debug("MSRPC: Entering parse_perf_counter_block_test()")
     dword_fmt = '<I'  # Little-endian format for DWORD
 
     try:

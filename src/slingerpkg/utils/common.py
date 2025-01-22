@@ -109,13 +109,57 @@ def validate_xml(xml_string):
         print_log(e)
         return False
 
-def enter_interactive_debug_mode(local=locals()):
+def enter_interactive_debug_mode(local=None):
     import code
+    import sys
+
+    if local is None:
+        local = {}
+
+    # Combine globals and locals into one dictionary
     combined_scope = globals().copy()
-    combined_scope.update(locals())
+    combined_scope.update(local)
+
     print_info("Entering interactive mode")
-    print_warning("Ctrl-D to end interactive mode")
-    code.interact(local=local)
+
+    # Save the original `sys.ps1` and `sys.stdout`
+    original_ps1 = sys.ps1 if hasattr(sys, "ps1") else ">>> "
+    original_stdout = sys.stdout
+
+    class CustomStdout:
+        def __init__(self, original_stdout):
+            self.original_stdout = original_stdout
+
+        def write(self, message):
+            # Always write to stdout
+            self.original_stdout.write(message)
+
+        def flush(self):
+            self.original_stdout.flush()
+
+    def custom_exit():
+        print_warning("Invalid Exit Caught")
+    
+    # Add custom exit handlers to the local scope
+    combined_scope['exit'] = custom_exit
+    combined_scope['quit'] = custom_exit
+
+    try:
+        # Override `sys.ps1` to include the warning message
+        sys.ps1 = f"\n{colors.WARNING}[!] Reminder: Use Ctrl-D to exit interactive mode.{colors.ENDC}\n{original_ps1}"
+
+        # Replace stdout to ensure clean output
+        sys.stdout = CustomStdout(original_stdout)
+
+        # Start the interactive session
+        code.interact(banner=f"\n{colors.HEADER}[*] Interactive Debug Mode Activated{colors.ENDC}", local=combined_scope)
+
+    finally:
+        # Restore the original settings
+        sys.ps1 = original_ps1
+        sys.stdout = original_stdout
+        print_info("Exited interactive mode")
+
 
 
 def get_config_value(key):
