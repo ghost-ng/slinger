@@ -142,6 +142,7 @@ def parse_perf_title_database(data, pos=0):     #validated
 
 
 def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # need to do 64 bit handling
+    print_debug("MSRPC: Entering parse_perf_counter_definition(): pos = {}".format(pos))
     try:
         # Define format strings for DWORD (32-bit unsigned integer) and LONG (32-bit signed integer)
         dword_fmt = '<I'
@@ -153,6 +154,8 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
         # Unpack fields strictly in the order they appear in the struct
         counter_def['ByteLength'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
         counter_def['CounterNameTitleIndex'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
+        if counter_def['CounterNameTitleIndex'] <= 0:
+            print_debug("MSRPC: Warning - Invalid CounterNameTitleIndex value detected")
 
         if is_64bit:
             counter_def['CounterNameTitle'], pos = struct.unpack_from(dword_fmt, data, pos)[0], pos + 4
@@ -176,6 +179,9 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
     except struct.error as e:
         print_debug("MSRPC: ERROR: Error unpacking data: {}".format(e), sys.exc_info())
         return False, "Error unpacking data: " + str(e), None
+    except Exception as e:
+        print_debug(f"MSRPC: ERROR in parse_perf_counter_definition: {e}", sys.exc_info())
+        return False, "Error unpacking data", None
 
 
 def parse_perf_object_type(data, pos=0, is_64bit=False):
