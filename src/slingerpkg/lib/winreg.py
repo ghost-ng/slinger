@@ -874,30 +874,19 @@ class winreg():
 
             # If the titledb_list is already cached, use it
             if self.titledb_list:
-                self._display_and_save_counters(self.titledb_list, args)
-                return
-
-            # Connect to the WinReg service
-            self.dce_transport._connect('winreg')
-
-            # Get title database
-            result = self.dce_transport._GetTitleDatabase()
-            result = dict(sorted(result.items()))  # Sort results by key
-
-            # Remove non-ASCII characters and populate titledb_list
-            for k, v in result.items():
-                desc = re.sub(r'[^\x00-\x7f]', r'', v)
-                self.titledb_list.append({str(k): desc})  # Store the counter number as a string for filtering
+                self._display_and_save_counters(args)
+            else:
+                self.store_title_db()
 
             # Display results and optionally save
-            self._display_and_save_counters(self.titledb_list, args)
+            self._display_and_save_counters(args)
 
         except Exception as e:
             print_bad(f"An error occurred while retrieving counters: {e}")
             print_debug("Detailed exception information:", e)
 
 
-    def _display_and_save_counters(self, titledb_list, args):
+    def _display_and_save_counters(self, args):
         """
         Display the Title Database and optionally save filtered or complete results to a file.
 
@@ -911,13 +900,18 @@ class winreg():
         try:
             # Prepare output based on filter
             output = []
-            for elem in titledb_list:
-                for k, v in elem.items():
-                    # Apply filter to both counter key and description
-                    if args.filter and args.filter.lower() not in k.lower() and args.filter.lower() not in v.lower():
-                        continue
-                    output.append(f"{k} - {v}")
-
+            # {2: 'System', 4: 'Memory', 6: '% Processor Time',
+            for elem in self.titledb_list:
+                key = elem
+                value = self.titledb_list[elem]
+                # Apply filter to both counter key and description
+                if args.filter and args.filter.lower() not in key.lower() and args.filter.lower() not in value.lower():
+                    continue
+                output.append(f"{key} - {value}")
+            
+            # sort the output str ## - str
+            output.sort(key=lambda x: int(x.split(" - ")[0]))
+            
             # Print results if args.print is provided or save is not specified
             if args.print or not args.save:
                 for line in output:
@@ -942,7 +936,7 @@ class winreg():
 
 
         if not args.counter:
-            print_warning("Invalid arguments.  Usage: debug-counter <counter>")
+            print_warning("Invalid arguments.  Usage: debug-counter -c <counter>")
             return
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
