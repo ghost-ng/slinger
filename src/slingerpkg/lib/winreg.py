@@ -677,6 +677,8 @@ class winreg():
         Returns:
             None
         """
+        if self.titledb_list:
+            return
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         print_info("Retrieving Title Database")
@@ -688,18 +690,26 @@ class winreg():
         Retrieves the name of a performance counter using its number.
 
         Args:
-            counter_num (str): The number of the performance counter.
+            counter_num (int): The number of the performance counter.
 
         Returns:
-            str: The name of the performance counter.
+            str: The name of the performance counter, or None if not found.
         """
+        print_debug("Looking up counter: " + str(counter_num))
         try:
+            # Ensure the title database is populated
             if not self.titledb_list:
                 self.store_title_db()
-            return self.titledb_list[counter_num]
-        except IndexError:
+
+            # Retrieve the counter name by number
+            return self.titledb_list.get(counter_num, None)
+
+        except Exception as e:
+            print_bad(f"An error occurred while retrieving the counter name: {e}")
+            print_debug("Detailed exception information:", e)
             return None
-        
+
+
     def get_counter_num(self, counter_name):
         """
         Retrieves the number of a performance counter using its name.
@@ -708,14 +718,27 @@ class winreg():
             counter_name (str): The name of the performance counter.
 
         Returns:
-            str: The number of the performance counter.
+            int: The number of the performance counter, or None if not found.
         """
+        print_debug("Looking up counter: " + counter_name)
         try:
+            # Ensure the title database is populated
             if not self.titledb_list:
                 self.store_title_db()
-            return self.titledb_list.index(counter_name)
-        except ValueError:
+
+            # Search for the counter name
+            for counter_num, name in self.titledb_list.items():
+                if name.lower() == counter_name.lower():  # Case-insensitive match
+                    return counter_num
+
+            return None  # Counter name not found
+
+        except Exception as e:
+            print_bad(f"An error occurred while retrieving the counter number: {e}")
+            print_debug("Detailed exception information:", e)
             return None
+
+
 
     def show_process_list(self, args):
         """
@@ -734,7 +757,9 @@ class winreg():
         self.dce_transport._connect('winreg')
         # local counters: typeperf -q
         # typeperf -q | findstr /C:Processes
-        result = self.dce_transport._hQueryPerformaceData("230", int(arch))
+        counter_num = self.get_counter_num("Process")
+        print_debug("Counter Num: " + str(counter_num))
+        result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
         print_debug("Result: \n" + str(result))
         process_list = result[2]["Process"]
         names = {}
@@ -769,12 +794,19 @@ class winreg():
         
         
         if args.tcp:
-            result = self.dce_transport._hQueryPerformaceData("638", int(arch))
-            print_debug("Result: \n" + str(result))
+            # lookup TCPv4 and TCPv6 stats
+            counter_name = "TCPv4"
+            counter_num = self.get_counter_num(counter_name)
+            print_info(f"Found Counter ({counter_name}): {counter_num}")
+            result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
             self.show_tcp_info(result)
         elif args.rdp:
-            result = self.dce_transport._hQueryPerformaceData("5736", int(arch))
-            print_debug("Result: \n" + str(result))
+            # lookup Terminal Services Session
+            counter_name = "Terminal Services Session"
+            counter_num = self.get_counter_num(counter_name)
+            print_info(f"Found Counter ({counter_name}): {counter_num}")
+            result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
+            #print_debug("Result: \n" + str(result))
             self.show_rdp_connections(result)
         
 
