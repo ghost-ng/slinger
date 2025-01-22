@@ -52,8 +52,10 @@ def parse_lp_data(valueType, valueData, hex_dump=True):
                 result += hexdump(valueData)
     except Exception as e:
         result += 'Exception thrown when printing reg value %s' % str(e)
+        line_num = sys.exc_info()[-1].tb_lineno
+        print_debug(f"Error in parsing reg data: {str(e)}", line_num)
         result += 'Invalid data'
-        print_debug("",sys.exc_info())
+        print_debug("LP Data Parsing Error",sys.exc_info())
     return result
 
 
@@ -637,7 +639,43 @@ class DCETransport:
                 if e.get_error_code() == ERROR_NO_MORE_ITEMS:
                     print_debug(str(e))
                     break
+            except Exception as e:
+                print_debug(str(e), sys.exc_info())
+                break
         return key_value
+
+    def _get_binary_data(self, keyName, valueName):
+        """
+        Retrieves binary data from the specified registry key.
+
+        Args:
+            keyName: Registry key name.
+            valueName: Value name to retrieve binary data.
+
+        Returns:
+            The binary data, or raises an exception if retrieval fails.
+        """
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        self.bind_override = True
+        self._bind(rrp.MSRPC_UUID_RRP)
+
+        hRootKey, subKey = self._get_root_key(keyName)
+        try:
+            ans2 = rrp.hBaseRegOpenKey(self.dce, hRootKey, subKey,
+                                    samDesired=READ_CONTROL | rrp.KEY_QUERY_VALUE)
+            ans3 = rrp.hBaseRegQueryValue(self.dce, ans2['phkResult'], valueName)
+
+            # Extract binary data (assume it's the second element of the tuple)
+            if isinstance(ans3, tuple) and len(ans3) > 1:
+                return ans3[1]
+            else:
+                raise ValueError("Unexpected data structure for ans3: {ans3}")
+        except Exception as e:
+            print_debug(f"Error in _get_binary_data: {str(e)}", sys.exc_info())
+            raise
+
+
 
     def _reg_add(self, keyName, valueName, valueData, valueType, bind=True):
         if not self.is_connected:
@@ -868,7 +906,7 @@ class DCETransport:
                 for j in range(object_type['NumCounters']):
                     status, pos, counter_definitions[j] = parse_perf_counter_definition(queryvalue_result[1], pos, is_64bit=bitwise)
                     print_debug("Current Position after Counter Definition: " + str(pos))
-                    print_debug("Added Counter Definition: " + str(counter_definitions[j]))
+                    print_debug("Found Counter Definition: " + str(counter_definitions[j]))
                     if not status:
                         print_debug("Error parsing counter definitions", sys.exc_info())
                         return False, pos

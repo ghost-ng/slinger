@@ -4,6 +4,7 @@ from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
 from time import sleep
 from slingerpkg.utils.common import reduce_slashes, enter_interactive_debug_mode
+import datetime
 
 import struct
 
@@ -49,10 +50,13 @@ class winreg():
         self.fwrule = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\FirewallRules\\"
         self.fwpolicy_std = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\"
         self.portproxy_root = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\PortProxy\\"
+        self.processor_info = "HKLM\\HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0\\"
+        self.system_time = "HKLM\\SYSTEM\\CurrentControlSet\\Services\\W32Time\\Config"
+        self.last_shutdown = "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Windows"
         self.active_portfwd_rules = []
         self.titledb_list = []
 
-    def enum_key_value(self, keyName, hex_dump=True, return_val=False, echo=True):
+    def enum_key_value(self, keyName, hex_dump=False, return_val=False, echo=True):
         """
         Enumerate the values of a given registry key.
 
@@ -74,8 +78,7 @@ class winreg():
             print_info("Enumerating Key: " + keyName)
         hKey = self.dce_transport._get_key_handle(keyName)
 
-        ans = self.dce_transport._get_key_values(hKey, hex_dump=False)
-        #enter_interactive_mode(local=locals())
+        ans = self.dce_transport._get_key_values(hKey, hex_dump=hex_dump)
 
         if not return_val:
             print_log(keyName)
@@ -227,6 +230,65 @@ class winreg():
             #print(values)
             _iface = iface.split("\\")[-1]
             print_log(iface_banner.format(interface=_iface, **values))
+
+    def _sys_proc_info(self, args, echo=True):
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        ans = self.enum_key_value(self.processor_info, return_val=True, echo=echo)
+        values = extract_reg_values(ans, ["ProcessorNameString", "Identifier", "VendorIdentifier"])        
+        return values
+
+    def _sys_time_info(self, args, echo=True):
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        ans = self.enum_key_value(self.system_time, return_val=True, echo=echo)
+        values = extract_reg_values(ans, ["LastKnownGoodTime"])
+        return values
+
+    def _get_binary_value(self, keyName, valueName):
+        self.setup_dce_transport()
+        self.dce_transport._connect('winreg')
+        hKey = self.dce_transport._get_key_handle(keyName)
+        ans = self.dce_transport._get_binary_value(hKey, valueName)
+
+    def _sys_shutdown_info(self, args, hex_dump=True, echo=True):
+        """
+        Retrieves and displays the last shutdown time from the registry.
+
+        Args:
+            args: Optional arguments.
+            hex_dump (bool): Whether to include a hex dump.
+            echo (bool): Whether to print the result.
+
+        Returns:
+            str: The last shutdown time in a human-readable format, or an error message.
+        """
+        try:
+            self.setup_dce_transport()
+            self.dce_transport._connect('winreg')
+
+            binary_data = self.dce_transport._get_binary_data(self.last_shutdown, "ShutdownTime")
+
+            # Parse binary data (assume it's a FILETIME format)
+            if binary_data:
+                filetime = struct.unpack("<Q", binary_data)[0]
+                unix_time = (filetime - 116444736000000000) // 10000000
+                shutdown_time = datetime.datetime.fromtimestamp(unix_time).strftime("%Y-%m-%d %H:%M:%S")
+
+                if echo:
+                    print_info(f"Last Shutdown Time: {shutdown_time}")
+                return shutdown_time
+            else:
+                raise ValueError("ShutdownTime data is empty or invalid.")
+
+        except Exception as e:
+            error_message = f"Failed to retrieve shutdown info: {str(e)}"
+            print_debug(error_message, sys.exc_info())
+            line_num = sys.exc_info()[-1].tb_lineno
+            print_debug(f"Error occurred on line {line_num}")
+            return error_message
+
+
 
     def hostname(self, args):
         """
