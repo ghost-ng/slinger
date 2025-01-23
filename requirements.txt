@@ -3,3 +3,4 @@ prompt_toolkit==3.0.41
 pycryptodome==3.20.0
 setuptools==70.0.0
 tabulate==0.8.9
+toml
