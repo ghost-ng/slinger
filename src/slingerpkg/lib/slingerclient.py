@@ -52,8 +52,17 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets):
 
 
     def setup_dce_transport(self):
-        if self.dce_transport is None:
+        """
+        Sets up or reuses the DCE transport for RPC communication.
+        """
+        if not self.dce_transport or not self.dce_transport.is_connected:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
+            self.dce_transport.set_timeout(config.smb_conn_timeout)
+        else:
+            print_debug("Reusing existing DCE transport.")
+
+        
+
 
     def login(self):
         print_info(f"Connecting to {self.host}:{self.port}...")
@@ -156,22 +165,37 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets):
         print_log(f"Logged in: {self.is_logged_in}")
         print_log(f"Total time of session: {datetime.datetime.now() - self.session_start_time}")
 
-    
 
     def who(self, args=None):
-
+        """
+        Executes the 'who' command to retrieve session information.
+        Reuses the transport and resets it if needed.
+        """
         try:
+            # Setup or reuse transport
             self.setup_dce_transport()
-            self.dce_transport._connect('srvsvc')
+            if "srvsvc" not in self.dce_transport.pipe:
+                self.dce_transport._connect('srvsvc')
+            # Execute the 'who' command
             resp = self.dce_transport._who()
             for session in resp['InfoStruct']['SessionInfo']['Level10']['Buffer']:
-                    print_log("host: %15s, user: %5s, active: %5d, idle: %5d" % (
-                    session['sesi10_cname'][:-1], session['sesi10_username'][:-1], session['sesi10_time'],
-                    session['sesi10_idle_time']))
+                print_log("host: %15s, user: %5s, active: %5d, idle: %5d" % (
+                    session['sesi10_cname'][:-1],
+                    session['sesi10_username'][:-1],
+                    session['sesi10_time'],
+                    session['sesi10_idle_time']
+                ))
         except DCERPCException as e:
-             print_debug(str(e), sys.exc_info())
-             print_bad(f"Failed to list sessions: {e}")
-             raise e
+            print_debug(str(e), sys.exc_info())
+            print_bad(f"Failed to list sessions: {e}")
+            raise e
+        except Exception as e:
+            # Reset the transport on unexpected errors
+            print_debug(f"Unexpected error: {str(e)}. Resetting transport.", sys.exc_info())
+            self.dce_transport._disconnect()
+            self.setup_dce_transport()
+            raise e
+
 
     def enum_server_disk(self, args=None):
         try:
