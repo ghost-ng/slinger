@@ -234,3 +234,5 @@ def tee_output(filename):
         sys.stdout = tee.stdout
         sys.stderr = tee.stderr
         tee.close()
+
+
