@@ -905,10 +905,7 @@ class winreg():
         print_info(f"  Segments Sent/sec: {network_tcpv6['Segments Sent/sec']}")
 
     def show_rdp_connections(self, result):
-        arch = self.get_processor_architecture()
         self.dce_transport._connect('winreg')
-
-        
         term_serv = result[2]["Terminal Services Session"] # Terminal Services Session
         print_info("RDP Connections:")
         # look for RDP-Tcp and count
