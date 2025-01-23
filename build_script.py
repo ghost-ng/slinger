@@ -2,6 +2,8 @@ import argparse
 from pathlib import Path
 import sys
 from unittest.mock import MagicMock
+import subprocess
+
 
 # Dynamically add the src directory to the Python path
 current_dir = Path(__file__).resolve().parent
@@ -64,8 +66,22 @@ def generate_markdown(commands, output_file):
                     md_file.write(f"  - Required: {'Yes' if arg['required'] else 'No'}\n\n")
             md_file.write("---\n\n")
 
+def run_build():
+    try:
+        # Ensure `build` is installed
+        subprocess.run(["pip", "install", "--upgrade", "build"], check=True)
+
+        # Run the build command
+        subprocess.run(["python", "-m", "build"], check=True)
+        print("Build completed successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"Build failed: {e}")
+    except FileNotFoundError:
+        print("Ensure that Python and the `build` module are installed.")
 
 def main():
+    print("Generating CLI documentation...")
+
     # Create a mock slingerClient
     mock_client = MagicMock()
 
@@ -86,6 +102,10 @@ def main():
         print("Dependencies:", dependencies)
     else:
         print("No dependencies found.")
+
+    # Run the build process
+    print("Starting the build process...")
+    run_build()
 
 
 if __name__ == "__main__":
