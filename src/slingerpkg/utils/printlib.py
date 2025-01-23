@@ -8,6 +8,8 @@ class colors:
     OKBLUE = '\033[94m'
     OKGREEN = '\033[0;32m'
     WARNING = '\033[91m'
+    BLUE = '\033[0;34m'
+    YELLOW = '\033[93m'
     FAIL = '\033[1;31m'
     ENDC = '\033[0m'
 
@@ -20,6 +22,41 @@ def get_config_value(key):
     except KeyError:
         print_warning(f"Config variable {key} does not exist")
         return
+
+
+def print_block(msg, color=colors.YELLOW, block_char="*", max_width=50):
+    """
+    Prints a centered block with top and bottom borders only.
+    Ensures borders expand at least 2 characters left and right beyond the message.
+
+    Args:
+        msg (str): The message to display.
+        block_char (str): The character to use for the border.
+        max_width (int): The maximum width of the block (default 50).
+    """
+    # Calculate the total width (message + 4 spaces for padding)
+    required_width = len(msg) + 4
+
+    # Truncate the message if necessary
+    if required_width > max_width:
+        max_msg_length = max_width - 7  # 3 for "..." and 4 for padding
+        msg = msg[:max_msg_length] + "..."
+        required_width = max_width
+
+    # Calculate padding for centering
+    padding = (required_width - len(msg)) // 2
+    centered_msg = f"{' ' * padding}{msg}{' ' * (required_width - len(msg) - padding)}"
+
+    # Print the block
+    border = block_char * required_width
+    print_log(f"{color}{border}{colors.ENDC}")  # Top border
+    #print_log(centered_msg)  # Centered message
+    print_log(f"{color}{centered_msg}{colors.ENDC}")
+    #print_log(border)  # Bottom border
+    print_log(f"{color}{border}{colors.ENDC}")
+
+
+
 
 def print_log(msg="", end="\n"):
     #TODO: test codecs
