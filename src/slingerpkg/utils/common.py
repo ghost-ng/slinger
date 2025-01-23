@@ -8,6 +8,8 @@ from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr
 from slingerpkg.utils.printlib import *
 from slingerpkg.var.config import config_vars
 from tabulate import tabulate
+import sys
+from contextlib import contextmanager
 
 # dictionarty of UUID endpoints to plaintext names
 uuid_endpoints = {
@@ -200,3 +202,35 @@ def set_config_value(key, value):
 def show_config():
     # print the config in a tabulate table
     print_log(tabulate([[c["Name"], c["Value"], c["Description"]] for c in config_vars], headers=["Name", "Value", "Description"]))
+
+class TeeOutput:
+    def __init__(self, filename):
+        self.file = open(filename, "a")  # Open file in append mode
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+
+    def write(self, data):
+        self.stdout.write(data)  # Write to the console
+        self.file.write(data)    # Write to the file
+
+    def flush(self):
+        self.stdout.flush()
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+
+@contextmanager
+def tee_output(filename):
+    if filename is None:
+        yield
+        return
+    tee = TeeOutput(filename)
+    sys.stdout = tee
+    sys.stderr = tee
+    try:
+        yield
+    finally:
+        sys.stdout = tee.stdout
+        sys.stderr = tee.stderr
+        tee.close()

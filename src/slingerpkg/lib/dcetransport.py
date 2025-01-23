@@ -95,6 +95,18 @@ class DCETransport:
             self.current_bind = bind_uuid
             print_debug(f"Successful bind to {plaintext} rpc endpoint")
 
+    def _keepalive(self):           #not tested
+        """
+        Sends a dummy request to keep the connection alive.
+        """
+        if self.dce and self.is_connected:
+            try:
+                self.dce.Ping()  # Dummy ping to keep the session active
+            except Exception as e:
+                print_debug(f"Keepalive failed: {e}")
+                self.dce._disconnect()
+
+
     def _connect(self, named_pipe):
         self.pipe = "\\" + named_pipe
         if self.conn is None:
@@ -151,10 +163,23 @@ class DCETransport:
         self.is_connected = False
 
     def _who(self):
+        """
+        Retrieves session information via RPC.
+
+        Reuses the transport if it is already connected. Rebinds if necessary.
+        """
         if not self.is_connected:
             raise Exception("Not connected to remote host")
-        self._bind(srvs.MSRPC_UUID_SRVS)
-        return srvs.hNetrSessionEnum(self.dce, NULL, NULL, 10)
+        
+        try:
+            # Rebind to the service if not already bound
+            if self.current_bind != srvs.MSRPC_UUID_SRVS:
+                self._bind(srvs.MSRPC_UUID_SRVS)
+            return srvs.hNetrSessionEnum(self.dce, NULL, NULL, 10)
+        except Exception as e:
+            print_debug(f"Error during 'who': {str(e)}", sys.exc_info())
+            raise e
+
 
     
     def _enum_server_disk(self):

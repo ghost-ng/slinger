@@ -21,6 +21,7 @@ banner_art = f"""
     `-'                    a ghost-ng special
 """
 commands_and_args = None
+plugin_list = None
 
 class ArgparseCompleter(Completer):
     def get_completions(self, document, complete_event):
@@ -35,13 +36,16 @@ def main():
     global slingerClient
     global commands_and_args
     global session
+    global plugin_list
 
     # setup folder structure -> ~/.slinger/logs, ~/.slinger/plugins
     if not os.path.exists(os.path.expanduser(get_config_value('Logs_Folder'))):
         os.makedirs(os.path.expanduser(get_config_value('Logs_Folder')))
 
-    if not os.path.exists(os.path.expanduser(get_config_value('Plugin_Folder'))):
-        os.makedirs(os.path.expanduser(get_config_value('Plugin_Folder')))
+    plugin_folders = get_config_value('Plugin_Folders')
+    for folder in plugin_folders:
+        if not os.path.exists(os.path.expanduser(folder)):
+            os.makedirs(os.path.expanduser(folder))
 
     original_settings = termios.tcgetattr(0)
 
@@ -74,9 +78,13 @@ def main():
     slinger_parser = setup_cli_parser(slingerClient)
 
     # load plugins
-    plugins_folder = os.path.expanduser(get_config_value('Plugin_Folder'))
+    folders = get_config_value('Plugin_Folders')
+    plugins_folders = []
+    for folder in folders:
+        plugins_folders.append(os.path.expanduser(folder))
 
-    plugins = load_plugins(plugins_folder, slingerClient)
+    plugins = load_plugins(plugins_folders, slingerClient)
+    plugin_list = plugins
     # merge all parsers from the plugins into the main parser
     for plugin in plugins:
         plugin_parser = plugin.get_parser()
@@ -166,9 +174,12 @@ def main():
             if args.command == "reload":
                 slinger_parser = setup_cli_parser(slingerClient)
                 # load plugins
-                plugins_folder = os.path.expanduser(get_config_value('Plugin_Folder'))
-
-                plugins = load_plugins(plugins_folder, slingerClient)
+                plugin_folders = []
+                folders = get_config_value('Plugin_Folders')
+                for folder in folders:
+                    plugin_folders.append(os.path.expanduser(folder))
+                plugins = load_plugins(plugins_folders, slingerClient)
+                plugin_list = plugins
                 # merge all parsers from the plugins into the main parser
                 for plugin in plugins:
                     plugin_parser = plugin.get_parser()
@@ -178,13 +189,21 @@ def main():
                 completer = CommandCompleter(setup_completer(slinger_parser))
                 session = PromptSession(history=FileHistory(hist_file_location),completer=completer)
                 print_good(f"Loaded {len(plugins)} plugins")
-                
-                if get_config_value('debug'):
-                    for plugin in plugins:
-                        print_info(f"Loaded plugin: {plugin.name}")
 
-                print_info("Reloaded config")
+                for plugin in plugins:
+                    print_info(f"Loaded plugin:\n {plugin.name} v{plugin.author_block['version']}")
+                    print_log(f"Author: {plugin.author_block['name']}")
+                    print_log(f"Meta: {plugin.author_block['meta']}")
+                    print_log(f"Credits: {plugin.author_block['credits']}")
 
+                print_info("Reloaded plugins")
+            elif args.command == "plugins":
+                print_good(f"Found {len(plugins)} plugins")
+                for plugin in plugin_list:
+                    print_info(f"Loaded plugin:\n {plugin.name} v{plugin.author_block['version']}")
+                    print_log(f"Author: {plugin.author_block['name']}")
+                    print_log(f"Meta: {plugin.author_block['meta']}")
+                    print_log(f"Credits: {plugin.author_block['credits']}")
 
             elif args.command == "set":
                 if args.varname and args.value:
