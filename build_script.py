@@ -25,24 +25,6 @@ def get_version_from_init(package_dir):
     raise ValueError("Version not found in __init__.py")
 
 
-def update_version_in_init(package_dir, new_version):
-    """Update the version in the top-level __init__.py file."""
-    init_file = package_dir / "__init__.py"
-    version_pattern = r"(^__version__\s*=\s*)['\"][^'\"]+['\"]"
-    with open(init_file, "r") as f:
-        content = f.read()
-    updated_content = re.sub(version_pattern, fr"\1'{new_version}'", content)
-    with open(init_file, "w") as f:
-        f.write(updated_content)
-    print(f"Updated version in {init_file} to {new_version}")
-
-
-def get_version_from_pyproject(pyproject_file):
-    """Extract the version from pyproject.toml."""
-    pyproject_data = toml.load(pyproject_file)
-    return pyproject_data.get("project", {}).get("version")
-
-
 def update_version_in_pyproject(pyproject_file, new_version):
     """Update the version in pyproject.toml."""
     pyproject_data = toml.load(pyproject_file)
@@ -74,23 +56,18 @@ def main():
     pyproject_file = current_dir / "pyproject.toml"
     package_dir = get_package_dir()
 
-    # Get versions from pyproject.toml and __init__.py
-    pyproject_version = get_version_from_pyproject(pyproject_file)
+    # Get version from __init__.py
     init_version = get_version_from_init(package_dir)
-
-    print(f"Current version in pyproject.toml: {pyproject_version}")
     print(f"Current version in __init__.py: {init_version}")
 
-    # Decide the new version (for simplicity, assume pyproject.toml is the source of truth)
-    new_version = pyproject_version
+    # Get version from pyproject.toml
+    pyproject_data = toml.load(pyproject_file)
+    pyproject_version = pyproject_data.get("project", {}).get("version")
+    print(f"Current version in pyproject.toml: {pyproject_version}")
 
-    # Update the version in __init__.py if it doesn't match
-    if init_version != new_version:
-        update_version_in_init(package_dir, new_version)
-
-    # Update the version in pyproject.toml if it doesn't match
+    # Update pyproject.toml if versions do not match
     if pyproject_version != init_version:
-        update_version_in_pyproject(pyproject_file, new_version)
+        update_version_in_pyproject(pyproject_file, init_version)
 
     # Run the build process
     run_build()
