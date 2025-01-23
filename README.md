@@ -16,6 +16,8 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 - **Query Performance Data**: (Experimental) Remotely query performance data like remote processes
 
+[![asciicast](https://asciinema.org/a/nvpgBJ3lh6Z2xfg98jSFsOpvM.svg)](https://asciinema.org/a/nvpgBJ3lh6Z2xfg98jSFsOpvM)
+
 ```
 🤠 (10.0.0.28):\\> ps
 [*] Retrieving Processes List...
