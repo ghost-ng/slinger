@@ -264,8 +264,8 @@ def setup_cli_parser(slingerClient):
     parser_taskdelete.set_defaults(func=slingerClient.task_delete_handler)
 
     # Subparser for 'enumtime' command
-    parser_time = subparsers.add_parser('enumtime', help='Get server time', description='Get the current time on the server', epilog='Example Usage: enumtime')
-    parser_time.set_defaults(func=slingerClient.get_server_time)
+    #parser_time = subparsers.add_parser('enumtime', help='Get server time', description='Get the current time on the server', epilog='Example Usage: enumtime')
+    #parser_time.set_defaults(func=slingerClient.get_server_time)
 
     # Subparser for 'upload' command
     parser_upload = subparsers.add_parser('upload', aliases=['put'], help='Upload a file', description='Upload a file to the remote server', epilog='Example Usage: upload /local/path /remote/path')
@@ -413,7 +413,7 @@ def setup_cli_parser(slingerClient):
 
     
     parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
-
+    parser_plugins = subparsers.add_parser('plugins', help='List available plugins', description='List available plugins', epilog='Example Usage: plugins')
     return parser
 
 # def validate_args(parser, arg_list):

@@ -238,9 +238,15 @@ class scm():
                 print_bad("An error occurred:" + str(e))
                 print_debug('', sys.exc_info())
 
-    def enum_services(self, args):
-        force = args.new
-        filtered = args.filter
+    def enum_services(self, args=None):
+        try:
+            force = args.new
+        except:
+            force = False
+        try:
+            filtered = args.filter
+        except:
+            filtered = None
         self.setup_dce_transport()
         self.dce_transport._connect('svcctl')
         if force or len(self.services_list) == 0:

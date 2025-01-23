@@ -193,7 +193,7 @@ class winreg():
         else:
             return subkeys
 
-    def ipconfig(self, args):
+    def ipconfig(self, args=None):
         """
         Retrieves and prints the IP configuration information for the current host.
 
@@ -231,14 +231,14 @@ class winreg():
             _iface = iface.split("\\")[-1]
             print_log(iface_banner.format(interface=_iface, **values))
 
-    def _sys_proc_info(self, args, echo=True):
+    def _sys_proc_info(self, args=None, echo=True):
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         ans = self.enum_key_value(self.processor_info, return_val=True, echo=echo)
         values = extract_reg_values(ans, ["ProcessorNameString", "Identifier", "VendorIdentifier"])        
         return values
 
-    def _sys_time_info(self, args, echo=True):
+    def _sys_time_info(self, args=None, echo=True):
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
         ans = self.enum_key_value(self.system_time, return_val=True, echo=echo)
@@ -251,7 +251,7 @@ class winreg():
         hKey = self.dce_transport._get_key_handle(keyName)
         ans = self.dce_transport._get_binary_value(hKey, valueName)
 
-    def _sys_shutdown_info(self, args, hex_dump=True, echo=True):
+    def _sys_shutdown_info(self, args=None, hex_dump=True, echo=True):
         """
         Retrieves and displays the last shutdown time from the registry.
 
@@ -290,7 +290,7 @@ class winreg():
 
 
 
-    def hostname(self, args):
+    def hostname(self, args=None):
         """
         Retrieves the hostname from the Windows registry.
 
@@ -346,7 +346,7 @@ class winreg():
 
 
 
-    def show_fw_rules(self, args):
+    def show_fw_rules(self, args=None):
         """
         Retrieves and prints the firewall rules for the current host.
 
@@ -490,11 +490,11 @@ class winreg():
         else:
             print_bad(f"Failed to Delete Value {keyValue} from {keyName}")
 
-    def show_env_handler(self, args):
+    def show_env_handler(self, args=None):
         ans = self.show_env()
         print_log(ans)
 
-    def get_processor_architecture(self):
+    def get_processor_architecture(self, args=None):
         """
         Retrieves the processor architecture from the Windows registry.
 
@@ -558,7 +558,7 @@ class winreg():
         else:
             self.print_portfwd_rules()
 
-    def print_portfwd_rules(self):
+    def print_portfwd_rules(self, args=None):
         """
         Prints the current port forwarding rules.
 
@@ -799,7 +799,7 @@ class winreg():
             print_debug("Detailed exception information:", e)
             return None
 
-    def show_process_list(self, args):
+    def show_process_list(self, args=None):
         """
         Retrieves and prints the list of running processes.
 

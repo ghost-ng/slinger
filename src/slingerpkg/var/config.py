@@ -6,7 +6,7 @@ config_vars = [
     {"Name": "Logs_Folder", "Value": "~/.slinger/logs", "Description": "Folder to store history files", "Type": "str"},
     {"Name": "History_File", "Value": "~/.slinger/history", "Description": "History file location", "Type": "str"},
     {"Name": "Codec", "Value": "utf-8", "Description": "Codec to use for print decoding", "Type": "str"},
-    {"Name": "Plugin_Folder", "Value": "~/.slinger/plugins", "Description": "Folder to store plugins", "Type": "str"},
+    {"Name": "Plugin_Folders", "Value": ["~/.slinger/plugins","src/slingerpkg/plugins"], "Description": "Folder to store plugins", "Type": "str"},
 ]
 
 logwriter = None
