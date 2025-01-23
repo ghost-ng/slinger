@@ -16,7 +16,11 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 - **Query Performance Data**: (Experimental) Remotely query performance data like remote processes
 
+## Demo
+
 [![asciicast](https://asciinema.org/a/nvpgBJ3lh6Z2xfg98jSFsOpvM.svg)](https://asciinema.org/a/nvpgBJ3lh6Z2xfg98jSFsOpvM)
+
+## Command Line Documentation
 
 [![CLI Documentation](assets/clidocs.jpg)](HELP_MENU.md)
 
@@ -224,7 +228,7 @@ Example Usage: run -c|-f [script]
 
 ## Plugins
 
-**none at this time**
+**System Audit** by [ghost-ng](https://github.com/ghost-ng/)
 
 ## Installation
 
@@ -295,7 +299,7 @@ Contributions to the Slinger project, particularly in the form of plugins, are h
   ```
 
 - Add any additional methods or attributes necessary for your plugin.
-- **View the example plugin for additional help**
+- **View the example plugin for additional help** [System Audit](src/slingerpkg/plugins/system_audit.py/)
 
 #### 4. Test Your Plugin
 
