@@ -1,6 +1,6 @@
 # Slinger
 
-![Alt text](image.png)
+![Slinger](assets/image.png)
 
 Slinger is a versatile tool designed for advanced network interactions and manipulations, with a focus on the SMB protocol. It offers a range of functionalities for interacting with remote systems, including managing scheduled tasks, handling Windows Registry operations, service management and gathering system information - **all in a single session**.  Slinger is built on the impacket framework and should offer a similar feel to impacket functions.
 
@@ -17,6 +17,9 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Query Performance Data**: (Experimental) Remotely query performance data like remote processes
 
 [![asciicast](https://asciinema.org/a/nvpgBJ3lh6Z2xfg98jSFsOpvM.svg)](https://asciinema.org/a/nvpgBJ3lh6Z2xfg98jSFsOpvM)
+
+[![CLI Documentation](assets/clidocs.jpg)](HELP_MENU.md)
+
 
 ```
 🤠 (10.0.0.28):\\> ps
