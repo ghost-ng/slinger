@@ -1,12 +1,16 @@
+from collections import defaultdict
 import json
+
+from asciitree import LeftAligned
+from asciitree.drawing import BoxStyle
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate
 from time import sleep
 from slingerpkg.utils.common import reduce_slashes, enter_interactive_debug_mode
 import datetime
-
 import struct
+from collections import OrderedDict as OD
 
 def extract_reg_values(input_text, keys):
     """
@@ -836,16 +840,39 @@ class winreg():
         psl = {}
         for name in names:
             if name != "_Total":
-                psl[process_list[name]["ID Process"]] = {
-                    'Name': name,
-                    'PID': process_list[name]["ID Process"],
-                    'PPID': process_list[name]["Creating Process ID"],
-                    'Priority': process_list[name]["Priority Base"],
-                    'Threads': process_list[name]["Thread Count"],
-                    'Handles': process_list[name]["Handle Count"],
-                }
-        print(tabulate(psl.values(), headers="keys"))
+                if args.verbose:
+                    psl[process_list[name]["ID Process"]] = {
+                        'Name': name,
+                        'PID': process_list[name]["ID Process"],
+                        'PPID': process_list[name]["Creating Process ID"],
+                        'Priority': process_list[name]["Priority Base"],
+                        'Threads': process_list[name]["Thread Count"],
+                        'Handles': process_list[name]["Handle Count"],
+                    }
+                else:
+                    psl[process_list[name]["ID Process"]] = {
+                        'Name': name,
+                        'PID': process_list[name]["ID Process"],
+                        'PPID': process_list[name]["Creating Process ID"],
+                    }
+        if not args.tree:
+            print(tabulate(psl.values(), headers="keys"))
+
+        # print in a heirarchical tree format with PPID as parents
+        if args.tree:
+            print_info("Process Tree:")
+            self._print_process_tree(psl, args.verbose)
+
+        #print(psl)
+
+
         print_good("Processes with '(uuid:<random chars>)' have duplicate names but are unique processes")
+
+    
+
+    def _print_process_tree(self, processes, verbose=False):
+        from slingerpkg.lib.process_tree import print_process_tree
+        print_process_tree(processes, verbose=verbose)
 
     def show_network_info_handler(self, args):
         """
