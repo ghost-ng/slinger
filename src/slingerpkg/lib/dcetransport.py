@@ -849,23 +849,59 @@ class DCETransport:
         # Open Performance Data
         openhkpd_result = rrp.hOpenPerformanceData(self.dce)
         
-        queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")
+        queryvalue_result = rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], lpValueName="Counter 009")      
+        print_debug("Result Length: " + str(len(queryvalue_result)))
+        print_debug("Parsing Title Database")
 
         pos = 0
         result = {}
 
-        status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result[1], pos)
+        status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result[1], pos)        
 
         result['title_database'][0] = "<null>"  # correct up to here
         #sort numerically by key
         result['title_database'] = dict(sorted(result['title_database'].items(), key=lambda item: item[0]))
         #print(result['title_database']) 
-        perfmon_name = result['title_database'][int(object_num)]
+        try:
+            perfmon_name = result['title_database'][int(object_num)]
+        except KeyError:
+            print_bad(f"Object {object_num} not found in the title database")
+            return False, pos
         print_info(f"Querying Performance Data for {perfmon_name} (#{object_num})")
         queryvalue_result =rrp.hBaseRegQueryValue(self.dce, openhkpd_result['phKey'], object_num, 600000)
 
+        
+
+        print_debug("Parsing Performance Data Block")
         pos = 0
+
+        # if I have a .bin file, I can read it in here as queryvalue_result[1]
+
         status, pos, data_block = parse_perf_data_block(queryvalue_result[1], pos)
+
+
+        system_name = data_block['SystemName']
+        
+        # perf bin
+        
+        save_perf_data = False
+        if save_perf_data:
+            save_path = f"perfdata_{system_name}.bin"
+            with open(save_path, "wb") as f:
+                f.write(queryvalue_result[1])
+            print_info(f"Performance data saved to {save_path}")
+
+        # title db
+        
+        save_title_db = False
+        if save_title_db:
+            save_path = f"titledb_{system_name}.bin"
+            with open(save_path, "w") as f:
+                for key, value in result['title_database'].items():
+                    f.write(f"{key} : {value}\n")
+            print_info(f"Title database saved to {save_path}")
+
+
         # store values in a list    
         dbg_perf_block_list = []    
         for key, value in data_block.items():

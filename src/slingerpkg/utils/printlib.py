@@ -83,7 +83,7 @@ def print_warning(msg):
 def print_info(msg):
     print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
-def print_debug(msg, e=None):
+def print_debug(msg, e=None, force_debug=False):
     # find the Debug Dict in config
     
     if e:
@@ -106,7 +106,8 @@ def print_debug(msg, e=None):
 
     if not get_config_value("Debug"):
         log.debug(debug_msg)
-        return
+        if not force_debug:
+            return
     print_log(debug_msg)
  
 def trace_print(*args, **kwargs):

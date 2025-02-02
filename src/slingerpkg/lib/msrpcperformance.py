@@ -8,7 +8,7 @@ from slingerpkg.utils.printlib import *
 #https://svn.nmap.org/nmap/scripts/smb-enum-processes.nse
 #https://learn.microsoft.com/en-us/windows/win32/api/winperf/
 #https://svn.nmap.org/nmap/nselib/msrpcperformance.lua
-
+# https://learn.microsoft.com/en-us/windows/win32/perfctrs/performance-data-format
 """
 PERF_DATA_BLOCK
 |
@@ -186,6 +186,8 @@ def parse_perf_counter_definition(data, pos=0, is_64bit=False):            # nee
 
 def parse_perf_object_type(data, pos=0, is_64bit=False):
     print_debug("MSRPC: Entering parse_perf_object_type(): pos = {}".format(pos))
+    print_debug("MSRPC: Data length = {}".format(len(data)))
+    print_debug("MSRPC: 64-bit architecture = {}".format(is_64bit))
     try:
         # Define formats
         dword_fmt = '<I'
@@ -409,6 +411,7 @@ def unmarshall_SYSTEMTIME(data, pos=0):      # no need for 64 bit handling
 def parse_perf_data_block(data, pos=0):         # no need for 64 bit handling
     print_debug("MSRPC: Entering parse_perf_data_block()")
     result = {}
+    start_pos = pos  # Save initial position
 
     # Assuming msrpctypes.unicode_to_string and msrpctypes.unmarshall_int32 are available in Python
     pos, result['Signature'] = unicode_to_string(data, pos, 4, False)
@@ -442,13 +445,23 @@ def parse_perf_data_block(data, pos=0):         # no need for 64 bit handling
         print_debug("MSRPC: PERF_DATA_BLOCK has SystemName in the wrong location")
         return False, "MSRPC: PERF_DATA_BLOCK has SystemName in the wrong location"
 
-    # Read the system name
-    pos, result['SystemName'] = unicode_to_string(data, pos, result['SystemNameLength'] // 2, True)     # this is actually correct, this is a lua-to-python-ism
+    # Calculate positions
+    header_end = start_pos + result['HeaderLength']
+    system_name_pos = start_pos + result['SystemNameOffset']
+    first_object_pos = header_end
+    
+    # Align first object to 8-byte boundary
+    first_object_pos = (first_object_pos + 7) & ~7
+    
+    print_debug(f"Header ends at: {header_end}")
+    print_debug(f"System name at: {system_name_pos}")
+    print_debug(f"First object at: {first_object_pos}")
 
-    # Align to 4-byte boundary
-    pos += (4 - pos % 4) % 4
+    # Read system name from correct offset
+    pos = system_name_pos
+    pos, result['SystemName'] = unicode_to_string(data, pos, result['SystemNameLength'] // 2, True)
 
-    print_debug("MSRPC: Leaving parse_perf_data_block()")
-    return True, pos, result
+    # Return aligned position for first object
+    return True, first_object_pos, result
 
 
