@@ -743,7 +743,7 @@ class winreg():
             return
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
-        print_info("Retrieving Title Database")
+        print_debug("Retrieving Title Database")
         self.titledb_list = self.dce_transport._GetTitleDatabase()
 
 
@@ -810,7 +810,7 @@ class winreg():
         
         self.setup_dce_transport()
         self.dce_transport._connect('winreg')
-        print_info("Retrieving Processes List...")
+        print_info("Retrieving Process List...")
         #counter_name = "ID Process"
         arch = self.get_processor_architecture()
         self.dce_transport._connect('winreg')
@@ -820,8 +820,15 @@ class winreg():
         print_debug("Counter Num: " + str(counter_num))
         self.dce_transport._connect('winreg')
         result = self.dce_transport._hQueryPerformaceData(str(counter_num), int(arch))
-        print_debug("Result: \n" + str(result))
-        process_list = result[2]["Process"]
+        #print_debug("Result: \n" + str(result))
+        try:
+            process_list = result[2]["Process"]
+        except Exception as e:
+            print_bad("Error retrieving process list: " + str(e))
+            print_debug("Detailed exception information:", e=sys.exc_info(), force_debug=True)
+            # print dict keys
+            print_log("Dict Keys: " + str(result[2].keys()))
+            return
         names = {}
         names = [key for key in process_list if key != "_Total"]
         names.sort(key=lambda x: process_list[x]["ID Process"])
@@ -1001,7 +1008,13 @@ class winreg():
         self.dce_transport._connect('winreg')
         result = self.dce_transport._GetTitleDatabase()
         self.dce_transport._connect('winreg')
-        print_info("Retrieving Performance Counter: " + result[args.counter])
+        try:
+            print_info("Retrieving Performance Counter: " + result[args.counter])
+        except KeyError:
+            print_warning("Failed to retrieve Performance Counter: " + str(args.counter) + " - Counter not found")
+            set_config_value("debug", original_debug_value)
+            print_warning("Run in interactive mode to access the Title Database")
+            return
         if args.arch == "unk":
             arch = self.get_processor_architecture()
         elif args.arch == "x86":
