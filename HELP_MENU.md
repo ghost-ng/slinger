@@ -2752,20 +2752,22 @@ Example Usage: hostname
 
 **Help:**
 ```
-usage: slinger procs [-h]
+usage: slinger procs [-h] [-v] [-t]
 
 List running processes on the remote server
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help     show this help message and exit
+  -v, --verbose  Display verbose process information
+  -t, --tree     Display process tree
 
-Example Usage: procs
+Example Usage: procs -t -v
 
 ```
 
 **Example Usage:**
 ```
-Example Usage: procs
+Example Usage: procs -t -v
 ```
 
 ---
@@ -2776,20 +2778,22 @@ Example Usage: procs
 
 **Help:**
 ```
-usage: slinger procs [-h]
+usage: slinger procs [-h] [-v] [-t]
 
 List running processes on the remote server
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help     show this help message and exit
+  -v, --verbose  Display verbose process information
+  -t, --tree     Display process tree
 
-Example Usage: procs
+Example Usage: procs -t -v
 
 ```
 
 **Example Usage:**
 ```
-Example Usage: procs
+Example Usage: procs -t -v
 ```
 
 ---
@@ -2800,20 +2804,22 @@ Example Usage: procs
 
 **Help:**
 ```
-usage: slinger procs [-h]
+usage: slinger procs [-h] [-v] [-t]
 
 List running processes on the remote server
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help     show this help message and exit
+  -v, --verbose  Display verbose process information
+  -t, --tree     Display process tree
 
-Example Usage: procs
+Example Usage: procs -t -v
 
 ```
 
 **Example Usage:**
 ```
-Example Usage: procs
+Example Usage: procs -t -v
 ```
 
 ---

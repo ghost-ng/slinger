@@ -365,8 +365,10 @@ def setup_cli_parser(slingerClient):
     parser_hostname = subparsers.add_parser('hostname', help='Display hostname', description='Display the hostname of the remote server', epilog='Example Usage: hostname')
     parser_hostname.set_defaults(func=slingerClient.hostname)
 
-    parser_procs = subparsers.add_parser('procs', help='List running processes', aliases=['ps','tasklist'], description='List running processes on the remote server', epilog='Example Usage: procs')
+    parser_procs = subparsers.add_parser('procs', help='List running processes', aliases=['ps','tasklist'], description='List running processes on the remote server', epilog='Example Usage: procs -t -v')
     parser_procs.set_defaults(func=slingerClient.show_process_list)
+    parser_procs.add_argument('-v', '--verbose', help='Display verbose process information', action='store_true', default=False)
+    parser_procs.add_argument('-t', '--tree', help='Display process tree', action='store_true', default=False)
 
     parser_fwrules = subparsers.add_parser('fwrules', help='Display firewall rules', description='Display firewall rules on the remote server', epilog='Example Usage: fwrules')
     parser_fwrules.set_defaults(func=slingerClient.show_fw_rules)
