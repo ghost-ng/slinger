@@ -440,9 +440,87 @@ class smblib():
                 print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
             else:
                 print_log(tabulate(dirList, headers=['Attribs', 'Name']))
+            
+            if args.recursive:
+                print_info(f"Recursively listing files and directories in {path} at depth {args.recursive}")
+                depth = args.recursive
+                self._recursive_ls(path, depth, args)
+
         except Exception as e:
             if "STATUS_NO_SUCH_FILE" in str(e):
                 print_warning(f"Invalid directory or file: {path}")
             else:
                 print_debug(f"Failed to list file or directory {path} on share {self.share}: {e}", sys.exc_info())
             
+    def _recursive_ls(self, path, depth, args):
+        """Recursively list directory contents"""
+        if depth < 0:  # Changed from <= to < to allow specified depth
+            return
+
+        try:
+            # 1. List current directory
+            norm_path = ntpath.normpath(path)
+            list_path = ntpath.join(norm_path, '*')
+            files = self.conn.listPath(self.share, list_path)
+            
+            # 2. Process files and collect directories
+            dirList = []
+            subdirs = []
+            
+            for f in files:
+                if f.get_longname() in ['.', '..']:
+                    continue
+                    
+                # Add to current listing
+                if args.long:
+                    try:
+                        dirList.append([
+                            self._get_file_attributes(f),
+                            datetime.fromtimestamp(f.get_create_time()),
+                            datetime.fromtimestamp(f.get_last_access_time()),
+                            datetime.fromtimestamp(f.get_last_write_time()),
+                            f.get_filesize(),
+                            f.get_longname()
+                        ])
+                    except Exception as e:
+                        print_debug(f"Error getting file attributes: {e}")
+                        continue
+                else:
+                    dirList.append([self._get_file_attributes(f), f.get_longname()])
+                
+                # Collect directories for later
+                if hasattr(f, 'get_attributes') and f.get_attributes() & 0x10:
+                    subdirs.append(f.get_longname())
+            
+            # 3. Print current directory contents
+            if dirList:
+                print_info(norm_path)
+                if args.long:
+                    print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name']))
+                else:
+                    print_log(tabulate(dirList, headers=['Attribs', 'Name']))
+            
+            # 4. Process subdirectories
+            for subdir in subdirs:
+                new_path = ntpath.join(norm_path, subdir)
+                self._recursive_ls(new_path, depth - 1, args)
+                    
+        except Exception as e:
+            print_debug(f"Error listing {norm_path}: {str(e)}")
+
+    def _get_file_attributes(self, f):
+        """Convert SMB file attributes to string"""
+        attrs = []
+        if hasattr(f, 'get_attributes'):
+            attr_val = f.get_attributes()
+            if attr_val & 0x10:
+                attrs.append('D')
+            if attr_val & 0x20:
+                attrs.append('A')
+            if attr_val & 0x1:
+                attrs.append('R')
+            if attr_val & 0x2:
+                attrs.append('H')
+            if attr_val & 0x4:
+                attrs.append('S')
+        return ''.join(attrs) or '-'

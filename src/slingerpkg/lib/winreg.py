@@ -1,8 +1,5 @@
 from collections import defaultdict
 import json
-
-from asciitree import LeftAligned
-from asciitree.drawing import BoxStyle
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from tabulate import tabulate

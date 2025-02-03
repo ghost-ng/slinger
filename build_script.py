@@ -27,9 +27,14 @@ def extract_commands_and_args(parser):
     for action in parser._actions:
         if isinstance(action, argparse._SubParsersAction):
             for command, subparser in action.choices.items():
+                usage = subparser.format_usage() if hasattr(subparser, 'format_usage') else ""
+                usage = usage.replace("usage: slinger ", "").strip()
+                desc = getattr(subparser, "description", "No description provided")
+                help_text = f"{usage}\n{desc}" if usage else desc
+
                 commands[command] = {
-                    "description": getattr(subparser, "description", "No description provided"),
-                    "help": getattr(subparser, "format_help", lambda: "No help message provided")(),
+                    "description": desc,
+                    "help": help_text,
                     "epilog": getattr(subparser, "epilog", None),
                     "arguments": [],
                 }

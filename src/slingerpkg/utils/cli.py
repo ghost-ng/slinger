@@ -21,75 +21,88 @@ def extract_commands_and_args(parser):
 
     return commands_and_args
 
+# This is for "help <command>"
 def force_help(parser, command):
-    # Get the _SubParsersAction object
-    subparsers_action = [action for action in parser._actions if isinstance(action, argparse._SubParsersAction)][0]
-
-    # Get the subparser for the command
+    subparsers_action = [action for action in parser._actions 
+                        if isinstance(action, argparse._SubParsersAction)][0]
     command_parser = subparsers_action.choices.get(command)
 
     if command_parser is not None:
-        # Print the help message for the command
-        command_parser.print_help()
+        print(_format_help_text(command_parser))
     else:
         print(f"No command named '{command}' found")
 
+def _format_help_text(parser):
+    """Base help text formatter"""
+    help_text = parser.format_help()
+    help_text = help_text.replace('usage: slinger', 'usage:').strip()
+    help_text = '\n'.join(line for line in help_text.splitlines() if line.strip())
+    return help_text.rstrip() + '\n'
+
 def print_all_help(parser):
+    """
+    Prints the help message for all subcommands of a given argparse parser.
+
+    Args:
+        parser (argparse.ArgumentParser): The argument parser containing subcommands.
+
+    This function iterates through all subcommands of the provided parser and prints
+    their respective help messages. It assumes that the parser contains subparsers.
+    """
     subparsers_action = [action for action in parser._actions if isinstance(action, argparse._SubParsersAction)][0]
     command_parser = subparsers_action.choices
     for command, parser in command_parser.items():
         print(f"\n======= Command: {command} =======")
         parser.print_help()
 
+def print_all_commands(parser):
+    """Print available commands in 4-column format"""
+    # Get commands from parser
+    subparsers_action = [action for action in parser._actions 
+                        if isinstance(action, argparse._SubParsersAction)][0]
+    commands = subparsers_action.choices
+    
+    # Sort commands alphabetically
+    sorted_commands = sorted(commands.keys())
+    
+    # Calculate rows for 4 columns
+    rows = -(-len(sorted_commands) // 4)  # Ceiling division
+    
+    # Split into columns
+    columns = [sorted_commands[i:i + rows] for i in range(0, len(sorted_commands), rows)]
+    
+    # Print header
+    print("\nAvailable commands:")
+    print("-" * 42)
+    
+    # Print commands in columns
+    for row in zip_longest(*columns, fillvalue=''):
+        formatted_row = [f"{cmd:<20}" for cmd in row]
+        print('  '.join(formatted_row))
+    
+    # Print footer
+    print("\nType help <command> or <command> -h for more information on a specific command\n")
 
 class InvalidParsing(Exception):
     pass
 
 class CustomArgumentParser(argparse.ArgumentParser):
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._custom_help = None
+    
     def format_help(self):
-        if hasattr(self, 'prog') and self.prog != program_name:
-            return super().format_help()
-        # Get the list of available commands
-        commands = [action.choices for action in self._actions if isinstance(action, argparse._SubParsersAction)][0]
-
-        # Sort the commands alphabetically
-        sorted_commands = sorted(commands.keys())
-
-        # Calculate the number of rows for 4 columns
-        rows = -(-len(sorted_commands) // 4)  # Equivalent to math.ceil(len(sorted_commands) / 4)
-
-        # Distribute the commands across the columns, continuing the alphabetical list in each column
-        columns = [sorted_commands[i:i + rows] for i in range(0, len(sorted_commands), rows)]
-
-        # Create the help message with 4 commands per line
-        help_message = '\nAvailable commands:\n------------------------------------------\n'
-        for row in zip_longest(*columns, fillvalue=''):
-            # Format each command to take up 20 characters of space
-            formatted_row = [f"{command:<20}" for command in row]
-            help_message += '  '.join(formatted_row) + '\n'
-
-        help_message += '\nType help <command> or <command> -h for more information on a specific command\n\n'
-
-        return help_message
+        if not self._custom_help:
+            self._custom_help = _format_help_text(super())
+        return self._custom_help
     
-    def parse_args(self, args=None, namespace=None):
-        args, argv = self.parse_known_args(args, namespace)
-        if argv:
-            msg = 'unrecognized arguments: %s'
-            self.error(msg % ' '.join(argv))
-        return args
-    
-    
-
     def error(self, message):
         if 'invalid choice' in message:
             print_log('Invalid command entered. Type help for a list of commands.')
             raise InvalidParsing('Invalid command entered. Type help for a list of commands.')
-        #super().error(message)
 
 def show_command_help(parser, command):
-    # Get the subparser for the command
+    """Show help for specific command"""
     subparser = None
     for action in parser._actions:
         if isinstance(action, argparse._SubParsersAction):
@@ -98,11 +111,9 @@ def show_command_help(parser, command):
                 break
 
     if subparser is not None:
-        # Print the help message for the command
-        print(subparser.format_help())
+        print(_format_help_text(subparser))
     else:
         print(f"Command '{command}' not found.")
-
 
 def setup_cli_parser(slingerClient):
     parser = CustomArgumentParser(prog=program_name, description='In App Commands')
@@ -121,6 +132,7 @@ def setup_cli_parser(slingerClient):
     parser_ls.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
     parser_ls.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
     parser_ls.add_argument('-l', '--long', action='store_true', help='Display long format listing', default=False)
+    parser_ls.add_argument('-r', '--recursive', help='Recursively list directory contents with X depth', default=None, type=int, metavar='depth')
     parser_ls.set_defaults(func=slingerClient.ls)
 
     # Subparser for 'shares' command
@@ -380,7 +392,7 @@ def setup_cli_parser(slingerClient):
     
     parser_setvar = subparsers.add_parser('config', help='Show the current config', description='Show the current config', epilog='Example Usage: config')
     
-    parser_run = subparsers.add_parser('run', help='Run a slinger script or command sequence', description='Run a slinger script or command sequence', epilog='Example Usage: run -c|-f [script]')
+    parser_run = subparsers.add_parser('run', help='Run a slinger script or command sequence', description='Run a slinger script or command sequence', epilog='Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"')
     #parser_run.add_argument('-v', '--validate', help='Validate the script or command sequence without running it', action='store_true')
     parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
     parser_rungroup.add_argument('-c', '--cmd_chain', help='Specify a command sequence to run')

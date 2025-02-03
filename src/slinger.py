@@ -2,7 +2,7 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.slingerclient import SlingerClient
 from slingerpkg.utils.common import get_config_value, set_config_value, run_local_command, show_config
-from slingerpkg.utils.cli import print_all_help, setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, file_to_slinger_script
+from slingerpkg.utils.cli import print_all_commands, print_all_help, setup_cli_parser, get_prompt, CommandCompleter, setup_completer, merge_parsers, force_help, file_to_slinger_script
 from slingerpkg.lib.plugin_base import load_plugins
 from slingerpkg.var.config import version
 import shlex, argparse, sys, os, pty, termios
@@ -246,7 +246,7 @@ def main():
                         # force cmd -h
                         force_help(slinger_parser, args.cmd)
                 else:
-                    slinger_parser.print_help()
+                    print_all_commands(slinger_parser)
             elif args.command == "clear":
                 os.system('clear')
             elif args.command == "exit":
@@ -273,7 +273,7 @@ def main():
                         for line in lines:
                             slingerQueue.append(line)
                     else:
-                        print_warning("Invalid command sequence.  Use ';' to separate commands")
+                        print_warning("Invalid command sequence.  Use ';' to separate commands and wrap in quotes.")
 
             else:
                 pass

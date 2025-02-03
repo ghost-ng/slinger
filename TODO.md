@@ -6,7 +6,7 @@
 - load task xml
 
 ### Registry
-- process enumeration (make graphical tree))
+
 - move from performance data querying experimental features to 
 
 ### Service Control
