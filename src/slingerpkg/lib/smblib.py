@@ -1,3 +1,4 @@
+import base64
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from tabulate import tabulate
@@ -5,7 +6,9 @@ import os, sys, re, ntpath
 import datetime, tempfile
 
 
-
+# Share Access
+FILE_SHARE_READ         = 0x00000001
+FILE_SHARE_WRITE        = 0x00000002
 
 class smblib():
 
@@ -24,7 +27,7 @@ class smblib():
             print_log(self.current_path)
 
     # connect to a share
-    def connect_share(self, args):
+    def connect_share(self, args):      #use this function to connect to a share
         share = args.share
         try:
             self.tree_id = self.conn.connectTree(share)
@@ -42,13 +45,50 @@ class smblib():
                 print_bad(f"Failed to connect to share {share}: {e}")
             raise e
 
-    
-
-    def list_shares(self, args=None):
+#https://learn.microsoft.com/en-us/windows/win32/api/lmshare/ns-lmshare-share_info_0
+#SYSTEM\CurrentControlSet\Services\LanmanServer\Shares
+    def list_shares(self, args=None, echo=True, ret=False):
         shares = self.conn.listShares()
-        print_info("Available Shares")
+        
+        
+        share_info_list = []
+        
         for share in shares:
-            print_log(f"{share['shi1_netname']}")
+            # Retrieve share information
+            resp = self.dce_transport._share_info(share['shi1_netname'])
+            
+            # Store share information in a dictionary
+            share_info = {
+                'Name': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_netname"]),
+                'Path': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_path"]),
+                'Comment': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_remark"])
+            }
+            #print_info(f"{share_info}")
+            share_info_list.append(share_info)
+        
+        if echo:
+            print_info("Available Shares")
+            if args and args.list:
+                # Print share information in a list format
+                for share_info in share_info_list:
+                    print(f"Name: {share_info['Name']}")
+                    print(f"Path: {share_info['Path']}")
+                    print(f"Comment: {share_info['Comment']}")
+                    print()
+            else:
+                # Print share information using tabulate
+                headers = ["Name", "Path", "Comment"]
+                table = [[share_info['Name'], share_info['Path'], share_info['Comment']] for share_info in share_info_list]
+                print(tabulate(table, headers=headers, tablefmt='grid'))
+            
+        
+        if ret:
+            # {"Name": "IPC$", "Path": "C:\\Windows\\system32\\IPC$", "Comment": "Remote IPC"}
+            share_info_dict = []
+            for share_info in share_info_list:
+                share_info_dict.append({"name": share_info["Name"], "path": share_info["Path"], "comment": share_info["Comment"]})
+            return share_info_dict
+
 
     def mkdir(self, args):
         if not self.check_if_connected():
@@ -228,12 +268,16 @@ class smblib():
             print_bad(f"Failed to upload file {local_path} to {remote_path}: {e}")
             print_log(sys.exc_info())
 
-    def download_handler(self, args):
-        remote_path = os.path.normpath(os.path.join(self.relative_path, args.remote_path))
+    def download_handler(self, args, echo=True):
+        print_info(f"Remote Path (Before): {args.remote_path}")
+        remote_path = ntpath.join(self.relative_path, args.remote_path)
+        # convert single slash only to double slash, regex
+        #remote_path = escape_single_backslashes(remote_path)
+        print_info(f"Remote Path (After): {remote_path}")
         local_path = ""
         if self.check_if_connected():
             if args.local_path == "." or args.local_path == "" or args.local_path is None or "/" not in args.local_path:
-                local_path = os.path.join(os.getcwd(), os.path.basename(args.remote_path))
+                local_path = os.path.join(os.getcwd(), ntpath.basename(args.remote_path))
             else:
                 if os.path.isdir(os.path.dirname(args.local_path)):
                     local_path = os.path.join(args.local_path, ntpath.basename(args.remote_path))
@@ -241,19 +285,26 @@ class smblib():
                     local_path = args.local_path
             if os.path.isdir(os.path.dirname(local_path)):
                 remote_path = ntpath.normpath(remote_path)
-                print_info(f"Downloading: {ntpath.join(self.share,remote_path)} --> {local_path}")
-                self.download(remote_path, local_path)
+                if echo:
+                    print_info(f"Downloading: {ntpath.join(self.share,remote_path)} --> {local_path}")
+                self.download(remote_path, local_path, echo=echo)
             else:
                 print_warning(f"Local path {args.local_path} does not exist.")
+        else:
+            print_warning("You are not connected to a share.")
 
-    def download(self, remote_path, local_path):
+    def download(self, remote_path, local_path, echo=True):
         if remote_path.endswith('.') or remote_path.endswith('..'):
             return
-
+        local_path = os.path.normpath(local_path).replace("\\", "/")
         try:
+            if echo:
+                full_path = ntpath.join(self.share, remote_path)
+                print_info(f"Downloading file: {full_path} --> {local_path}")
             with open(local_path, 'wb') as file_obj:
-                self.conn.getFile(self.share, remote_path, file_obj.write)
-            print_good(f"Downloaded file '{remote_path}' to '{local_path}'")
+                self.conn.getFile(self.share, remote_path, file_obj.write, shareAccessMode=FILE_SHARE_READ|FILE_SHARE_WRITE)
+            if echo:
+                print_good(f"Downloaded file '{remote_path}' to '{local_path}'")
         except Exception as e:
             print_debug(f"Failed to download file '{remote_path}' to '{local_path}': {e}", sys.exc_info())
             if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e):
@@ -325,7 +376,7 @@ class smblib():
         print_debug(f"File does not exist: {remote_path}")
         return False
 
-    def cat(self, args):
+    def cat(self, args, echo=False):
             """
             Downloads a file from the remote server and prints its contents.
 
@@ -337,15 +388,21 @@ class smblib():
             """
             if not self.check_if_connected():
                 return
-            path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
+            #print_info(f"Reading file: {args.remote_path}")
+            path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))#.removeprefix("\\")
+            print_debug(f"Target File: {path}")
             temp_path = tempfile.NamedTemporaryFile(dir='/tmp', delete=False).name
-            self.download(path, temp_path)
+            self.download(path, temp_path, echo=echo)
             try:
                 with open(temp_path, 'r', encoding=get_config_value("Codec")) as file_obj:
                     print(file_obj.read())
+                os.remove(temp_path)
             except UnicodeDecodeError:
                 print_warning(f"Failed to decode file '{path}' using codec {get_config_value('Codec')}.  Try changing the codec using the 'set codec <codec>' command.")
-            os.remove(temp_path)
+                try:
+                    os.remove(temp_path)
+                except:
+                    pass
 
 
 

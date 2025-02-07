@@ -4,6 +4,7 @@ from prompt_toolkit.completion import Completer, Completion
 from slingerpkg.var.config import version, program_name
 from itertools import zip_longest
 
+
 def extract_commands_and_args(parser):
     commands_and_args = {}
 
@@ -92,6 +93,8 @@ class CustomArgumentParser(argparse.ArgumentParser):
         self._custom_help = None
     
     def format_help(self):
+        """This is invoked when the user types '<command> -h'"""
+        print_info("Help Menu:")
         if not self._custom_help:
             self._custom_help = _format_help_text(super())
         return self._custom_help
@@ -116,7 +119,7 @@ def show_command_help(parser, command):
         print(f"Command '{command}' not found.")
 
 def setup_cli_parser(slingerClient):
-    parser = CustomArgumentParser(prog=program_name, description='In App Commands')
+    parser = CustomArgumentParser(prog=program_name, description='Slinger Commands', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--version', action='version', version='%(prog)s '+version, help='Show the version number and exit')
 
     subparsers = parser.add_subparsers(dest='command')
@@ -128,7 +131,7 @@ def setup_cli_parser(slingerClient):
 
     # Subparser for 'ls' command
     parser_ls = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path', epilog='Example Usage: ls /path/to/directory')
-    parser_ls.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path')
+    parser_ls.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path (default: %(default)s)')
     parser_ls.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
     parser_ls.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
     parser_ls.add_argument('-l', '--long', action='store_true', help='Display long format listing', default=False)
@@ -137,6 +140,7 @@ def setup_cli_parser(slingerClient):
 
     # Subparser for 'shares' command
     parser_shares = subparsers.add_parser('shares', help='List all available shares', aliases=['enumshares'], description='List all shares available on the remote server', epilog='Example Usage: shares')
+    parser_shares.add_argument('-l', '--list', action='store_true', help='Print all shares in a list format instead of a table')
     parser_shares.set_defaults(func=slingerClient.list_shares)
 
     # Subparser for 'cat' command
@@ -146,7 +150,7 @@ def setup_cli_parser(slingerClient):
 
     # Subparser for 'cd' command
     parser_cd = subparsers.add_parser('cd', help='Change directory', description='Change to a different directory on the remote server', epilog='Example Usage: cd /path/to/directory')
-    parser_cd.add_argument('path', nargs='?', default=".", help='Directory path to change to, defaults to current directory')
+    parser_cd.add_argument('path', nargs='?', default=".", help='Directory path to change to, defaults to current directory (default: %(default)s)')
     parser_cd.set_defaults(func=slingerClient.cd_handler)
 
     # Subparser for 'pwd' command
@@ -239,7 +243,7 @@ def setup_cli_parser(slingerClient):
     parser_svccreate.add_argument('-n', '--servicename', required=True, help='Specify the name of the new service')
     parser_svccreate.add_argument('-b', '--binarypath', required=True, help='Specify the binary path of the new service')
     parser_svccreate.add_argument('-d', '--displayname', required=True, help='Specify the display name of the new service')
-    parser_svccreate.add_argument('-s', '--starttype', choices=['auto','demand','system'], default="demand", required=True, help='Specify the start type of the new service')
+    parser_svccreate.add_argument('-s', '--starttype', choices=['auto','demand','system'], default="demand", required=True, help='Specify the start type of the new service (default: %(default)s)')
     parser_svccreate.set_defaults(func=slingerClient.create_service)
 
     # Subparser for 'enumtasks' command
@@ -297,7 +301,7 @@ def setup_cli_parser(slingerClient):
     parser_mget.add_argument('local_path',  nargs='?', help='Specify the local directory path where files will be downloaded')
     parser_mget.add_argument('-r', action='store_true', help='Recurse into directories')
     parser_mget.add_argument('-p', metavar='regex', help='Specify a regex pattern to match filenames')
-    parser_mget.add_argument('-d', type=int, default=2, help='Specify folder depth count for recursion')
+    parser_mget.add_argument('-d', type=int, default=2, help='Specify folder depth count for recursion (default: %(default)s)')
     parser_mget.set_defaults(func=slingerClient.mget_handler)
 
     # Subparser for 'mkdir' command
@@ -342,7 +346,7 @@ def setup_cli_parser(slingerClient):
     parser_regset.add_argument('-k', '--key', help='Specify the registry key to set', required=True)
     parser_regset.add_argument('-v', '--value', help='Specify the registry value to set', required=True)
     parser_regset.add_argument('-d', '--data', help='Specify the registry data to set', required=True)
-    parser_regset.add_argument('-t', '--type', help='Specify the registry type to set', default="REG_SZ", required=False)
+    parser_regset.add_argument('-t', '--type', help='Specify the registry type to set (default: %(default)s)', default="REG_SZ", required=False)
     parser_regset.set_defaults(func=slingerClient.add_reg_value_handler)
 
     parser_regdel = subparsers.add_parser('regdel', help='Delete a registry value', description='Delete a registry value on the remote server', epilog='Example Usage: regdel -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\ -v test')
@@ -415,7 +419,7 @@ def setup_cli_parser(slingerClient):
 
     parser_getCounter = subparsers.add_parser('debug-counter', help='Display a performance counter.  This is for debug use only, it doesn\'t really give you anything.', description='Display a performance counter on the remote server.  This is for debug use only, it doesn\'t really give you anything.', epilog='Example Usage: counter -c 123 [-a x86]')
     parser_getCounter.add_argument('-c','--counter', help='Specify the counter to display', default=None, type=int)
-    parser_getCounter.add_argument('-a', '--arch', help='Specify the architecture of the remote server', choices=['x86','x64', 'unk'], default='unk')
+    parser_getCounter.add_argument('-a', '--arch', help='Specify the architecture of the remote server (default: %(default)s)', choices=['x86','x64', 'unk'], default='unk')
     parser_getCounter.add_argument('-i', '--interactive', help='Run the counter in interactive mode', action='store_true', default=False)
 
     parser_getCounter.set_defaults(func=slingerClient.show_perf_counter)
@@ -425,7 +429,20 @@ def setup_cli_parser(slingerClient):
     parser_network.add_argument('-rdp', help='Display RDP information', action='store_true', default=False)
     parser_network.set_defaults(func=slingerClient.show_network_info_handler)
 
-    
+    parser_atexec = subparsers.add_parser('atexec', help='Execute a command at a specified time', description='Execute a command on the remote server', epilog='Example Usage: atexec -n "NetSvc" -sn C$ -c "ipconfig /all" -sp C:\\\\Public\\\\Downloads\\\\')
+    parser_atexec.add_argument('-c', '--command', help='Specify the command to execute', required=True)
+    parser_atexec.add_argument('-sp', '--path', help='Specify the folder to save the output file (default: %(default)s)', required=True, default='\\Users\\Public\\Downloads\\')
+    parser_atexec.add_argument('-sn', '--save-name', help='Specify the name of the output file.  Default is <random 8-10 chars>.txt', default=None)
+    parser_atexec.add_argument('-tn', '--name', help='Specify the name of the scheduled task', required=True)
+    parser_atexec.add_argument('-ta', '--author', help='Specify the author of the scheduled task ', default='Slinger')
+    parser_atexec.add_argument('-td', '--description', help='Specify the description of the scheduled task (default: %(default)s)', default='Scheduled task created by Slinger')
+    parser_atexec.add_argument('-tf', '--folder', help='Specify the folder to run the task in (default: %(default)s)', default='\\Windows')
+    parser_atexec.add_argument('-sh', '--share', help='Specify the share name to connect to (default: %(default)s)', default='C$')
+    parser_atexec.add_argument('--shell', help='Start a semi-interactive shell', action='store_true', default=False)
+    parser_atexec.add_argument('-w', '--wait', help='Seconds to wait for the task to complete (default: %(default)s)', type=int, default=1)
+
+    parser_atexec.set_defaults(func=slingerClient.atexec_handler)
+
     parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
     parser_plugins = subparsers.add_parser('plugins', help='List available plugins', description='List available plugins', epilog='Example Usage: plugins')
     return parser

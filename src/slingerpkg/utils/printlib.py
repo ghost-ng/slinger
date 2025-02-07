@@ -141,6 +141,26 @@ def trace_print(*args, **kwargs):
         # Return the message
         return message
 
+def print_struct(struct, indent=0):
+    """Recursively print a struct without knowing the keys."""
+    spacing = ' ' * indent
+    if isinstance(struct, dict):
+        for key, value in struct.items():
+            if isinstance(value, (dict, list)):
+                print(f"{spacing}{key}:")
+                print_struct(value, indent + 4)
+            else:
+                if isinstance(value, bytes):
+                    value = value.decode('utf-8', errors='replace')
+                print(f"{spacing}{key}: {value}")
+    elif isinstance(struct, list):
+        for index, item in enumerate(struct):
+            print(f"{spacing}[{index}]:")
+            print_struct(item, indent + 4)
+    else:
+        if isinstance(struct, bytes):
+            struct = struct.decode('utf-8', errors='replace')
+        print(f"{spacing}{struct}")
 
 log_location = os.path.expanduser(get_config_value('Logs_Folder'))
 # Initialize the logger at the start of your application
