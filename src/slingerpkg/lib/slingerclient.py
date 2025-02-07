@@ -1,5 +1,6 @@
 from slingerpkg.lib.schtasks import schtasks
 from slingerpkg.lib.winreg import winreg
+from slingerpkg.lib.atexec import atexec
 from slingerpkg.lib.scm import scm
 from slingerpkg.lib.smblib import smblib
 from slingerpkg.lib.secrets import secrets
@@ -21,13 +22,14 @@ dialect_mapping = {
         }
 
 
-class SlingerClient(winreg, schtasks, scm, smblib, secrets):
+class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec):
     def __init__(self, host, username, password, domain, port=445, ntlm_hash=None, use_kerberos=False):
         schtasks.__init__(self)
         winreg.__init__(self)
         scm.__init__(self)
         smblib.__init__(self)
         secrets.__init__(self)
+        atexec.__init__(self)
         self.host = host
         self.username = username
         self.password = password

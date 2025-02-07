@@ -4,8 +4,6 @@ from slingerpkg.utils.common import enum_struct, generate_random_date, validate_
 from tabulate import tabulate
 import os
 import traceback
-import datetime
-import ntpath
 
 
 class schtasks():

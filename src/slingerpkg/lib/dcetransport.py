@@ -180,7 +180,16 @@ class DCETransport:
             print_debug(f"Error during 'who': {str(e)}", sys.exc_info())
             raise e
 
-
+    #NetShareSetInfo
+    def _share_info(self, share_name):
+        self._connect('srvsvc')
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        
+        self.bind_override = True
+        self._bind(srvs.MSRPC_UUID_SRVS)
+        response = srvs.hNetrShareGetInfo(self.dce, share_name, 502)
+        return response
     
     def _enum_server_disk(self):
         # NetrServerDiskEnum
@@ -288,7 +297,6 @@ class DCETransport:
         self._bind(tsch.MSRPC_UUID_TSCHS)
         #abs_path = folder_path + "\\" + task_name
         #abs_path = abs_path .replace(r'\\', chr(92))
-        print_log(f"Running Task: {abs_path}")
         response = tsch.hSchRpcRun(self.dce, abs_path)
         return response
 

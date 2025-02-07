@@ -49,7 +49,7 @@ def main():
 
     original_settings = termios.tcgetattr(0)
 
-    parser = argparse.ArgumentParser(description='impacket swiss army knife (sort of)')
+    parser = argparse.ArgumentParser(description='impacket swiss army knife (sort of)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-host', required=True, help='Host to connect to')
     parser.add_argument('-user', '--username', required=True, help='Username for authentication')
     parser.add_argument('-domain', '--domain', default='', help='Domain for authentication')

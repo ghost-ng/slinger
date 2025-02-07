@@ -59,11 +59,37 @@ def run_local_command(command):
     if stderr:
         print_log(stderr.decode())
 
-def enum_struct(obj):
-    for k,v in obj.__dict__.items():
-        print(k ,v)
-        if hasattr(v,'__dict__'):
-            enum_struct(v)
+def remove_null_terminator(s):
+    # Remove common null terminator patterns from the end of the string
+    return re.sub(r'(\x00|\\0)$', '', s)
+
+def escape_single_backslashes(path):
+    # Replace single backslashes with double backslashes, but not already doubled ones
+    return re.sub(r'(?<!\\)\\(?!\\)', r'\\\\', path)
+
+def enum_struct(obj, indent=0):
+    """Recursively enumerate and print the fields of a struct."""
+    spacing = ' ' * indent
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if isinstance(v, bytes):
+                v = v.decode('utf-8', errors='replace')
+            print(f"{spacing}{k}: {v}")
+            if hasattr(v, '__dict__'):
+                enum_struct(v, indent + 4)
+    else:
+        for k, v in obj.__dict__.items():
+            if isinstance(v, bytes):
+                v = v.decode('utf-8', errors='replace')
+            print(f"{spacing}{k}: {v}")
+            if hasattr(v, '__dict__'):
+                enum_struct(v, indent + 4)
+            elif hasattr(v, 'fields'):
+                print(f"{spacing}{k} (fields):")
+                enum_struct(v.fields, indent + 4)
+            elif hasattr(v, 'structure'):
+                print(f"{spacing}{k} (structure):")
+                enum_struct(dict(v.structure), indent + 4)
 
 def generate_random_date(lower_time_bound=None):
     if lower_time_bound is None:
@@ -99,9 +125,10 @@ def xml_escape(data):
     return ''.join(replace_table.get(c, c) for c in data)
 
 
-def generate_random_string(length=6):
+def generate_random_string(length=6, end=6):
     random.seed()
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+    #return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=random.randint(length, end)))
 
 def validate_xml(xml_string):
     try:
