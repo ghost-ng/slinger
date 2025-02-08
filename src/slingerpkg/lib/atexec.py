@@ -115,7 +115,8 @@ Saved to: '{save_file_path}'""")
             if share_info['name'] == args.share:
                 share_exists = True
                 args.share_path = ntpath.join(share_info['path'], args.path)
-                print_info(f"Share '{args.share}' found at '{args.share_path}'")
+                print_info(f"Share '{args.share}' resolves to '{share_info['path']}'")
+                print_debug(f"Full Resolved Path: '{args.share_path}'")
                 break
         
         if not share_exists:
@@ -191,6 +192,10 @@ Saved to: '{save_file_path}'""")
         
     def atexec_handler(self, args):
         cmd = None
+        # handle mistakes in which the user specifies a full path
+        if ":" in args.path:
+            print_bad("Invalid path name, please use a relative path")
+            return
         if args.shell:
             print_warning("Entering interactive mode.  Type 'exit' to return to the main menu.")
             while cmd != "exit":
@@ -199,3 +204,9 @@ Saved to: '{save_file_path}'""")
                     break
                 args.command = cmd
                 self.atexec(args)
+        else:
+            # handle if no command is specified
+            if args.command is None:
+                print_bad("No command specified")
+                return
+            self.atexec(args)
