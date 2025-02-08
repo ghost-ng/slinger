@@ -429,7 +429,7 @@ def setup_cli_parser(slingerClient):
     parser_network.add_argument('-rdp', help='Display RDP information', action='store_true', default=False)
     parser_network.set_defaults(func=slingerClient.show_network_info_handler)
 
-    parser_atexec = subparsers.add_parser('atexec', help='Execute a command at a specified time', description='Execute a command on the remote server', epilog='Example Usage: atexec -sn "NetSvc" -sh C$ -c "ipconfig /all" -sp C:\\\\Public\\\\Downloads\\\\')
+    parser_atexec = subparsers.add_parser('atexec', help='Execute a command at a specified time', description='Execute a command on the remote server', epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\Downloads\\\\ -c ipconfig')
     parser_atexec.add_argument('-c', '--command', help='Specify the command to execute', required=True)
     parser_atexec.add_argument('-sp', '--path', help='Specify the folder to save the output file (default: %(default)s)', required=True, default='\\Users\\Public\\Downloads\\')
     parser_atexec.add_argument('-sn', '--save-name', help='Specify the name of the output file.  Default is <random 8-10 chars>.txt', default=None)
