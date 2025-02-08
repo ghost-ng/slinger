@@ -62,7 +62,7 @@ def generate_markdown(commands, output_file):
             if details['arguments']:
                 md_file.write("### Arguments\n\n")
                 for arg in details['arguments']:
-                    md_file.write(f"- **`{arg['name']}`**: {arg['help'] or 'No description provided'}\n")
+                    md_file.write(f"- **`{arg['name']}`**: {arg['help'] or 'No description provided'}\n".replace('(default: %(default)s)',''))
                     if arg['choices']:
                         md_file.write(f"  - Choices: {', '.join(arg['choices'])}\n")
                     if arg['default'] is not None:
