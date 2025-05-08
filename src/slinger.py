@@ -31,6 +31,21 @@ class ArgparseCompleter(Completer):
                 yield Completion(cmd, start_position=-len(word_before_cursor))
 
 
+def create_ntlm_hash(password):
+    """
+    Create an NTLM hash from a password.
+    """
+    try:
+        from passlib.hash import nthash
+        try:
+            ntlm_hash = nthash.hash(password)
+        except Exception as e:
+            print_warning(f"Failed to generate NTLM hash: {e}")
+            return None
+        return ntlm_hash
+    except ImportError:
+        print_warning("passlib module not found. Cannot create NTLM hash.")
+        return None
 
 def main():
     global slingerClient
@@ -49,30 +64,52 @@ def main():
 
     original_settings = termios.tcgetattr(0)
 
-    parser = argparse.ArgumentParser(description='impacket swiss army knife (sort of)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description='impacket smb swiss army knife (sort of)', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    # version, standalone argument
+    if '-v' in sys.argv or '--version' in sys.argv:
+        print(f"Version Information: {parser.prog} {version}")
+        sys.exit(0)
+    if '-gen-ntlm-hash' in sys.argv:
+        hash = create_ntlm_hash(sys.argv[2])
+        if hash:
+            print(f"NTLM hash: :{hash}")
+        sys.exit(0)
+
+    
     parser.add_argument('-host', required=True, help='Host to connect to')
     parser.add_argument('-user', '--username', required=True, help='Username for authentication')
     parser.add_argument('-domain', '--domain', default='', help='Domain for authentication')
     parser.add_argument('-port', type=int, default=445, help='Port to connect to')
     parser.add_argument('-nojoy', action='store_true', help='Turn off emojis')
+
+    
+
     # authentication mutually exclusive group
-    auth_group = parser.add_mutually_exclusive_group(required=True)
-    auth_group.add_argument('-pass', '--password', help='Password for authentication', nargs='?')
+    auth_group = parser.add_mutually_exclusive_group(required=False)
+    auth_group.add_argument('-pass', '--password', help='Password for authentication', dest="password", nargs='?', default=None)
     auth_group.add_argument('-ntlm', help='NTLM hash for authentication')
     auth_group.add_argument('-kerberos', action='store_true', help='Use Kerberos for authentication')
     parser.add_argument('-debug', action='store_true', help='Turn on debug output')
+    parser.add_argument('-gen-ntlm-hash', help='Generate NTLM hash from password', nargs=1)
+    parser.add_argument('-v', '--version', action='version', help='Show version information')
 
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
     prgm_args = parser.parse_args()
+    password = None
     if prgm_args.debug:
         set_config_value('debug', True)
-    if prgm_args.password is None:
+
+    if prgm_args.password is None and not prgm_args.ntlm and not prgm_args.kerberos:
         password = getpass.getpass(prompt='Password: ')
-    else:
+    elif prgm_args.password is not None:
         password = prgm_args.password
+    elif not prgm_args.ntlm and not prgm_args.kerberos and prgm_args.password is None:
+        print_bad("No authentication method provided.  Exiting.")
+        sys.exit(1)
     slingerClient = SlingerClient(prgm_args.host, prgm_args.username, password, prgm_args.domain, prgm_args.port, prgm_args.ntlm, prgm_args.kerberos)
 
     slinger_parser = setup_cli_parser(slingerClient)
