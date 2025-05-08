@@ -22,7 +22,7 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 
 ## Command Line Documentation
 
-[![CLI Documentation](assets/clidocs.jpg)](HELP_MENU.md)
+[![CLI Documentation](assets/clidocs.jpg)](cli_menu.md)
 
 
 ```
@@ -94,18 +94,21 @@ impacket swiss army knife (sort of)
 
 options:
   -h, --help            show this help message and exit
-  --host HOST           Host to connect to
-  -u USERNAME, --username USERNAME
-                        Username for authentication
-  -pass PASSWORD, --password PASSWORD
-                        Password for authentication
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authentication
-  -p PORT, --port PORT  Port to connect to
-  --nojoy               Turn off emojis
-  --ntlm NTLM           NTLM hash for authentication
-  --kerberos            Use Kerberos for authentication
-  --debug               Turn on debug output
+  -host HOST            Host to connect to (default: None)
+  -user USERNAME, --username USERNAME
+                        Username for authentication (default: None)
+  -domain DOMAIN, --domain DOMAIN
+                        Domain for authentication (default: )
+  -port PORT            Port to connect to (default: 445)
+  -nojoy                Turn off emojis (default: False)
+  -pass [PASSWORD], --password [PASSWORD]
+                        Password for authentication (default: None)
+  -ntlm NTLM            NTLM hash for authentication (default: None)
+  -kerberos             Use Kerberos for authentication (default: False)
+  -debug                Turn on debug output (default: False)
+  -gen-ntlm-hash GEN_NTLM_HASH
+                        Generate NTLM hash from password (default: None)
+  -v, --version         Show version information
 ```
 
 Slinger offers multiple authentication methods.  All methods are built on impacket functions and should therefore function the same.  *Warnining* at this time kerberos login has not been tested.
