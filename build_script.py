@@ -126,7 +126,7 @@ def generate_help_markdown():
     commands = extract_commands_and_args(parser)
 
     # Generate the markdown file
-    output_file = "HELP_MENU.md"
+    output_file = "cli_menu.md"
     generate_markdown(commands, output_file)
     print(f"Markdown documentation generated: {output_file}")
 

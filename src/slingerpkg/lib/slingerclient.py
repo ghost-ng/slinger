@@ -125,20 +125,25 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec):
             raise e
         
         self.dce_transport._enable_remote_registry()
+        #self.setup_remote_registry(args=None)
        
 
     # handle exit
     def exit(self):
         try:
             self.dce_transport._disconnect()
-            self.conn.logoff()
+            try:
+                self.conn.logoff()
+            except Exception as e:
+                pass
+                #print_debug(str(e), sys.exc_info())
             GRN_BLD = '\033[1;32m'
             RST = '\033[0m'
             CURRENT_TIME = datetime.datetime.now()
             print("\nStop Time: " + GRN_BLD + str(CURRENT_TIME) + RST + "\n")
             
-        except:
-            pass
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
         self.conn = None
 
     def is_connected_to_remote_share(self):

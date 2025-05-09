@@ -12,7 +12,7 @@ Connect to a specific share on the remote server
 
 **Example Usage:**
 ```
-Example Usage: use sharename
+Example Usage: use <sharename> | use C$
 ```
 
 ### Arguments
@@ -24,12 +24,12 @@ Example Usage: use sharename
 
 ## `ls`
 
-**Description:** List contents of a directory at a specified path
+**Description:** List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [-sr] [-l] [-r depth] [path]
-List contents of a directory at a specified path
+List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -89,12 +89,12 @@ Example Usage: shares
 
 ## `cat`
 
-**Description:** Display the contents of a specified file on the remote server
+**Description:** Display the contents of a specified file on the remote server.  File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 cat [-h] remote_path
-Display the contents of a specified file on the remote server
+Display the contents of a specified file on the remote server.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -111,12 +111,12 @@ Example Usage: cat /path/to/file
 
 ## `cd`
 
-**Description:** Change to a different directory on the remote server
+**Description:** Change to a different directory on the remote server.  File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 cd [-h] [path]
-Change to a different directory on the remote server
+Change to a different directory on the remote server.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -1426,17 +1426,17 @@ Example Usage: upload /local/path /remote/path
 
 ## `download`
 
-**Description:** Download a file from the remote server
+**Description:** Download a file from the remote server.  File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 download [-h] remote_path [local_path]
-Download a file from the remote server
+Download a file from the remote server.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
 ```
-Example Usage: download /remote/path /local/path
+Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 ```
 
 ### Arguments
@@ -1451,17 +1451,17 @@ Example Usage: download /remote/path /local/path
 
 ## `get`
 
-**Description:** Download a file from the remote server
+**Description:** Download a file from the remote server.  File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 download [-h] remote_path [local_path]
-Download a file from the remote server
+Download a file from the remote server.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
 ```
-Example Usage: download /remote/path /local/path
+Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 ```
 
 ### Arguments
@@ -1476,12 +1476,12 @@ Example Usage: download /remote/path /local/path
 
 ## `mget`
 
-**Description:** Download all files from a specified directory and its subdirectories
+**Description:** Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
-Download all files from a specified directory and its subdirectories
+Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -1691,7 +1691,7 @@ Query a registry key on the remote server
 
 **Example Usage:**
 ```
-Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
+Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run (You must use two slashes or quotes)
 ```
 
 ### Arguments

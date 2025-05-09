@@ -77,9 +77,26 @@ class DCETransport:
         self.bind_override = False
         self.winregSetupComplete = False
         self.rrpshouldStop = False
+        self.rrpshouldDisable = False
         self.rrpstarted = False
         self.share = None
-
+    
+    def _unpack_control_response(self, resp):
+        """
+        Turn the raw hRControlService return into a plain dict of ints.
+        """
+        status = resp['lpServiceStatus']
+        return {
+            'ErrorCode':                 int(resp['ErrorCode']),
+            'ServiceType':               int(status['dwServiceType']),
+            'CurrentState':              int(status['dwCurrentState']),
+            'ControlsAccepted':          int(status['dwControlsAccepted']),
+            'Win32ExitCode':             int(status['dwWin32ExitCode']),
+            'ServiceSpecificExitCode':   int(status['dwServiceSpecificExitCode']),
+            'CheckPoint':                int(status['dwCheckPoint']),
+            'WaitHint':                  int(status['dwWaitHint']),
+        }
+    
     def _bind(self, bind_uuid):
         #retrieve plaintext from uuids
         plaintext = uuid_endpoints.get(bind_uuid)
@@ -126,7 +143,9 @@ class DCETransport:
         if response:
             self.rrpshouldStop = False
             self.rrpstarted = True
+            #print_good("Remote Registry service is already started")
         else:
+            self.rrpshouldStop = True
             print_info("Trying to start RemoteRegistry service")
             self._connect('svcctl')
             response = self._start_service('RemoteRegistry', bind=True)
@@ -136,13 +155,17 @@ class DCETransport:
                 self._connect('svcctl')
                 print_info("Trying to enable RemoteRegistry service")
                 _ = self._enable_service("RemoteRegistry")
+                print_info("Trying to start RemoteRegistry service")
                 _ = self._start_service('RemoteRegistry', bind=False)
-                print_info("Checking the status of the RemoteRegistry service")
-                response = self._checkServiceStatus("RemoteRegistry")
-                if response:
-                    self.rrpshouldStop = True
-                    self.rrpstarted = True
-                    print_good("Remote Registry service started")
+                
+            else:
+                pass
+
+            print_info("Checking the status of the RemoteRegistry service")
+            svc_started = self._checkServiceStatus("RemoteRegistry")
+            if not svc_started:
+                print_bad("Unable to start the Remote Registry service")
+            
 
     def _close_scm_handle(self, serviceHandle):
         try:
@@ -357,6 +380,7 @@ class DCETransport:
         self.serviceHandle = ans['lpServiceHandle']
         try:
             response = scmr.hRChangeServiceConfigW(self.dce, self.serviceHandle, dwStartType=scmr.SERVICE_AUTO_START)
+            print_debug(f"Enable Service Response:\n{response}")
             self._close_scm_handle(self.serviceHandle)
             if response['ErrorCode'] == 0:
                 return True
@@ -440,13 +464,15 @@ class DCETransport:
             else:
                 print_bad("An error occurred: " + str(e))
                 print_debug('', sys.exc_info())
-            return
+            return False
         serviceHandle = ans['lpServiceHandle']
-        response = scmr.hRControlService(self.dce, serviceHandle, scmr.SERVICE_CONTROL_STOP)
+        raw = scmr.hRControlService(self.dce, serviceHandle, scmr.SERVICE_CONTROL_STOP)
+        unpacked = self._unpack_control_response(raw)
+        #print_info(unpacked)
         self._close_scm_handle(serviceHandle)
         if service_name == "RemoteRegistry":
             self.rrpstarted = False
-        return response
+        return unpacked
     
     def _checkServiceStatus(self, serviceName):
         self._connect('svcctl')
@@ -474,7 +500,7 @@ class DCETransport:
             print_info('Service %s is in a stopped state' % serviceName)
             return False
         elif ans['lpServiceStatus']['dwCurrentState'] == scmr.SERVICE_RUNNING:
-            print_info('Service %s is already running' % serviceName)
+            print_good('Service %s is running' % serviceName)
             return True
         else:
             raise Exception('Unknown service state 0x%x - Aborting' % ans['CurrentState'])

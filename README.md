@@ -200,7 +200,7 @@ Type help <command> or <command> -h for more information on a specific command
 ```
 
 #### Click here to view all the help entries:
-[Help Entries](HELP_MENU.md)
+[Help Entries](cli_menu)
 
 
 ### Command Chaining

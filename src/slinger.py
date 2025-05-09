@@ -152,6 +152,7 @@ def main():
         sys.exit()
         
     slingerQueue = []
+    graceful_exit = False
     while True:
         try:
             prompt_text = get_prompt(slingerClient, prgm_args.nojoy)
@@ -286,8 +287,9 @@ def main():
                     print_all_commands(slinger_parser)
             elif args.command == "clear":
                 os.system('clear')
-            elif args.command == "exit":
+            elif args.command == "exit" or args.command == "logoff":
                 slingerClient.exit()
+                graceful_exit = True
                 break
             
 
@@ -318,7 +320,8 @@ def main():
             print_warning(f"Uncaught Error: {e}: {sys.exc_info()}")
             print_debug('',sys.exc_info())
 
-    slingerClient.exit()
+    if not graceful_exit:
+        slingerClient.exit()
 
 if __name__ == "__main__":
     print_log(banner_art)
