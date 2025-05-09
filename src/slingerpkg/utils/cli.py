@@ -125,12 +125,12 @@ def setup_cli_parser(slingerClient):
     subparsers = parser.add_subparsers(dest='command')
 
     # Subparser for 'use' command
-    parser_use = subparsers.add_parser('use', help='Connect to a specified share', description='Connect to a specific share on the remote server', epilog='Example Usage: use sharename')
+    parser_use = subparsers.add_parser('use', help='Connect to a specified share', description='Connect to a specific share on the remote server', epilog='Example Usage: use <sharename> | use C$')
     parser_use.add_argument('share', help='Specify the share name to connect to')
     parser_use.set_defaults(func=slingerClient.connect_share)
 
     # Subparser for 'ls' command
-    parser_ls = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path', epilog='Example Usage: ls /path/to/directory')
+    parser_ls = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: ls /path/to/directory')
     parser_ls.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path (default: %(default)s)')
     parser_ls.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
     parser_ls.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
@@ -144,12 +144,12 @@ def setup_cli_parser(slingerClient):
     parser_shares.set_defaults(func=slingerClient.list_shares)
 
     # Subparser for 'cat' command
-    parser_cat = subparsers.add_parser('cat', help='Display file contents', description='Display the contents of a specified file on the remote server', epilog='Example Usage: cat /path/to/file')
+    parser_cat = subparsers.add_parser('cat', help='Display file contents', description='Display the contents of a specified file on the remote server.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: cat /path/to/file')
     parser_cat.add_argument('remote_path', help='Specify the remote file path to display contents')
     parser_cat.set_defaults(func=slingerClient.cat)
 
     # Subparser for 'cd' command
-    parser_cd = subparsers.add_parser('cd', help='Change directory', description='Change to a different directory on the remote server', epilog='Example Usage: cd /path/to/directory')
+    parser_cd = subparsers.add_parser('cd', help='Change directory', description='Change to a different directory on the remote server.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: cd /path/to/directory')
     parser_cd.add_argument('path', nargs='?', default=".", help='Directory path to change to, defaults to current directory (default: %(default)s)')
     parser_cd.set_defaults(func=slingerClient.cd_handler)
 
@@ -290,13 +290,13 @@ def setup_cli_parser(slingerClient):
     parser_upload.add_argument('remote_path', nargs='?', help='Specify the remote file path to upload to, optional')
 
     # Subparser for 'download' command
-    parser_download = subparsers.add_parser('download', aliases=['get'], help='Download a file', description='Download a file from the remote server', epilog='Example Usage: download /remote/path /local/path')
+    parser_download = subparsers.add_parser('download', aliases=['get'], help='Download a file', description='Download a file from the remote server.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt')
     parser_download.set_defaults(func=slingerClient.download_handler)
     parser_download.add_argument('remote_path', help='Specify the remote file path to download')
     parser_download.add_argument('local_path', nargs='?', help='Specify the local file path to download to, optional', default=None)
 
     # Subparser for 'mget' command
-    parser_mget = subparsers.add_parser('mget', help='Download multiple files', description='Download all files from a specified directory and its subdirectories', epilog='Example Usage: mget /remote/path /local/path')
+    parser_mget = subparsers.add_parser('mget', help='Download multiple files', description='Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: mget /remote/path /local/path')
     parser_mget.add_argument('remote_path', nargs='?', help='Specify the remote directory path to download from')
     parser_mget.add_argument('local_path',  nargs='?', help='Specify the local directory path where files will be downloaded')
     parser_mget.add_argument('-r', action='store_true', help='Recurse into directories')
@@ -336,7 +336,7 @@ def setup_cli_parser(slingerClient):
     parser_regstop = subparsers.add_parser('regstop', help='Disconnect from the remote registry', description='Disconnect from a remote registry on the remote server', epilog='Example Usage: regstop')
     parser_regstop.set_defaults(func=slingerClient.stop_remote_registry)
 
-    parser_regquery = subparsers.add_parser('regquery', help='Query a registry key', description='Query a registry key on the remote server', epilog='Example Usage: regquery HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run')
+    parser_regquery = subparsers.add_parser('regquery', help='Query a registry key', description='Query a registry key on the remote server', epilog='Example Usage: regquery HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run (You must use two slashes or quotes)')
     parser_regquery.add_argument('key', help='Specify the registry key to query')
     parser_regquery.add_argument('-l', '--list', help='List all subkeys in the registry key', action='store_true')
     parser_regquery.add_argument('-v', '--value', help='Enumerate the value of the specified registry key', action='store_true')
@@ -512,10 +512,10 @@ def get_prompt(client, nojoy):
 
     if client.is_connected_to_remote_share():
         preamble = slinger_emoji + fire_emoji  + " "
-        emoji = preamble if not nojoy else ""
+        emoji = preamble if not nojoy else "[sl] "
     else:
         preamble = slinger_emoji + " "
-        emoji = preamble if not nojoy else ""
+        emoji = preamble if not nojoy else "[sl] "
     
     prompt = f"{emoji}{colors.OKGREEN}({client.host}):\\\\{client.current_path}>{colors.ENDC} "
     return prompt

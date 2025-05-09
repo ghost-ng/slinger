@@ -101,29 +101,7 @@ class winreg():
         Returns:
             None
         """
-        self.setup_dce_transport()
-        self.dce_transport._connect('svcctl')
-        try:
-            print_info("Starting Remote Registry service")
-            response = self.dce_transport._start_service('RemoteRegistry')
-            if response == "DISABLED":
-                print_info("Trying to enable the Remote Registry service")
-                self.dcetransport._connect('winreg')
-                ans = self.dce_transport._enable_service('RemoteRegistry')
-            
-                if ans != False:
-                    print_good("Remote Registry service started")
-                else:
-                    print_bad("Failed to start Remote Registry service")
-            
-        except Exception as e:
-            
-            if "ERROR_SERVICE_ALREADY_RUNNING" in str(e):
-                print_warning("RemoteRegistry Service already running")
-                self.winreg_already_setup = True
-                return
-            else:
-                print_debug(str(e), sys.exc_info())
+        self.dce_transport._enable_remote_registry()
     
     def reg_query_handler(self, args):
         if args.list:
@@ -163,7 +141,8 @@ class winreg():
             self.registry_used = True
             print_info("Stopping Remote Registry service")
             response = self.dce_transport._stop_service('RemoteRegistry')
-            if response['ReturnCode'] == 0:
+            print_debug("Stop RemoteRegistry Response: " + str(response))
+            if response['ErrorCode'] == 0:
                 print_good("Remote Registry service stopped")
             else:
                 print_bad("Failed to stop Remote Registry service")
@@ -172,6 +151,7 @@ class winreg():
             if "ERROR_SERVICE_NOT_ACTIVE" in str(e):
                 print_warning("RemoteRegistry Service already stopped")
                 return
+            
     
     def enum_subkeys(self, keyName, return_list=False):
         """

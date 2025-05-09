@@ -220,6 +220,7 @@ class scm():
             else:
                 print_info("Chosen Service: " + service_name)
             response = self.dce_transport._stop_service(service_name)
+            print_debug("Stop Service Response:\n" + str(response))
             if response['ErrorCode'] == 0:
                 print_good("Service stopped successfully")
             else:
