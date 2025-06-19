@@ -1,11 +1,3 @@
-# This workflow will upload a Python Package to PyPI when a release is created
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Release Python Package
 
 on:
@@ -17,7 +9,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write        # enable OIDC for PyPI
+  id-token: write        # Enable OIDC for PyPI
   packages: write
 
 concurrency:
@@ -65,4 +57,5 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@v1
         with:
+          password: ${{ secrets.PYPI_TOKEN }}
           package-dir: dist/
