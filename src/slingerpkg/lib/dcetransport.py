@@ -211,7 +211,22 @@ class DCETransport:
         
         self.bind_override = True
         self._bind(srvs.MSRPC_UUID_SRVS)
-        response = srvs.hNetrShareGetInfo(self.dce, share_name, 502)
+        try:
+            response = srvs.hNetrShareGetInfo(self.dce, share_name, 502)
+        except:
+            raise Exception(f"Unable to retrieve share info for {share_name}. Check if the share exists or if you have permissions to run hNetrShareGetInfo.")
+        return response
+    
+    def _enum_shares(self):
+        """
+        Enumerates shares on the remote host.
+        """
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+        
+        self.bind_override = True
+        self._bind(srvs.MSRPC_UUID_SRVS)
+        response = srvs.hNetrShareEnum(self.dce, 0, 502)
         return response
     
     def _enum_server_disk(self):
