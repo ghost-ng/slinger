@@ -3,7 +3,7 @@ requires = [ "setuptools", "wheel",]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "slingerpkg"
+name = "slinger"
 version = "1.6"
 description = "An impacket swiss army knife (sort of)"
 readme = "README.md"
