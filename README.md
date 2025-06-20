@@ -241,15 +241,7 @@ Clone the repository and install using one of the below methods:
 ```bash
 git clone https://github.com/ghost-ng/slinger.git
 cd slinger
-pip install -r requirements.txt
-pip install .
-export PATH=~/.local/bin:$PATH  #if not already done
-```
-
-### Using the Distribution Packages
-```bash
-pip install slinger-version.tar.gz
-export PATH=~/.local/bin:$PATH  #if not already done
+pipx install .
 ```
 
 
