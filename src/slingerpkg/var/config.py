@@ -5,7 +5,7 @@ def get_main_package_dir():
     current_dir = Path(__file__).resolve().parent
     while current_dir != current_dir.root:
         # Check if it contains a top-level __init__.py (indicating it's a package)
-        init_file = current_dir / "src" / "slingerpkg" / "__init__.py"
+        init_file = (Path(__file__).parent.parent / "__init__.py").resolve()
         if init_file.exists():
             return current_dir / "src" / "slingerpkg"
         current_dir = current_dir.parent
