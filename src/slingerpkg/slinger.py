@@ -142,14 +142,16 @@ def main():
     except Exception as e:
         if 'Errno 111' in str(e) and 'Connection refused' in str(e):
             print_bad("Connection error: Connection refused.  Verify there is a host listening on the specified port.")
+            sys.exit()
         elif "Errno 113" in str(e):
             print_bad("Connection error: No route to host.  Verify the host is up and the port is open.")
+            sys.exit()
         else:
             print_debug(str(e))
             print_bad(f"Error: {e}: {sys.exc_info()}")
         
         print_debug('',sys.exc_info())
-        sys.exit()
+        
         
     slingerQueue = []
     graceful_exit = False

@@ -5,3 +5,6 @@ setuptools==70.0.0
 tabulate==0.8.9
 toml
 passlib
+dotenv
+openai
+pexpect
