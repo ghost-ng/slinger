@@ -49,22 +49,34 @@ class smblib():
 #SYSTEM\CurrentControlSet\Services\LanmanServer\Shares
     def list_shares(self, args=None, echo=True, ret=False):
         shares = self.conn.listShares()
-        
+        print_debug(f"Shares: {shares}")
         
         share_info_list = []
-        
         for share in shares:
+            share_info = {}
             # Retrieve share information
-            resp = self.dce_transport._share_info(share['shi1_netname'])
-            
-            # Store share information in a dictionary
-            share_info = {
-                'Name': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_netname"]),
-                'Path': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_path"]),
-                'Comment': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_remark"])
-            }
+            try:
+                resp = self.dce_transport._share_info(share['shi1_netname'])
+                
+                # Store share information in a dictionary
+                share_info = {
+                    'Name': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_netname"]),
+                    'Path': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_path"]),
+                    'Comment': remove_null_terminator(resp["InfoStruct"]["ShareInfo502"]["shi502_remark"])
+                }
+            except Exception as e:
+                print_debug(f"Failed to retrieve share info for {share['shi1_netname']}: {e}", sys.exc_info())
+                # If we can't get the share info show only the name
+                share_info = {
+                    'Name': share['shi1_netname'],
+                    'Path': '',
+                    'Comment': ''
+                }
+                share_info_list.append(share_info)
+                continue
             #print_info(f"{share_info}")
             share_info_list.append(share_info)
+
         
         if echo:
             print_info("Available Shares")
@@ -300,7 +312,7 @@ class smblib():
         try:
             if echo:
                 full_path = ntpath.join(self.share, remote_path)
-                print_info(f"Downloading file: {full_path} --> {local_path}")
+                print_debug(f"Downloading file: {full_path} --> {local_path}")
             with open(local_path, 'wb') as file_obj:
                 self.conn.getFile(self.share, remote_path, file_obj.write, shareAccessMode=FILE_SHARE_READ|FILE_SHARE_WRITE)
             if echo:
