@@ -312,7 +312,7 @@ class smblib():
         try:
             if echo:
                 full_path = ntpath.join(self.share, remote_path)
-                print_info(f"Downloading file: {full_path} --> {local_path}")
+                print_debug(f"Downloading file: {full_path} --> {local_path}")
             with open(local_path, 'wb') as file_obj:
                 self.conn.getFile(self.share, remote_path, file_obj.write, shareAccessMode=FILE_SHARE_READ|FILE_SHARE_WRITE)
             if echo:
