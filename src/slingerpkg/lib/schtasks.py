@@ -332,10 +332,10 @@ class schtasks():
 
 
     def task_delete_handler(self, args):
-        if not self.folder_list_dict and args.taskid:
+        if not self.folder_list_dict and args.task_id:
             print_warning("No tasks have been enumerated. Run enumtasks first.")
         else:
-            task_arg = args.taskid if args.taskid else args.task_path
+            task_arg = args.task_id if args.task_id else args.task_path
             self.task_delete(task_arg)
 
     def task_delete(self, task_arg):
@@ -391,10 +391,10 @@ class schtasks():
                 
     def task_show_handler(self, args):
 
-        if not self.folder_list_dict and args.taskid:
+        if not self.folder_list_dict and args.task_id:
             print_warning("No tasks have been enumerated. Run enumtasks first.")
         elif args.task_path:
-            task_arg = args.taskid if args.taskid else args.task_path
+            task_arg = args.task_id if args.task_id else args.task_path
             self.view_task_details(task_arg)
         else:
             print_warning("No task specified. Use taskshow -i <taskid> or taskshow <name> to specify a task.")

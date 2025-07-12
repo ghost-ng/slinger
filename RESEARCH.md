@@ -136,6 +136,38 @@ Eight advanced features have been identified and planned with detailed technical
 - Single warning message approach prevents UI spam
 - HTB testing validates real-world functionality beyond unit tests
 
+#### 2. Resume Downloads (Phase 1 Research) ✅ RESEARCH COMPLETE
+**Priority: High | Complexity: Medium | Development Time: 2-3 weeks | Status: PHASE 1 COMPLETE**
+
+**Phase 1 Research Findings:**
+- **SMB Byte-Range Capability**: Impacket supports resume downloads via `openFile()` + `readFile()` + `closeFile()`
+- **Current Limitation**: `getFile()` method does NOT support offset/byte-range parameters
+- **Technical Solution**: Replace high-level `getFile()` with low-level chunked operations
+- **State Management**: JSON-based persistence with atomic updates in `~/.slinger/downloads/`
+- **Error Recovery**: Comprehensive error categorization with exponential backoff (5 retries max)
+- **Integration Points**: Seamless integration with existing CLI and download infrastructure
+
+**Technical Implementation Strategy:**
+- Replace `self.conn.getFile()` with chunked `readFile()` operations
+- Implement DownloadState class for progress persistence and resume validation
+- Add CLI flags: `--resume`, `--no-resume`, `--chunk-size`
+- Error recovery with exponential backoff: 1s, 2s, 4s, 8s, 16s (max 60s)
+- State validation prevents resuming corrupted or changed files
+
+**Phase 1 Deliverables Completed:**
+- `research/smb_byte_range_poc.py` - SMB byte-range operations proof-of-concept
+- `research/download_state_design.py` - State management system design
+- `research/error_recovery_strategy.py` - Error categorization and recovery framework
+- `RESUME_DOWNLOADS_TECH_SPEC.md` - Comprehensive technical specification
+
+**Performance Targets Established:**
+- <5% overhead for resume-enabled downloads
+- >95% success rate for large transfers in unstable networks
+- Resume from interruption within 10 seconds
+- <1MB memory overhead per concurrent download
+
+**Ready for Phase 2**: Core implementation with solid research foundation
+
 #### 2. Event Log Analysis
 **Priority: High | Complexity: High | Development Time: 4-5 weeks**
 - Windows Event Log API integration via WMI/WinRM

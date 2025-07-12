@@ -373,4 +373,79 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec):
             return False
         self.is_connected_to_share = True
         return True
+
+    def downloads_list_handler(self, args):
+        """Handle 'downloads list' command to show active resumable downloads"""
+        from slingerpkg.lib.download_state import DownloadStateManager
+        from tabulate import tabulate
+        
+        try:
+            active_downloads = DownloadStateManager.list_active_downloads()
+            
+            if not active_downloads:
+                print_info("No active resumable downloads found.")
+                return
+            
+            print_info(f"Found {len(active_downloads)} active resumable downloads:")
+            
+            # Prepare table data
+            table_data = []
+            for download in active_downloads:
+                local_path = download['local_path']
+                remote_path = download['remote_path']
+                progress = download['progress']
+                bytes_downloaded = self.sizeof_fmt(download['bytes_downloaded'])
+                total_size = self.sizeof_fmt(download['total_size'])
+                last_modified = download['last_modified'][:19] if download['last_modified'] else 'Unknown'
+                
+                # Truncate paths if too long
+                if len(local_path) > 40:
+                    local_path = "..." + local_path[-37:]
+                if len(remote_path) > 40:
+                    remote_path = "..." + remote_path[-37:]
+                
+                table_data.append([
+                    local_path,
+                    remote_path,
+                    f"{progress:.1f}%",
+                    f"{bytes_downloaded}/{total_size}",
+                    last_modified
+                ])
+            
+            headers = ["Local Path", "Remote Path", "Progress", "Downloaded", "Last Modified"]
+            print(tabulate(table_data, headers=headers, tablefmt='grid'))
+            
+        except Exception as e:
+            print_debug(f"Error listing downloads: {e}", sys.exc_info())
+            print_bad(f"Failed to list downloads: {e}")
+
+    def downloads_cleanup_handler(self, args):
+        """Handle 'downloads cleanup' command to clean up download states"""
+        from slingerpkg.lib.download_state import DownloadStateManager
+        
+        try:
+            if not args.force:
+                response = input("Clean up completed and stale download states? [y/N]: ")
+                if response.lower() not in ['y', 'yes']:
+                    print_info("Cleanup cancelled.")
+                    return
+            
+            # Clean up completed downloads
+            completed_count = DownloadStateManager.cleanup_completed_downloads()
+            print_info(f"Cleaned up {completed_count} completed downloads.")
+            
+            # Clean up stale downloads
+            max_age = getattr(args, 'max_age', 7)
+            stale_count = DownloadStateManager.cleanup_stale_downloads(max_age)
+            print_info(f"Cleaned up {stale_count} stale downloads (older than {max_age} days).")
+            
+            total_cleaned = completed_count + stale_count
+            if total_cleaned > 0:
+                print_good(f"Total cleaned up: {total_cleaned} download state files.")
+            else:
+                print_info("No download states needed cleanup.")
+                
+        except Exception as e:
+            print_debug(f"Error during cleanup: {e}", sys.exc_info())
+            print_bad(f"Failed to cleanup downloads: {e}")
     
