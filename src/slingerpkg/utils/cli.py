@@ -161,6 +161,7 @@ def setup_cli_parser(slingerClient):
     parser_find.add_argument('-empty', action='store_true', help='Find empty files (size = 0) or empty directories')
     parser_find.add_argument('-hidden', action='store_true', help='Include hidden files and directories')
     parser_find.add_argument('-progress', action='store_true', help='Show search progress for large operations')
+    parser_find.add_argument('-timeout', type=int, default=120, help='Search timeout in seconds (default: %(default)s)')
     parser_find.set_defaults(func=slingerClient.find_handler)
 
     # Subparser for 'shares' command

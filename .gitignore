@@ -1,7 +1,11 @@
 *pycache*
-test
+*__pycache__*
+tests/integration/htb_find_tests/
+test_*.py
+debug_*.py
 dist
 build
 *egg-info*
 .venv
 .env
+venv/

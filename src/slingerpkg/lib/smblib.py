@@ -1,4 +1,3 @@
-import base64
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from tabulate import tabulate
@@ -707,7 +706,8 @@ class smblib():
                 include_hidden=args.hidden,
                 find_empty=args.empty,
                 limit=args.limit,
-                show_progress=args.progress
+                show_progress=args.progress,
+                timeout=args.timeout
             )
             
             if not results:
@@ -738,7 +738,7 @@ class smblib():
     def _find_files(self, pattern, search_path="", file_type="a", size_filter=None,
                    mtime_filter=None, ctime_filter=None, atime_filter=None,
                    use_regex=False, case_insensitive=False, max_depth=10, min_depth=0,
-                   include_hidden=False, find_empty=False, limit=None, show_progress=False):
+                   include_hidden=False, find_empty=False, limit=None, show_progress=False, timeout=120):
         """
         Core file search implementation with recursive directory traversal.
         
@@ -752,6 +752,9 @@ class smblib():
         results = []
         total_dirs_searched = 0
         total_files_examined = 0
+        search_start_time = datetime.now()
+        max_search_time = timeout  # User-configurable timeout
+        timeout_warned = [False]  # Use list for mutable reference
         
         try:
             # Compile search pattern
@@ -781,7 +784,7 @@ class smblib():
                 search_path, pattern, compiled_pattern, use_regex, case_insensitive,
                 file_type, size_operator, size_bytes, mtime_threshold, ctime_threshold, atime_threshold,
                 include_hidden, find_empty, max_depth, min_depth, 0, results,
-                total_dirs_searched, total_files_examined, show_progress, limit
+                total_dirs_searched, total_files_examined, show_progress, limit, search_start_time, max_search_time, timeout_warned
             )
             
             if show_progress:
@@ -796,12 +799,20 @@ class smblib():
     def _recursive_find(self, current_path, original_pattern, compiled_pattern, use_regex, case_insensitive,
                        file_type, size_operator, size_bytes, mtime_threshold, ctime_threshold, atime_threshold,
                        include_hidden, find_empty, max_depth, min_depth, current_depth, results,
-                       total_dirs_searched, total_files_examined, show_progress, limit):
+                       total_dirs_searched, total_files_examined, show_progress, limit, search_start_time, max_search_time, timeout_warned):
         """
         Recursive directory traversal for file search.
         """
         import fnmatch
         from datetime import datetime
+        
+        # Check timeout
+        elapsed_time = (datetime.now() - search_start_time).total_seconds()
+        if elapsed_time > max_search_time:
+            if not timeout_warned[0]:
+                print_warning(f"Search timeout ({max_search_time}s) reached, stopping search.")
+                timeout_warned[0] = True
+            return
         
         # Check depth limits
         if current_depth > max_depth:
@@ -815,14 +826,23 @@ class smblib():
             # Construct list path
             if current_path:
                 list_path = current_path + '\\*'
+                display_path = current_path
             else:
                 list_path = '*'
+                display_path = "."
+                
+            # Show verbose output for each directory being searched
+            if show_progress:
+                print_verbose(f"Searching directory: {display_path} (depth {current_depth})")
                 
             # Get directory listing
             files = self.conn.listPath(self.share, list_path)
             total_dirs_searched += 1
             
-            if show_progress and total_dirs_searched % 10 == 0:
+            # Show progress every directory when verbose, or every 10 directories normally
+            if show_progress:
+                print_info(f"Found {len(files)} items in {display_path}")
+            elif total_dirs_searched % 10 == 0:
                 print_info(f"Searched {total_dirs_searched} directories, found {len(results)} matches...")
             
             subdirs = []
@@ -937,7 +957,7 @@ class smblib():
                     new_path, original_pattern, compiled_pattern, use_regex, case_insensitive,
                     file_type, size_operator, size_bytes, mtime_threshold, ctime_threshold, atime_threshold,
                     include_hidden, find_empty, max_depth, min_depth, current_depth + 1, results,
-                    total_dirs_searched, total_files_examined, show_progress, limit
+                    total_dirs_searched, total_files_examined, show_progress, limit, search_start_time, max_search_time, timeout_warned
                 )
                 
         except Exception as e:
@@ -1011,8 +1031,8 @@ class smblib():
         """
         import re
         
-        if not size_filter:
-            return None, None
+        if not size_filter or not size_filter.strip():
+            raise ValueError("Size filter cannot be empty")
             
         # Parse size filter format: [+|-|=]<number><unit>
         match = re.match(r'^([+\-=]?)(\d+(?:\.\d+)?)([KMGT]?B?)$', size_filter.upper())
