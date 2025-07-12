@@ -143,7 +143,7 @@ class smblib():
                 if f.is_directory() and f.get_longname() in ['.', '..']:
                     continue
                 path = ntpath.normpath(ntpath.join(self.relative_path, f.get_longname()))
-                print_debug(f"Removing file {path}")
+                print_verbose(f"Removing file {path}")
                 self.conn.deleteFile(self.share, path)
                 print_info(f"File Removed {path}")
             return
@@ -176,16 +176,16 @@ class smblib():
                 files = self.conn.listPath(self.share, list_path)
                 for f in files:
                     if f.is_directory() and f.get_longname() in ['.', '..']:
-                        print_debug(f"Found directory {os.path.join(remote_path, f.get_longname())}")
+                        print_verbose(f"Found directory {os.path.join(remote_path, f.get_longname())}")
                         continue
-                    print_debug(f"Deleting file {os.path.join(remote_path, f.get_longname())}")
+                    print_verbose(f"Deleting file {os.path.join(remote_path, f.get_longname())}")
                     self.conn.deleteFile(self.share,os.path.join(remote_path, f.get_longname()))
                     print_info(f"File Removed '{os.path.join(remote_path, f.get_longname())}'")
             else:
                 print_warning(f"Invalid directory: {remote_path}")
                 return
         else:
-            print_debug(f"Deleting file '{remote_path}'")
+            print_verbose(f"Deleting file '{remote_path}'")
             try:
                 self.conn.deleteFile(self.share, remote_path)
                 print_info(f"File Removed '{remote_path}'")
@@ -224,50 +224,60 @@ class smblib():
     def cd(self, path):
         if not self.check_if_connected():
             return
-        # Handle ".." in path
-        print_debug(f"Changing directory to {path}")
-        if ".." in path:
-            path = ntpath.normpath(ntpath.join(self.relative_path, path))
-            if path.startswith(".."):
-                print_warning("Cannot go above root directory.")
-                return
-            elif path == ".":
-                path = self.share
-
-        # Handle absolute paths
-        elif path.startswith("/"):
-            path = path.lstrip("/")
-
-        # Handle relative paths
-        else:
-            #path = os.path.join(self.relative_path, path)
-            path = ntpath.normpath(ntpath.join(self.relative_path, path))
-
-        if path == self.share:
+            
+        print_verbose(f"Changing directory to {path}")
+        
+        # Handle empty path or current directory
+        if not path or path == ".":
+            self.print_current_path()
+            return
+            
+        # Handle going to share root
+        if path == "/" or path == "\\" or path == self.share:
             self.relative_path = ""
             self.update_current_path()
             self.print_current_path()
+            return
+        
+        # Normalize path for SMB operations
+        is_valid, resolved_path, error = self._normalize_path_for_smb(self.relative_path, path)
+        
+        if not is_valid:
+            print_warning(f"Cannot change directory: {error}")
+            return
             
-        elif self.is_valid_directory(path):
-            self.relative_path = path
+        # Try to change to the directory - let SMB server handle access control
+        if self.is_valid_directory(resolved_path):
+            self.relative_path = resolved_path
             self.update_current_path()
             self.print_current_path()
         else:
-            print_warning(f"Invalid directory: {path}")
+            print_warning(f"Directory does not exist or access denied: {resolved_path}")
 
     # handle file uploads
     def upload_handler(self, args):
-        remote_path = ""
-        if self.check_if_connected():
-            if args.remote_path == "." or args.remote_path == "" or args.remote_path is None or "\\" not in args.remote_path:
-                remote_path = ntpath.join(self.relative_path,ntpath.basename(args.local_path))
-            else:
-                remote_path = args.remote_path
-            if os.path.exists(args.local_path):
-                print_info(f"Uploading: {args.local_path} --> {self.share}\\{remote_path}")
-                self.upload(args.local_path, remote_path)
-            else:
-                print_warning(f"Local path {args.local_path} does not exist.")
+        if not self.check_if_connected():
+            return
+            
+        # Check local file exists
+        if not os.path.exists(args.local_path):
+            print_warning(f"Local path {args.local_path} does not exist.")
+            return
+            
+        # Resolve remote path
+        default_filename = ntpath.basename(args.local_path)
+        is_valid, remote_path, error = self._resolve_remote_path(args.remote_path, default_filename)
+        
+        if not is_valid:
+            print_warning(f"Cannot upload: {error}")
+            return
+        
+        # Show verbose path information if enabled
+        print_verbose(f"Remote Path (Before): {args.remote_path or default_filename}")
+        print_verbose(f"Remote Path (After): {remote_path}")
+            
+        print_info(f"Uploading: {args.local_path} --> {self.share}\\{remote_path}")
+        self.upload(args.local_path, remote_path)
 
     def upload(self, local_path, remote_path):
         if not self.check_if_connected():
@@ -281,29 +291,46 @@ class smblib():
             print_log(sys.exc_info())
 
     def download_handler(self, args, echo=True):
-        print_info(f"Remote Path (Before): {args.remote_path}")
-        remote_path = ntpath.join(self.relative_path, args.remote_path)
-        # convert single slash only to double slash, regex
-        #remote_path = escape_single_backslashes(remote_path)
-        print_info(f"Remote Path (After): {remote_path}")
-        local_path = ""
-        if self.check_if_connected():
-            if args.local_path == "." or args.local_path == "" or args.local_path is None or "/" not in args.local_path:
-                local_path = os.path.join(os.getcwd(), ntpath.basename(args.remote_path))
-            else:
-                if os.path.isdir(os.path.dirname(args.local_path)):
-                    local_path = os.path.join(args.local_path, ntpath.basename(args.remote_path))
-                else:
-                    local_path = args.local_path
-            if os.path.isdir(os.path.dirname(local_path)):
-                remote_path = ntpath.normpath(remote_path)
-                if echo:
-                    print_info(f"Downloading: {ntpath.join(self.share,remote_path)} --> {local_path}")
-                self.download(remote_path, local_path, echo=echo)
-            else:
-                print_warning(f"Local path {args.local_path} does not exist.")
-        else:
+        if not self.check_if_connected():
             print_warning("You are not connected to a share.")
+            return
+            
+        # Resolve remote path
+        is_valid, remote_path, error = self._normalize_path_for_smb(self.relative_path, args.remote_path)
+        
+        if not is_valid:
+            print_warning(f"Cannot download: {error}")
+            return
+        
+        # Show verbose path information if enabled
+        print_verbose(f"Remote Path (Before): {args.remote_path}")
+        print_verbose(f"Remote Path (After): {remote_path}")
+            
+        # Determine local path
+        if args.local_path in [".", "", None]:
+            # Default to current directory with remote filename
+            local_path = os.path.join(os.getcwd(), ntpath.basename(args.remote_path))
+        else:
+            # Check if args.local_path is an existing directory
+            if os.path.isdir(args.local_path):
+                local_path = os.path.join(args.local_path, ntpath.basename(args.remote_path))
+            else:
+                # Treat as a specific file path (including new filename)
+                local_path = args.local_path
+                
+        # Ensure local directory exists
+        local_dir = os.path.dirname(local_path)
+        if local_dir and not os.path.isdir(local_dir):
+            try:
+                os.makedirs(local_dir, exist_ok=True)
+                print_verbose(f"Created local directory: {local_dir}")
+            except OSError as e:
+                print_warning(f"Failed to create local directory {local_dir}: {e}")
+                return
+            
+        if echo:
+            print_info(f"Downloading: {self.share}\\{remote_path} --> {local_path}")
+        self.download(remote_path, local_path, echo=echo)
 
     def download(self, remote_path, local_path, echo=True):
         if remote_path.endswith('.') or remote_path.endswith('..'):
@@ -312,7 +339,7 @@ class smblib():
         try:
             if echo:
                 full_path = ntpath.join(self.share, remote_path)
-                print_debug(f"Downloading file: {full_path} --> {local_path}")
+                print_verbose(f"Downloading file: {full_path} --> {local_path}")
             with open(local_path, 'wb') as file_obj:
                 self.conn.getFile(self.share, remote_path, file_obj.write, shareAccessMode=FILE_SHARE_READ|FILE_SHARE_WRITE)
             if echo:
@@ -360,7 +387,7 @@ class smblib():
                 new_remote_path = os.path.join(remote_path, elem.get_longname())
                 new_local_path = os.path.join(local_path, elem.get_longname())
                 os.makedirs(new_local_path, exist_ok=True)
-                print_info(f"Downloading from directory: {new_remote_path} --> {new_local_path}")
+                print_verbose(f"Downloading from directory: {new_remote_path} --> {new_local_path}")
                 self.mget(new_remote_path, new_local_path, go_into_dirs, regex, current_depth+1, max_depth)
             elif regex is None or re.match(regex, elem.get_longname()):
                 self.download(os.path.join(remote_path, elem.get_longname()), os.path.join(local_path, elem.get_longname()))
@@ -402,7 +429,7 @@ class smblib():
                 return
             #print_info(f"Reading file: {args.remote_path}")
             path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))#.removeprefix("\\")
-            print_debug(f"Target File: {path}")
+            print_verbose(f"Target File: {path}")
             temp_path = tempfile.NamedTemporaryFile(dir='/tmp', delete=False).name
             self.download(path, temp_path, echo=echo)
             try:
@@ -428,6 +455,12 @@ class smblib():
             Returns:
                 None
             """
+        # Validate --show option requirements
+        if hasattr(args, 'show') and args.show:
+            if not args.recursive or not args.output:
+                print_warning("--show flag requires both -r (recursive) and -o (output) flags")
+                return
+                
         if not self.check_if_connected():
             return
         path = args.path
@@ -475,45 +508,68 @@ class smblib():
                 suffix = ""
             else:
                 suffix = path + "\\"
-            print_info("Showing file listing for: " + os.path.normpath(self.share + "\\" + suffix))
+            # Determine output file if specified
+            output_file = None
+            if hasattr(args, 'output') and args.output:
+                output_file = args.output
+                
+            with tee_output(output_file):
+                print_info("Showing file listing for: " + os.path.normpath(self.share + "\\" + suffix))
 
-            # get sort option from arg.sort
-            sort_option = args.sort
-            reverse_sort_option = args.sort_reverse
-            if sort_option == "name":
-                if reverse_sort_option:
-                    dirList.sort(key=lambda x: x[5], reverse=True)
+                # get sort option from arg.sort
+                sort_option = args.sort
+                reverse_sort_option = args.sort_reverse
+                if sort_option == "name":
+                    if reverse_sort_option:
+                        dirList.sort(key=lambda x: x[5], reverse=True)
+                    else:
+                        dirList.sort(key=lambda x: x[5])
+                elif sort_option == "created":
+                    if reverse_sort_option:
+                        dirList.sort(key=lambda x: x[1], reverse=True)
+                    else:
+                        dirList.sort(key=lambda x: x[1])
+                elif sort_option == "lastaccess":
+                    if reverse_sort_option:
+                        dirList.sort(key=lambda x: x[2], reverse=True)
+                    else:
+                        dirList.sort(key=lambda x: x[2])
+                elif sort_option == "lastwrite":
+                    if reverse_sort_option:
+                        dirList.sort(key=lambda x: x[3], reverse=True)
+                    else:
+                        dirList.sort(key=lambda x: x[3])
+                elif sort_option == "size":
+                    if reverse_sort_option:
+                        dirList.sort(key=lambda x: x[4], reverse=True)
+                    else:
+                        dirList.sort(key=lambda x: x[4])
+                if args.long:
+                    print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
                 else:
-                    dirList.sort(key=lambda x: x[5])
-            elif sort_option == "created":
-                if reverse_sort_option:
-                    dirList.sort(key=lambda x: x[1], reverse=True)
-                else:
-                    dirList.sort(key=lambda x: x[1])
-            elif sort_option == "lastaccess":
-                if reverse_sort_option:
-                    dirList.sort(key=lambda x: x[2], reverse=True)
-                else:
-                    dirList.sort(key=lambda x: x[2])
-            elif sort_option == "lastwrite":
-                if reverse_sort_option:
-                    dirList.sort(key=lambda x: x[3], reverse=True)
-                else:
-                    dirList.sort(key=lambda x: x[3])
-            elif sort_option == "size":
-                if reverse_sort_option:
-                    dirList.sort(key=lambda x: x[4], reverse=True)
-                else:
-                    dirList.sort(key=lambda x: x[4])
-            if args.long:
-                print_log(tabulate(dirList, headers=['Attribs', 'Created', 'LastAccess', 'LastWrite', 'Size', 'Name'], tablefmt='psql'))
-            else:
-                print_log(tabulate(dirList, headers=['Attribs', 'Name']))
+                    print_log(tabulate(dirList, headers=['Attribs', 'Name']))
+                
+                if args.recursive:
+                    print_info(f"Recursively listing files and directories in {path} at depth {args.recursive}")
+                    depth = args.recursive
+                    self._recursive_ls(path, depth, args)
             
-            if args.recursive:
-                print_info(f"Recursively listing files and directories in {path} at depth {args.recursive}")
-                depth = args.recursive
-                self._recursive_ls(path, depth, args)
+            # Notify user if output was saved
+            if output_file:
+                print_good(f"Output saved to: {output_file}")
+                
+            # Show saved file contents if --show flag is used
+            if hasattr(args, 'show') and args.show and output_file:
+                print_info("Displaying saved recursive listing:")
+                print("=" * 50)
+                try:
+                    with open(output_file, 'r') as f:
+                        print(f.read())
+                except FileNotFoundError:
+                    print_warning(f"Saved file not found: {output_file}")
+                except Exception as e:
+                    print_warning(f"Error reading saved file: {e}")
+                print("=" * 50)
 
         except Exception as e:
             if "STATUS_NO_SUCH_FILE" in str(e):
@@ -593,3 +649,90 @@ class smblib():
             if attr_val & 0x4:
                 attrs.append('S')
         return ''.join(attrs) or '-'
+
+    def _normalize_path(self, path):
+        """
+        Normalize a path using Windows path conventions.
+        Always use this for any path operations.
+        """
+        if not path:
+            return ""
+        return ntpath.normpath(path)
+
+    def _is_absolute_path(self, path):
+        """
+        Check if a path is absolute (starts with \\ or contains drive letter).
+        """
+        if not path:
+            return False
+        return path.startswith("\\") or (len(path) > 2 and path[1] == ":")
+
+    def _normalize_path_for_smb(self, base_path, target_path):
+        """
+        Normalize path for SMB operations. SMB server handles all access control.
+        Returns (is_valid, normalized_path, error_message)
+        """
+        try:
+            # Normalize the target path
+            normalized = self._normalize_path(target_path)
+            
+            # Handle drive letter paths - not supported in SMB context
+            if len(target_path) > 2 and target_path[1] == ":":
+                return False, "", f"Drive letter paths not supported. Use share-relative paths instead of '{target_path}'"
+            
+            # If absolute path (starts with \), don't join with base
+            if self._is_absolute_path(target_path):
+                # Strip leading backslashes for share-relative absolute paths
+                normalized = normalized.lstrip("\\")
+                final_path = normalized
+            else:
+                # Relative path - join with base
+                if base_path:
+                    combined = ntpath.join(base_path, normalized)
+                    final_path = self._normalize_path(combined)
+                else:
+                    final_path = normalized
+            
+            return True, final_path, ""
+            
+        except Exception as e:
+            return False, "", f"Path normalization error: {str(e)}"
+
+    def _resolve_remote_path(self, user_path, default_name=None):
+        """
+        Resolve a user-provided path for remote operations.
+        Handles both absolute and relative paths securely.
+        
+        Args:
+            user_path: Path provided by user
+            default_name: Default filename if user_path is "." or empty
+            
+        Returns:
+            (success, resolved_path, error_message)
+        """
+        # Handle default/current directory cases
+        if user_path in [".", "", None]:
+            if default_name:
+                user_path = default_name
+            else:
+                user_path = ""
+        
+        # Handle different path types
+        if user_path == "../":
+            # Parent directory reference - combine with filename
+            if default_name:
+                # Get parent directory path and add filename
+                parent_path = ntpath.dirname(self.relative_path) if self.relative_path else ""
+                user_path = ntpath.join(parent_path, default_name) if parent_path else default_name
+            else:
+                # Just the parent directory
+                user_path = ntpath.dirname(self.relative_path) if self.relative_path else ""
+        elif "\\" not in user_path and "/" not in user_path and user_path not in [".", "..", ""]:
+            # Simple filename, place in current directory
+            if self.relative_path:
+                user_path = ntpath.join(self.relative_path, user_path)
+        
+        # Normalize the path
+        is_valid, resolved_path, error = self._normalize_path_for_smb(self.relative_path, user_path)
+        
+        return is_valid, resolved_path, error

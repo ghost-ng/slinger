@@ -136,6 +136,8 @@ def setup_cli_parser(slingerClient):
     parser_ls.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
     parser_ls.add_argument('-l', '--long', action='store_true', help='Display long format listing', default=False)
     parser_ls.add_argument('-r', '--recursive', help='Recursively list directory contents with X depth', default=None, type=int, metavar='depth')
+    parser_ls.add_argument('-o', '--output', help='Save output to file', default=None, metavar='filename')
+    parser_ls.add_argument('--show', action='store_true', help='Show the saved recursive output file (requires -r and -o flags)', default=False)
     parser_ls.set_defaults(func=slingerClient.ls)
 
     # Subparser for 'shares' command

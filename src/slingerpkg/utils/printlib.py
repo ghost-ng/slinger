@@ -83,6 +83,10 @@ def print_warning(msg):
 def print_info(msg):
     print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
+def print_verbose(msg):
+    if get_config_value("Verbose"):
+        print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
+
 def print_debug(msg, e=None, force_debug=False):
     # find the Debug Dict in config
     
