@@ -30,14 +30,15 @@ Slinger is a Python-based SMB (Server Message Block) client framework designed a
 ### Root Directory Structure
 ```
 /home/unknown/Documents/Github/slinger/
-├── Documentation Files
-│   ├── CLAUDE.md              # This comprehensive guide
+├── CLAUDE.md                  # This comprehensive guide
+├── docs/                      # Documentation directory
 │   ├── README.md              # Project introduction and setup
 │   ├── TODO.md                # Current tasks and enhancements
 │   ├── RESEARCH.md            # Technical research findings
 │   ├── TECHNICAL_SPEC.md      # Detailed technical specifications
 │   ├── IMPLEMENTATION_PLANS.md # Advanced feature implementation plans
-│   └── cli_menu.md            # CLI command reference
+│   ├── cli_menu.md            # CLI command reference
+│   └── assets/                # Documentation images and assets
 ├── Configuration Files
 │   ├── pyproject.toml         # Project metadata and dependencies
 │   ├── requirements.txt       # Python dependencies
@@ -54,8 +55,7 @@ Slinger is a Python-based SMB (Server Message Block) client framework designed a
 │   └── tests/                # Comprehensive test suite
 ├── Development Tools
 │   └── scripts/              # Development utilities
-└── Assets and Reports
-    ├── assets/               # Documentation images
+└── Reports and Output
     ├── htmlcov/             # Coverage reports
     └── coverage.xml         # Coverage data
 ```
@@ -365,10 +365,10 @@ History File   Plugin System         Connection Manager      Log Files
 - **Mock Infrastructure**: Enhance `tests/fixtures/mock_smb_server.py`
 
 #### Documentation
-- **Technical Specs**: Update `TECHNICAL_SPEC.md`
-- **Implementation Plans**: Add to `IMPLEMENTATION_PLANS.md`
-- **User Documentation**: Enhance `README.md` and `cli_menu.md`
-- **Research Notes**: Document in `RESEARCH.md`
+- **Technical Specs**: Update `docs/TECHNICAL_SPEC.md`
+- **Implementation Plans**: Add to `docs/IMPLEMENTATION_PLANS.md`
+- **User Documentation**: Enhance `docs/README.md` and `docs/cli_menu.md`
+- **Research Notes**: Document in `docs/RESEARCH.md`
 
 ### Naming Conventions
 
@@ -399,37 +399,37 @@ History File   Plugin System         Connection Manager      Log Files
 - **Content**: Architecture, roadmap, organization guide
 - **Update Frequency**: Major releases and structural changes
 
-#### **README.md**
+#### **docs/README.md**
 - **Purpose**: Project introduction and quick start guide
 - **Audience**: New users, general public
 - **Content**: Installation, basic usage, key features
 - **Update Frequency**: Each release
 
-#### **TECHNICAL_SPEC.md**
+#### **docs/TECHNICAL_SPEC.md**
 - **Purpose**: Detailed technical specifications
 - **Audience**: Developers, security professionals
 - **Content**: Architecture details, capabilities, operational flow
 - **Update Frequency**: Significant feature additions
 
-#### **TODO.md**
+#### **docs/TODO.md**
 - **Purpose**: Current tasks and enhancement tracking
 - **Audience**: Active developers
 - **Content**: Priority tasks, implementation status
 - **Update Frequency**: Continuous during development
 
-#### **RESEARCH.md**
+#### **docs/RESEARCH.md**
 - **Purpose**: Technical research and investigation findings
 - **Audience**: Developers, researchers
 - **Content**: Architecture analysis, security considerations, performance characteristics
 - **Update Frequency**: During research phases
 
-#### **IMPLEMENTATION_PLANS.md**
+#### **docs/IMPLEMENTATION_PLANS.md**
 - **Purpose**: Detailed implementation plans for advanced features
 - **Audience**: Feature developers
 - **Content**: Implementation strategies, timelines, technical approaches
 - **Update Frequency**: When planning new features
 
-#### **cli_menu.md**
+#### **docs/cli_menu.md**
 - **Purpose**: Command reference and usage examples
 - **Audience**: End users, administrators
 - **Content**: Command syntax, examples, troubleshooting
@@ -437,12 +437,12 @@ History File   Plugin System         Connection Manager      Log Files
 
 ### Documentation Workflow
 
-1. **Feature Planning**: Document in `IMPLEMENTATION_PLANS.md`
-2. **Research Phase**: Record findings in `RESEARCH.md`
-3. **Development Tasks**: Track in `TODO.md`
+1. **Feature Planning**: Document in `docs/IMPLEMENTATION_PLANS.md`
+2. **Research Phase**: Record findings in `docs/RESEARCH.md`
+3. **Development Tasks**: Track in `docs/TODO.md`
 4. **Implementation**: Update relevant technical docs
 5. **Testing**: Document in test files and `tests/README.md`
-6. **Release**: Update `README.md` and user-facing docs
+6. **Release**: Update `docs/README.md` and user-facing docs
 7. **Roadmap Updates**: Revise this `CLAUDE.md` file
 
 ---
