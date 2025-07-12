@@ -4,11 +4,12 @@ Unit tests for Slinger command parser
 
 import pytest
 import sys
-from unittest.mock import Mock, patch
-from argparse import ArgumentParser, Namespace
+from unittest.mock import Mock
+from argparse import ArgumentParser
 
 # Import after adding to path
 sys.path.insert(0, "src")
+# flake8: noqa: E402
 from slingerpkg.utils.cli import setup_cli_parser
 
 
@@ -18,7 +19,8 @@ class TestCliParser:
     @pytest.fixture
     def parser(self):
         """Create parser instance"""
-        return setup_cli_parser()
+        mock_client = Mock()
+        return setup_cli_parser(mock_client)
 
     def test_parser_creation(self, parser):
         """Test that parser is created successfully"""

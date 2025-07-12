@@ -3,8 +3,7 @@ Unit tests for SMB library functions
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, call
-from datetime import datetime
+from unittest.mock import Mock, MagicMock, patch
 import sys
 
 sys.path.insert(0, "src")
@@ -33,7 +32,7 @@ class TestSMBLib:
         client.host = "192.168.1.100"
 
         # Bind actual methods to mock
-        SMBLibMixin.__init__(client)
+        smblib.__init__(client)
 
         return client
 
@@ -49,7 +48,7 @@ class TestSMBLib:
         mock_client.smb.listShares.return_value = mock_shares
 
         # Call the actual method
-        shares = SMBLibMixin.ls_shares(mock_client)
+        shares = smblib.ls_shares(mock_client)
 
         # Verify
         assert mock_client.smb.listShares.called
@@ -60,7 +59,7 @@ class TestSMBLib:
         mock_client.smb.connectTree.return_value = 123  # Mock TID
 
         # Test connect
-        result = SMBLibMixin.use(mock_client, "ADMIN$")
+        smblib.use(mock_client, "ADMIN$")
 
         mock_client.smb.connectTree.assert_called_with("ADMIN$")
         assert mock_client.use_share == "ADMIN$"
@@ -79,7 +78,7 @@ class TestSMBLib:
         mock_client.smb.listPath.return_value = mock_files
 
         # Call ls
-        files = SMBLibMixin.ls(mock_client, ".")
+        smblib.ls(mock_client, ".")
 
         # Should filter out . and ..
         assert len([f for f in mock_files if f[0] not in [".", ".."]]) == 2
@@ -87,22 +86,22 @@ class TestSMBLib:
     def test_change_directory(self, mock_client):
         """Test changing directory"""
         # Test absolute path
-        SMBLibMixin.cd(mock_client, "C$\\Windows")
+        smblib.cd(mock_client, "C$\\Windows")
         assert mock_client.pwd == "C$\\Windows"
 
         # Test relative path
         mock_client.pwd = "C$\\Windows"
-        SMBLibMixin.cd(mock_client, "System32")
+        smblib.cd(mock_client, "System32")
         assert mock_client.pwd == "C$\\Windows\\System32"
 
         # Test parent directory
-        SMBLibMixin.cd(mock_client, "..")
+        smblib.cd(mock_client, "..")
         assert mock_client.pwd == "C$\\Windows"
 
     def test_pwd_command(self, mock_client):
         """Test print working directory"""
         mock_client.pwd = "C$\\Users\\Administrator"
-        result = SMBLibMixin.pwd(mock_client)
+        result = smblib.pwd(mock_client)
         assert result == "C$\\Users\\Administrator"
 
     def test_download_file(self, mock_client):
@@ -123,7 +122,7 @@ class TestSMBLib:
             mock_client.smb.getFile.side_effect = mock_getFile
 
             # Download file
-            SMBLibMixin.download(mock_client, "test.txt", "/tmp/test.txt")
+            smblib.download(mock_client, "test.txt", "/tmp/test.txt")
 
             # Verify
             mock_open.assert_called_with("/tmp/test.txt", "wb")
@@ -140,7 +139,7 @@ class TestSMBLib:
             mock_open.return_value.__enter__.return_value = mock_file
 
             # Upload file
-            SMBLibMixin.upload(mock_client, "/tmp/upload.txt", "upload.txt")
+            smblib.upload(mock_client, "/tmp/upload.txt", "upload.txt")
 
             # Verify
             mock_open.assert_called_with("/tmp/upload.txt", "rb")
@@ -148,26 +147,26 @@ class TestSMBLib:
 
     def test_delete_file(self, mock_client):
         """Test file deletion"""
-        SMBLibMixin.rm(mock_client, "test.txt")
+        smblib.rm(mock_client, "test.txt")
 
         mock_client.smb.deleteFile.assert_called_with("C$", "\\test.txt")
 
     def test_create_directory(self, mock_client):
         """Test directory creation"""
-        SMBLibMixin.mkdir(mock_client, "NewFolder")
+        smblib.mkdir(mock_client, "NewFolder")
 
         mock_client.smb.createDirectory.assert_called_with("C$", "\\NewFolder")
 
     def test_remove_directory(self, mock_client):
         """Test directory removal"""
-        SMBLibMixin.rmdir(mock_client, "OldFolder")
+        smblib.rmdir(mock_client, "OldFolder")
 
         mock_client.smb.deleteDirectory.assert_called_with("C$", "\\OldFolder")
 
     def test_path_completion(self, mock_client):
         """Test path completion logic"""
         # Test share completion
-        result = SMBLibMixin.path_completion(mock_client, "", "")
+        result = smblib.path_completion(mock_client, "", "")
         assert "C$" in result
         assert "ADMIN$" in result
 
@@ -179,7 +178,7 @@ class TestSMBLib:
         ]
         mock_client.smb.listPath.return_value = mock_files
 
-        result = SMBLibMixin.path_completion(mock_client, "C$\\", "test")
+        result = smblib.path_completion(mock_client, "C$\\", "test")
         assert any("test1.txt" in r for r in result)
         assert any("test2.txt" in r for r in result)
 
@@ -193,7 +192,7 @@ class TestSMBLib:
         mock_client.smb.getFile.side_effect = mock_getFile
 
         # Read file
-        content = SMBLibMixin.cat(mock_client, "test.txt")
+        smblib.cat(mock_client, "test.txt")
 
         # Verify the call was made
         assert mock_client.smb.getFile.called
@@ -204,7 +203,7 @@ class TestSMBLib:
         mock_client.smb.getFile.side_effect = Exception("File not found")
 
         with pytest.raises(Exception) as exc_info:
-            SMBLibMixin.cat(mock_client, "nonexistent.txt")
+            smblib.cat(mock_client, "nonexistent.txt")
 
         assert "File not found" in str(exc_info.value)
 
@@ -212,6 +211,6 @@ class TestSMBLib:
         mock_client.smb.deleteFile.side_effect = Exception("Access denied")
 
         with pytest.raises(Exception) as exc_info:
-            SMBLibMixin.rm(mock_client, "protected.txt")
+            smblib.rm(mock_client, "protected.txt")
 
         assert "Access denied" in str(exc_info.value)
