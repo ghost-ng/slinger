@@ -128,6 +128,37 @@ The project follows a modular, plugin-based architecture with these key componen
 - **Returns**: None
 - **Description**: Establishes connection to specified share
 
+##### `find_handler(args)`
+- **Purpose**: Handle file search command with pattern matching and filtering
+- **Parameters**: 
+  - `args`: Parsed arguments containing pattern, type, size, depth, timeout, and progress options
+- **Returns**: None
+- **Description**: Searches for files/directories matching specified criteria
+- **Features**:
+  - Pattern matching with wildcards and regex support
+  - File type filtering (-type f/d)
+  - Size filtering with operators (+100MB, -1KB, =500B)
+  - Depth control (--maxdepth, --mindepth)
+  - Configurable timeout protection (-timeout with 120s default)
+  - Verbose progress reporting (-progress)
+  - Result limiting (--limit)
+  - Multiple output formats (table, json, list, paths)
+
+##### `_find_files(pattern, search_path, timeout=120, ...)`
+- **Purpose**: Core file search implementation with recursive directory traversal
+- **Parameters**: 
+  - `pattern` (str): Search pattern (wildcard or regex)
+  - `search_path` (str): Starting directory for search
+  - `timeout` (int): Search timeout in seconds (configurable via CLI)
+  - Various filtering options (file_type, size_filter, depth limits, etc.)
+- **Returns**: List of dictionaries containing file information
+- **Description**: Performs recursive file system traversal with timeout protection
+- **Enhancements**:
+  - Configurable timeout via `-timeout` flag (default: 120 seconds)
+  - Single timeout warning message to prevent duplicates
+  - Verbose progress output showing directory-by-directory traversal
+  - Timeout protection with shared warning flag across recursive calls
+
 #### Path Validation
 
 ##### `_validate_path_security(current_path, target_path)`

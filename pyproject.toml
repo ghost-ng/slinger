@@ -9,6 +9,8 @@ description = "An impacket swiss army knife (sort of)"
 readme = "README.md"
 dependencies = [ "impacket==0.11.0", "prompt_toolkit==3.0.41", "pycryptodome==3.20.0", "setuptools==70.0.0", "tabulate==0.8.9", "toml", "passlib", "dotenv", "openai", "pexpect",]
 
+requires-python = ">=3.10"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
@@ -21,7 +23,6 @@ dev = [
     "mypy>=1.4.1",
     "pre-commit>=3.3.3",
 ]
-requires-python = ">=3.10"
 [[project.authors]]
 name = "ghost-ng"
 email = "ghost-ng@outlook.com"

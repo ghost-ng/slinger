@@ -70,6 +70,62 @@ Example Usage: shares
 
 ---
 
+## `find`
+
+**Description:** Search for files and directories matching specified criteria with advanced filtering options
+
+**Help:**
+```
+find [-h] [-type {f,d}] [-size SIZE] [-mtime DAYS] [-ctime DAYS] [-atime DAYS] 
+     [-maxdepth DEPTH] [-mindepth DEPTH] [-regex] [-iname] [-empty] [-hidden] 
+     [-progress] [-timeout SECONDS] [-o OUTPUT] [--limit LIMIT] 
+     [--format {table,json,list,paths}] pattern [path]
+```
+
+**Example Usage:**
+```
+find "*.exe" -type f --limit 10                 # Find first 10 .exe files
+find "root*" -type f -timeout 30 -progress      # Find files starting with 'root' with 30s timeout
+find "*" -type d --maxdepth 2                   # Find directories up to 2 levels deep
+find "*.log" -size +1MB -mtime -30              # Find log files >1MB modified in last 30 days
+find "backup*" -o results.txt                   # Save search results to file
+```
+
+### Arguments
+
+- **`pattern`**: Search pattern (wildcards * and ? supported, or regex with -regex flag)
+  - Required: Yes
+
+- **`path`**: Starting directory for search (default: current directory)
+  - Required: No
+
+- **`-type`**: Filter by file type
+  - Choices: f (files), d (directories)
+  - Required: No
+
+- **`-size`**: Filter by file size (e.g., +100MB, -1KB, =500B)
+  - Required: No
+
+- **`-timeout`**: Search timeout in seconds
+  - Default: 120
+  - Required: No
+
+- **`-progress`**: Show verbose progress during search
+  - Required: No
+
+- **`--limit`**: Maximum number of results to return
+  - Required: No
+
+- **`--format`**: Output format for results
+  - Choices: table, json, list, paths
+  - Default: table
+  - Required: No
+
+- **`-o`**: Save results to specified file
+  - Required: No
+
+---
+
 ## `enumshares`
 
 **Description:** List all shares available on the remote server
