@@ -333,18 +333,36 @@ class smblib():
             
         # Determine download method based on resume flags
         use_resume = False
-        if hasattr(args, 'resume') and hasattr(args, 'no_resume'):
-            if args.no_resume:
+        partial_file_exists = os.path.exists(local_path) and os.path.getsize(local_path) > 0
+        
+        if hasattr(args, 'resume') and hasattr(args, 'restart'):
+            if args.restart:
                 use_resume = False
-                print_verbose("Using standard download (--no-resume specified)")
+                if partial_file_exists:
+                    print_verbose("Removing partial file for fresh download (--restart specified)")
+                    try:
+                        os.remove(local_path)
+                        # Also cleanup any state file
+                        from slingerpkg.lib.download_state import DownloadState
+                        state = DownloadState.load_state(local_path)
+                        if state:
+                            state.cleanup()
+                    except Exception as e:
+                        print_debug(f"Error removing partial file: {e}")
             elif args.resume:
                 use_resume = True
                 print_verbose("Resume download enabled (--resume specified)")
             else:
-                # Default behavior: use resume if partial file exists
-                if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
-                    use_resume = True
-                    print_verbose("Partial file detected, attempting resume")
+                # Default behavior: warn user about partial file
+                if partial_file_exists:
+                    file_size = os.path.getsize(local_path)
+                    print_warning(f"Partial download detected: {local_path} ({self.sizeof_fmt(file_size)})")
+                    print_warning("To resume: add --resume flag")
+                    print_warning("To restart: add --restart flag")
+                    print_warning("Continuing with standard download (will overwrite partial file)")
+                    use_resume = False
+                else:
+                    use_resume = False
         
         if echo:
             print_info(f"Downloading: {self.share}\\{remote_path} --> {local_path}")
@@ -444,6 +462,46 @@ class smblib():
         except Exception as e:
             print_debug(f"Failed to download chunk after {max_retries} retries: {e}")
             return None
+
+    def openFile(self, tree_id, pathName, desiredAccess=FILE_READ_DATA, shareMode=FILE_SHARE_READ):
+        """Open a remote file and return file ID for byte-range operations"""
+        try:
+            file_id = self.conn.openFile(
+                tree_id,
+                pathName,
+                desiredAccess=desiredAccess,
+                shareMode=shareMode
+            )
+            print_debug(f"Opened file '{pathName}' with ID {file_id}")
+            return file_id
+        except Exception as e:
+            print_debug(f"Failed to open file '{pathName}': {e}", sys.exc_info())
+            raise e
+
+    def readFile(self, tree_id, file_id, offset=0, bytesToRead=4096):
+        """Read data from an open file at specified offset"""
+        try:
+            data = self.conn.readFile(
+                tree_id,
+                file_id,
+                offset=offset,
+                bytesToRead=bytesToRead,
+                singleCall=True
+            )
+            print_debug(f"Read {len(data)} bytes from file ID {file_id} at offset {offset}")
+            return data
+        except Exception as e:
+            print_debug(f"Failed to read from file ID {file_id} at offset {offset}: {e}", sys.exc_info())
+            raise e
+
+    def closeFile(self, tree_id, file_id):
+        """Close an open file handle"""
+        try:
+            self.conn.closeFile(tree_id, file_id)
+            print_debug(f"Closed file ID {file_id}")
+        except Exception as e:
+            print_debug(f"Failed to close file ID {file_id}: {e}", sys.exc_info())
+            # Don't raise exception for close failures as they're often not critical
 
     def download_resumable(self, remote_path, local_path, chunk_size=64*1024, echo=True):
         """
@@ -689,7 +747,7 @@ class smblib():
                 creation_time = (datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=f.get_ctime()/10)).replace(microsecond=0)
                 last_access_time = (datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=f.get_atime()/10)).replace(microsecond=0)
                 last_write_time = (datetime.datetime(1601, 1, 1) + datetime.timedelta(microseconds=f.get_mtime()/10)).replace(microsecond=0)
-                filesize = sizeof_fmt(f.get_filesize())
+                filesize = self.sizeof_fmt(f.get_filesize())
                 file_type = 'D' if f.is_directory() else 'F'
                 attributes = ''
                 if f.is_readonly(): attributes += 'R'
@@ -1321,7 +1379,7 @@ class smblib():
         """Display results in table format."""
         table_data = []
         for item in results:
-            size_str = sizeof_fmt(item['size']) if not item['is_directory'] else '<DIR>'
+            size_str = self.sizeof_fmt(item['size']) if not item['is_directory'] else '<DIR>'
             mtime_str = item['mtime'].strftime('%Y-%m-%d %H:%M:%S')
             
             table_data.append([
@@ -1338,7 +1396,7 @@ class smblib():
         """Display results in detailed list format."""
         for item in results:
             type_str = "Directory" if item['is_directory'] else "File"
-            size_str = sizeof_fmt(item['size']) if not item['is_directory'] else ""
+            size_str = self.sizeof_fmt(item['size']) if not item['is_directory'] else ""
             
             print_log(f"{type_str}: {item['path']}")
             if not item['is_directory']:

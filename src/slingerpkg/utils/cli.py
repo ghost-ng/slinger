@@ -321,7 +321,7 @@ def setup_cli_parser(slingerClient):
     parser_download.add_argument('remote_path', help='Specify the remote file path to download')
     parser_download.add_argument('local_path', nargs='?', help='Specify the local file path to download to, optional', default=None)
     parser_download.add_argument('--resume', action='store_true', help='Resume interrupted download if possible (default: %(default)s)', default=False)
-    parser_download.add_argument('--no-resume', action='store_true', help='Force fresh download, ignore existing partial file', default=False)
+    parser_download.add_argument('--restart', action='store_true', help='Force fresh download, ignore existing partial file', default=False)
     parser_download.add_argument('--chunk-size', default='64k', help='Chunk size for download (e.g., 64k, 1M, 512k) (default: %(default)s)')
 
     # Subparser for 'mget' command

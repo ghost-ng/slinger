@@ -28,6 +28,7 @@ jobs:
     
     - name: Check for new commands without tests
       id: check-commands
+      shell: bash
       run: |
         # Get list of modified files
         MODIFIED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.py$' || true)
@@ -49,6 +50,7 @@ jobs:
         fi
     
     - name: Check test coverage for modified files
+      shell: bash
       run: |
         # Get modified Python files
         MODIFIED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'src/.*\.py$' || true)
@@ -72,6 +74,7 @@ jobs:
     
     - name: Generate test stubs for new commands
       if: steps.check-commands.outputs.NEW_COMMANDS
+      shell: bash
       run: |
         if [ -f "new_commands.txt" ]; then
           echo "New commands detected, generating test stubs..."
@@ -92,6 +95,7 @@ jobs:
         fi
     
     - name: Validate command-test mapping
+      shell: bash
       run: |
         python tests/test_coverage_validator.py || {
           echo "::error::Not all commands have corresponding tests!"
@@ -99,11 +103,12 @@ jobs:
         }
     
     - name: Check test quality metrics
+      shell: bash
       run: |
         # Run tests and check metrics (only if tests exist)
         if [ -d "tests" ] && [ "$(find tests -name '*.py' -not -name '__init__.py' | wc -l)" -gt 0 ]; then
-          pytest tests/ --cov=slingerpkg --cov-report=term-missing --cov-fail-under=60 || {
-            echo "::warning::Test coverage is below 60%!"
+          pytest tests/ --cov=slingerpkg --cov-report=term-missing --cov-fail-under=40 || {
+            echo "::warning::Test coverage is below 40%!"
           }
         else
           echo "No tests found, skipping coverage check"

@@ -216,22 +216,39 @@ History File   Plugin System         Connection Manager      Log Files
 
 ## Development Roadmap
 
-### Current Project State (v1.6)
+### Current Project State (v1.7)
 
 #### ✅ Completed Features
 - **Core SMB Operations**: Full file system navigation and transfer capabilities
 - **Windows Administration**: Service, task, registry, and process management
 - **Security Enhancements**: Path traversal protection, verbose output control
 - **Advanced File Transfers**: Custom download filenames, improved upload handling
-- **Testing Infrastructure**: Comprehensive test suite with mock infrastructure
+- **Resume Downloads**: Complete resumable download functionality with MD5 integrity
+- **Testing Infrastructure**: Comprehensive test suite with mock infrastructure and pexpect
 - **Plugin System**: Extensible architecture with example implementations
 
-#### 🔧 Recent Enhancements
-- Enhanced verbose output control with `-verbose` CLI flag
-- Custom download filename support (`get file.txt /custom/path/name.txt`)
-- Fixed relative path handling for uploads (`put file.sh ../`)
-- Advanced directory listing with file output (`ls -o file.txt`)
-- Navigation security with automatic root redirection
+#### 🔧 Recent Enhancements (Phase 2: Resume Downloads)
+- **Resume Download System**: Complete implementation with state persistence
+  - `--resume` flag to resume interrupted downloads
+  - `--restart` flag to force fresh downloads (replaces `--no-resume`)
+  - Automatic partial file detection with user warnings
+  - JSON-based state management with atomic operations
+- **SMB Byte-Range Operations**: Efficient chunked downloads with retry logic
+  - `openFile()`, `readFile()`, `closeFile()` methods for precise file access
+  - Configurable chunk sizes (`--chunk-size 64k`, `1M`, etc.)
+  - Error classification and exponential backoff retry
+- **Downloads Management**: Complete state management system
+  - `downloads list` command to show active downloads with progress
+  - `downloads cleanup` command to manage state files
+  - Integration with existing CLI architecture
+- **Enhanced Error Recovery**: Intelligent error handling and classification
+  - Distinction between retryable network errors and fatal file errors
+  - Automatic retry with exponential backoff and jitter
+  - Connection recovery mechanisms
+- **Comprehensive Testing**: Pexpect-based test suite with MD5 verification
+  - Full end-to-end testing with HTB instance (10.10.11.69)
+  - MD5 integrity verification for resumed downloads
+  - Automated test interruption and resume validation
 
 ### Immediate Next Steps (Next 2-4 weeks)
 
@@ -453,7 +470,41 @@ History File   Plugin System         Connection Manager      Log Files
 
 ### Development Process
 
-#### Feature Development
+#### New Feature Development Workflow
+The standard workflow for implementing new features follows this comprehensive cycle:
+
+1. **Research Phase**
+   - Investigate technical requirements and feasibility
+   - Document findings in `RESEARCH.md` 
+   - Identify potential challenges and dependencies
+   - Research existing solutions and best practices
+
+2. **Planning and Design**
+   - Present clear action plan and implementation strategy
+   - Document in `IMPLEMENTATION_PLANS.md`
+   - Explain technical specifics and architectural decisions
+   - Identify and document potential risks and mitigation strategies
+   - Clearly explain the purpose and value proposition
+
+3. **Branch Creation**
+   - Create new feature branch from main
+   - Use descriptive branch naming (e.g., `feature/resume-downloads`)
+   - Ensure clean starting point for development
+
+4. **Implementation Cycle**
+   - Implement feature following file organization guide
+   - Create comprehensive tests on the branch
+   - Run all tests (unit, integration, e2e)
+   - **If tests fail**: Debug, fix issues, and repeat cycle
+   - **If tests pass**: Proceed to completion
+
+5. **Completion and Review**
+   - Ensure all tests pass and coverage meets standards
+   - Update documentation and examples
+   - Report completion status
+   - **Wait for explicit instructions** before merging
+
+#### Legacy Feature Development (Reference)
 1. **Planning**: Document in `IMPLEMENTATION_PLANS.md`
 2. **Research**: Record findings in `RESEARCH.md`
 3. **Task Creation**: Add to `TODO.md`
@@ -524,6 +575,166 @@ The tool uses a configuration system with the following key settings:
 - Provide detailed reproduction steps
 - Include environment information
 - Suggest implementation approaches when possible
+
+---
+
+## Resume Downloads Testing Workflow
+
+### Phase 2 Implementation Testing
+
+The resume downloads functionality includes comprehensive testing workflows to ensure reliability and integrity. The following test suite validates all aspects of the implementation:
+
+#### Test Files and Structure
+
+```
+/home/unknown/Documents/slinger/
+├── test_resume_pexpect.py      # Comprehensive pexpect-based test suite
+├── test_quick_verify.py        # Quick verification test
+├── test_resume_demo.py         # Feature demonstration script
+├── test_simple_resume.py       # Core component unit tests
+└── test_htb_direct_fixed.py    # Direct HTB integration tests
+```
+
+#### Comprehensive Test Workflow (test_resume_pexpect.py)
+
+**Purpose**: Full end-to-end testing with MD5 integrity verification as requested.
+
+**Test Sequence**:
+1. **Complete Download**: Download large file (ntoskrnl.exe) completely and calculate reference MD5
+2. **Interrupted Download**: Start same download and interrupt after 6 seconds using pexpect
+3. **Resume Download**: Resume with `--resume` flag and complete download
+4. **Integrity Verification**: Compare MD5 hashes to verify file integrity is maintained
+
+**Usage**:
+```bash
+source test_env/bin/activate
+python test_resume_pexpect.py
+```
+
+**Key Features Tested**:
+- MD5 hash integrity verification
+- Partial file detection and resume
+- `--restart` flag functionality
+- CLI flag integration
+- Downloads management commands
+- Error handling and recovery
+
+#### Quick Verification Test (test_quick_verify.py)
+
+**Purpose**: Fast validation of core functionality without full MD5 workflow.
+
+**Test Coverage**:
+- HTB connection (10.10.11.69 with NTLM authentication)
+- CLI flags (`--resume`, `--restart`) integration
+- Help system verification
+- Basic download operations
+- Downloads management commands
+
+**Usage**:
+```bash
+source test_env/bin/activate
+python test_quick_verify.py
+```
+
+#### Core Component Tests (test_simple_resume.py)
+
+**Purpose**: Unit testing of individual components without network dependencies.
+
+**Components Tested**:
+- DownloadState class functionality
+- Error recovery and classification
+- Chunk size parsing
+- State persistence and cleanup
+- DownloadStateManager operations
+
+#### HTB Integration Tests (test_htb_direct_fixed.py)
+
+**Purpose**: Direct library-level testing against HTB instance.
+
+**Test Coverage**:
+- SlingerClient instantiation and login
+- Share connection and enumeration
+- File operations and size retrieval
+- Downloads management integration
+- Method availability verification
+
+### Test Environment Setup
+
+#### Virtual Environment
+```bash
+python -m venv test_env
+source test_env/bin/activate
+pip install -e .
+```
+
+#### HTB Target Configuration
+- **Host**: 10.10.11.69
+- **User**: administrator
+- **Authentication**: NTLM hash (:8da83a3fa618b6e3a00e93f676c92a6e)
+- **Primary Share**: C$
+- **Test Files**: 
+  - Windows/System32/ntoskrnl.exe (large file for resume testing)
+  - Windows/System32/cmd.exe (small file for quick tests)
+
+### Test Automation with Pexpect
+
+The test suite uses pexpect for interactive testing because:
+
+1. **Interactive Nature**: Slinger requires terminal interaction for proper operation
+2. **Realistic Testing**: Simulates actual user interaction patterns
+3. **Interruption Testing**: Can send Ctrl+C to interrupt downloads mid-stream
+4. **Output Validation**: Can verify CLI output and prompts in real-time
+
+#### Pexpect Pattern Examples
+
+```python
+# Connection and login
+child = pexpect.spawn(cmd, timeout=60)
+child.expect(r'>', timeout=30)
+
+# Command execution
+child.sendline("use C$")
+child.expect(r'>', timeout=15)
+
+# Download interruption
+child.sendline(f"get {large_file} {local_path}")
+time.sleep(6)  # Let download start
+child.sendintr()  # Send Ctrl+C
+```
+
+### Verification Criteria
+
+#### MD5 Integrity Test
+- ✅ Complete download MD5 hash calculated
+- ✅ Interrupted download creates partial file
+- ✅ Resume download completes successfully  
+- ✅ Final MD5 hash matches original
+- ✅ File sizes match exactly
+
+#### Functionality Tests
+- ✅ `--resume` flag enables resume mode
+- ✅ `--restart` flag forces fresh download
+- ✅ Partial file warnings displayed appropriately
+- ✅ Downloads management commands functional
+- ✅ Error recovery and retry logic operational
+
+### Test Results Documentation
+
+Test results are documented with:
+- **Pass/Fail Status**: Clear success/failure indicators
+- **Performance Metrics**: File sizes, transfer times, retry counts
+- **Error Analysis**: Detailed error classification and recovery
+- **Integrity Verification**: MD5 hash comparisons
+- **Feature Coverage**: Comprehensive functionality validation
+
+### Continuous Integration Considerations
+
+The test suite is designed for:
+- **Automated Execution**: Can run in CI/CD pipelines
+- **Timeout Management**: Appropriate timeouts for network operations
+- **Error Isolation**: Individual test failures don't block other tests
+- **Resource Cleanup**: Automatic cleanup of test files and directories
+- **Detailed Reporting**: Comprehensive pass/fail reporting with metrics
 
 ---
 

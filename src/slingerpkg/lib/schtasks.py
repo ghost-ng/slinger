@@ -202,7 +202,7 @@ class schtasks():
   <RegistrationInfo>
     <Date>{new_date}</Date>
     <Author>SYSTEM</Author>
-    <URI>{folder_path}\{task_name}</URI>
+    <URI>{folder_path}\\{task_name}</URI>
   </RegistrationInfo>
   <Triggers>
     <CalendarTrigger>
@@ -252,7 +252,7 @@ class schtasks():
   <RegistrationInfo>
     <Date>{new_date}</Date>
     <Author>SYSTEM</Author>
-    <URI>{folder_path}\{task_name}</URI>
+    <URI>{folder_path}\\{task_name}</URI>
   </RegistrationInfo>
   <Triggers>
     <CalendarTrigger>
