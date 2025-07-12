@@ -463,10 +463,10 @@ class scm():
             print_debug('', sys.exc_info())
 
     def create_service(self, args):
-        service_name = args.servicename
-        bin_path = args.binarypath
-        display_name = args.displayname
-        start_type = args.starttype
+        service_name = args.name
+        bin_path = args.binary_path
+        display_name = args.display_name
+        start_type = args.start_type
 
         self.setup_dce_transport()
         self.dce_transport._connect('svcctl')

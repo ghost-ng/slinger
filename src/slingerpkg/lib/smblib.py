@@ -1,9 +1,12 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
+from slingerpkg.lib.download_state import DownloadState, DownloadStateManager, parse_chunk_size
+from slingerpkg.lib.error_recovery import SimpleRetryManager, validate_chunk_integrity
 from tabulate import tabulate
 import os, sys, re, ntpath
 import datetime, tempfile
 from datetime import timedelta
+from impacket.smb3structs import FILE_READ_DATA
 
 
 # Share Access
@@ -328,9 +331,34 @@ class smblib():
                 print_warning(f"Failed to create local directory {local_dir}: {e}")
                 return
             
+        # Determine download method based on resume flags
+        use_resume = False
+        if hasattr(args, 'resume') and hasattr(args, 'no_resume'):
+            if args.no_resume:
+                use_resume = False
+                print_verbose("Using standard download (--no-resume specified)")
+            elif args.resume:
+                use_resume = True
+                print_verbose("Resume download enabled (--resume specified)")
+            else:
+                # Default behavior: use resume if partial file exists
+                if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
+                    use_resume = True
+                    print_verbose("Partial file detected, attempting resume")
+        
         if echo:
             print_info(f"Downloading: {self.share}\\{remote_path} --> {local_path}")
-        self.download(remote_path, local_path, echo=echo)
+        
+        # Use appropriate download method
+        if use_resume:
+            chunk_size = 64 * 1024  # Default 64KB
+            if hasattr(args, 'chunk_size') and args.chunk_size:
+                chunk_size = parse_chunk_size(args.chunk_size)
+                print_verbose(f"Using chunk size: {self.sizeof_fmt(chunk_size)}")
+            
+            return self.download_resumable(remote_path, local_path, chunk_size, echo=echo)
+        else:
+            self.download(remote_path, local_path, echo=echo)
 
     def download(self, remote_path, local_path, echo=True):
         if remote_path.endswith('.') or remote_path.endswith('..'):
@@ -350,6 +378,178 @@ class smblib():
                 print_warning(f"Remote file '{remote_path}' does not exist.")
             else:
                 print_bad(f"Failed to download file '{remote_path}' to '{local_path}': {e}")
+
+    def get_remote_file_size(self, remote_path):
+        """Get remote file size for resume validation"""
+        try:
+            # Open file to get metadata
+            file_id = self.conn.openFile(
+                self.tree_id, 
+                remote_path,
+                desiredAccess=FILE_READ_DATA,
+                shareMode=FILE_SHARE_READ | FILE_SHARE_WRITE
+            )
+            
+            # Get file information (includes size)
+            file_info = self.conn.queryInfo(self.tree_id, file_id)
+            file_size = file_info['EndOfFile']
+            
+            # Close file handle
+            self.conn.closeFile(self.tree_id, file_id)
+            
+            return file_size
+            
+        except Exception as e:
+            print_debug(f"Error getting remote file size for '{remote_path}': {e}", sys.exc_info())
+            return None
+
+    def download_chunk(self, remote_path, offset, chunk_size, max_retries=3):
+        """Download a specific chunk of a file using SMB byte-range operations with retry logic"""
+        retry_manager = SimpleRetryManager(max_retries=max_retries)
+        
+        def _download_chunk_internal():
+            try:
+                # Open remote file
+                file_id = self.conn.openFile(
+                    self.tree_id,
+                    remote_path, 
+                    desiredAccess=FILE_READ_DATA,
+                    shareMode=FILE_SHARE_READ | FILE_SHARE_WRITE
+                )
+                
+                # Read chunk at specific offset
+                data = self.conn.readFile(
+                    self.tree_id,
+                    file_id,
+                    offset=offset,
+                    bytesToRead=chunk_size,
+                    singleCall=True
+                )
+                
+                # Close file handle
+                self.conn.closeFile(self.tree_id, file_id)
+                
+                # Validate chunk integrity
+                if not validate_chunk_integrity(data, chunk_size):
+                    raise Exception(f"Chunk validation failed at offset {offset}")
+                
+                return data
+                
+            except Exception as e:
+                print_debug(f"Error downloading chunk at offset {offset}: {e}", sys.exc_info())
+                raise e
+        
+        try:
+            return retry_manager.execute_with_retry(_download_chunk_internal)
+        except Exception as e:
+            print_debug(f"Failed to download chunk after {max_retries} retries: {e}")
+            return None
+
+    def download_resumable(self, remote_path, local_path, chunk_size=64*1024, echo=True):
+        """
+        Download file with resume capability using chunked transfers.
+        
+        Args:
+            remote_path: Remote file path
+            local_path: Local file path  
+            chunk_size: Size of chunks to download (default 64KB)
+            echo: Whether to show progress messages
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Get remote file size first
+            remote_size = self.get_remote_file_size(remote_path)
+            if remote_size is None:
+                print_warning(f"Cannot get remote file size for '{remote_path}'")
+                return False
+                
+            if echo:
+                print_info(f"Remote file size: {self.sizeof_fmt(remote_size)}")
+            
+            # Check for existing download state
+            state = DownloadState.load_state(local_path)
+            
+            resume_offset = 0
+            if state is not None:
+                # Validate existing state
+                is_valid, message = state.validate_resume()
+                if is_valid and state.total_size == remote_size:
+                    resume_offset = state.get_resume_offset()
+                    if echo:
+                        print_info(f"Resuming download from {self.sizeof_fmt(resume_offset)} ({state.get_progress_percentage():.1f}%)")
+                else:
+                    if echo:
+                        print_warning(f"Cannot resume: {message}")
+                    # Create new state for fresh download
+                    state = DownloadState(remote_path, local_path, remote_size)
+            else:
+                # Create new download state
+                state = DownloadState(remote_path, local_path, remote_size)
+                state.chunk_size = chunk_size
+            
+            # Create parent directories if needed
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            
+            # Open local file in appropriate mode
+            file_mode = 'ab' if resume_offset > 0 else 'wb'
+            
+            with open(local_path, file_mode) as local_file:
+                downloaded = 0
+                current_offset = resume_offset
+                remaining_bytes = state.get_remaining_bytes()
+                
+                if echo:
+                    print_verbose(f"Starting chunked download: {remaining_bytes} bytes remaining")
+                
+                while downloaded < remaining_bytes:
+                    # Calculate chunk size for this iteration
+                    bytes_to_read = min(chunk_size, remaining_bytes - downloaded)
+                    
+                    # Download chunk with error recovery
+                    chunk_data = self.download_chunk(remote_path, current_offset, bytes_to_read)
+                    
+                    if chunk_data is None:
+                        # Increment retry count in state
+                        if state.increment_retry():
+                            print_warning(f"Failed to download chunk at offset {current_offset}, retries remaining: {state.max_retries - state.retry_count}")
+                            continue  # Retry the same chunk
+                        else:
+                            print_warning(f"Failed to download chunk at offset {current_offset} after maximum retries")
+                            return False
+                    
+                    # Write chunk to local file
+                    local_file.write(chunk_data)
+                    local_file.flush()  # Ensure data is written
+                    
+                    # Update state
+                    chunk_bytes = len(chunk_data)
+                    downloaded += chunk_bytes
+                    current_offset += chunk_bytes
+                    state.update_progress(chunk_bytes)
+                    
+                    # Progress reporting
+                    if echo and downloaded % (chunk_size * 10) == 0:  # Report every 10 chunks
+                        progress = (downloaded / remaining_bytes) * 100
+                        print_verbose(f"Progress: {progress:.1f}% ({self.sizeof_fmt(downloaded)}/{self.sizeof_fmt(remaining_bytes)})")
+                    
+                    # Break if we got less data than requested (EOF)
+                    if chunk_bytes < bytes_to_read:
+                        break
+                
+                if echo:
+                    total_downloaded = resume_offset + downloaded
+                    print_good(f"Download complete: {self.sizeof_fmt(total_downloaded)} total")
+                
+                # Clean up state file on successful completion
+                state.cleanup()
+                return True
+                
+        except Exception as e:
+            print_debug(f"Error in resumable download: {e}", sys.exc_info())
+            print_bad(f"Failed to download file '{remote_path}' to '{local_path}': {e}")
+            return False
 
     def mget_handler(self, args):
         if not self.check_if_connected():
