@@ -4,6 +4,7 @@ from slingerpkg.utils.common import *
 from tabulate import tabulate
 import os, sys, re, ntpath
 import datetime, tempfile
+from datetime import timedelta
 
 
 # Share Access
@@ -649,6 +650,503 @@ class smblib():
             if attr_val & 0x4:
                 attrs.append('S')
         return ''.join(attrs) or '-'
+
+    # ============================================================================
+    # FILE SEARCH FUNCTIONALITY
+    # ============================================================================
+
+    def find_handler(self, args):
+        """
+        Handle find command with comprehensive search capabilities.
+        
+        Args:
+            args: Parsed command line arguments containing search parameters
+        """
+        if not self.check_if_connected():
+            print_warning("You are not connected to a share.")
+            return
+            
+        try:
+            # Validate and normalize search path
+            is_valid, search_path, error = self._normalize_path_for_smb(self.relative_path, args.path)
+            if not is_valid:
+                print_warning(f"Invalid search path: {error}")
+                return
+                
+            # Show verbose information if enabled
+            print_verbose(f"Search Path (Before): {args.path}")
+            print_verbose(f"Search Path (After): {search_path}")
+            print_verbose(f"Search Pattern: {args.pattern}")
+            
+            # Validate search parameters
+            if args.maxdepth <= 0:
+                print_warning("Maximum depth must be greater than 0")
+                return
+                
+            if args.mindepth < 0:
+                print_warning("Minimum depth cannot be negative")
+                return
+                
+            if args.mindepth >= args.maxdepth:
+                print_warning("Minimum depth must be less than maximum depth")
+                return
+            
+            # Perform the search
+            results = self._find_files(
+                pattern=args.pattern,
+                search_path=search_path,
+                file_type=args.type,
+                size_filter=args.size,
+                mtime_filter=args.mtime,
+                ctime_filter=args.ctime,
+                atime_filter=args.atime,
+                use_regex=args.regex,
+                case_insensitive=args.iname,
+                max_depth=args.maxdepth,
+                min_depth=args.mindepth,
+                include_hidden=args.hidden,
+                find_empty=args.empty,
+                limit=args.limit,
+                show_progress=args.progress
+            )
+            
+            if not results:
+                print_info("No files found matching the search criteria.")
+                return
+                
+            # Sort results
+            results = self._sort_find_results(results, args.sort, args.reverse)
+            
+            # Apply limit if specified
+            if args.limit and len(results) > args.limit:
+                results = results[:args.limit]
+                print_info(f"Results limited to {args.limit} entries")
+            
+            # Format and display results
+            output_file = args.output if hasattr(args, 'output') else None
+            with tee_output(output_file):
+                self._display_find_results(results, args.format, search_path)
+                
+            # Notify if output was saved
+            if output_file:
+                print_good(f"Search results saved to: {output_file}")
+                
+        except Exception as e:
+            print_debug(f"Find operation failed: {str(e)}", sys.exc_info())
+            print_bad(f"Search failed: {e}")
+
+    def _find_files(self, pattern, search_path="", file_type="a", size_filter=None,
+                   mtime_filter=None, ctime_filter=None, atime_filter=None,
+                   use_regex=False, case_insensitive=False, max_depth=10, min_depth=0,
+                   include_hidden=False, find_empty=False, limit=None, show_progress=False):
+        """
+        Core file search implementation with recursive directory traversal.
+        
+        Returns:
+            List of dictionaries containing file information
+        """
+        import re
+        import fnmatch
+        from datetime import datetime, timedelta
+        
+        results = []
+        total_dirs_searched = 0
+        total_files_examined = 0
+        
+        try:
+            # Compile search pattern
+            if use_regex:
+                try:
+                    if case_insensitive:
+                        compiled_pattern = re.compile(pattern, re.IGNORECASE)
+                    else:
+                        compiled_pattern = re.compile(pattern)
+                except re.error as e:
+                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
+            else:
+                # For wildcard patterns, we'll use fnmatch
+                compiled_pattern = pattern.lower() if case_insensitive else pattern
+            
+            # Parse size filter if provided
+            size_operator, size_bytes = self._parse_size_filter(size_filter) if size_filter else (None, None)
+            
+            # Calculate date thresholds if provided
+            now = datetime.now()
+            mtime_threshold = now - timedelta(days=mtime_filter) if mtime_filter else None
+            ctime_threshold = now - timedelta(days=ctime_filter) if ctime_filter else None
+            atime_threshold = now - timedelta(days=atime_filter) if atime_filter else None
+            
+            # Perform recursive search
+            self._recursive_find(
+                search_path, pattern, compiled_pattern, use_regex, case_insensitive,
+                file_type, size_operator, size_bytes, mtime_threshold, ctime_threshold, atime_threshold,
+                include_hidden, find_empty, max_depth, min_depth, 0, results,
+                total_dirs_searched, total_files_examined, show_progress, limit
+            )
+            
+            if show_progress:
+                print_info(f"Search completed: {total_dirs_searched} directories searched, {total_files_examined} files examined, {len(results)} matches found")
+                
+        except Exception as e:
+            print_debug(f"Error during file search: {str(e)}", sys.exc_info())
+            raise
+            
+        return results
+
+    def _recursive_find(self, current_path, original_pattern, compiled_pattern, use_regex, case_insensitive,
+                       file_type, size_operator, size_bytes, mtime_threshold, ctime_threshold, atime_threshold,
+                       include_hidden, find_empty, max_depth, min_depth, current_depth, results,
+                       total_dirs_searched, total_files_examined, show_progress, limit):
+        """
+        Recursive directory traversal for file search.
+        """
+        import fnmatch
+        from datetime import datetime
+        
+        # Check depth limits
+        if current_depth > max_depth:
+            return
+            
+        # Check result limit
+        if limit and len(results) >= limit:
+            return
+        
+        try:
+            # Construct list path
+            if current_path:
+                list_path = current_path + '\\*'
+            else:
+                list_path = '*'
+                
+            # Get directory listing
+            files = self.conn.listPath(self.share, list_path)
+            total_dirs_searched += 1
+            
+            if show_progress and total_dirs_searched % 10 == 0:
+                print_info(f"Searched {total_dirs_searched} directories, found {len(results)} matches...")
+            
+            subdirs = []
+            
+            for f in files:
+                if f.get_longname() in ['.', '..']:
+                    continue
+                    
+                total_files_examined += 1
+                
+                # Check if hidden and whether to include
+                is_hidden = f.is_hidden() if hasattr(f, 'is_hidden') else False
+                if is_hidden and not include_hidden:
+                    continue
+                
+                # Get file information
+                file_info = self._extract_file_info(f, current_path)
+                
+                # Apply type filter
+                if file_type == 'f' and file_info['is_directory']:
+                    if file_info['is_directory']:
+                        subdirs.append(f.get_longname())
+                    continue
+                elif file_type == 'd' and not file_info['is_directory']:
+                    continue
+                
+                # Apply depth filter
+                if current_depth < min_depth:
+                    if file_info['is_directory']:
+                        subdirs.append(f.get_longname())
+                    continue
+                
+                # Apply name pattern matching
+                filename = file_info['name']
+                name_matches = False
+                
+                if use_regex:
+                    name_matches = bool(compiled_pattern.search(filename))
+                else:
+                    if case_insensitive:
+                        name_matches = fnmatch.fnmatch(filename.lower(), compiled_pattern)
+                    else:
+                        name_matches = fnmatch.fnmatch(filename, original_pattern)
+                
+                if not name_matches:
+                    if file_info['is_directory']:
+                        subdirs.append(f.get_longname())
+                    continue
+                
+                # Apply size filter
+                if size_operator and size_bytes is not None:
+                    if not self._matches_size_filter(file_info['size'], size_operator, size_bytes):
+                        if file_info['is_directory']:
+                            subdirs.append(f.get_longname())
+                        continue
+                
+                # Apply time filters
+                if mtime_threshold and file_info['mtime'] < mtime_threshold:
+                    if file_info['is_directory']:
+                        subdirs.append(f.get_longname())
+                    continue
+                    
+                if ctime_threshold and file_info['ctime'] < ctime_threshold:
+                    if file_info['is_directory']:
+                        subdirs.append(f.get_longname())
+                    continue
+                    
+                if atime_threshold and file_info['atime'] < atime_threshold:
+                    if file_info['is_directory']:
+                        subdirs.append(f.get_longname())
+                    continue
+                
+                # Apply empty filter
+                if find_empty:
+                    if file_info['is_directory']:
+                        # For directories, check if empty by trying to list contents
+                        try:
+                            empty_check_path = ntpath.join(current_path, filename) if current_path else filename
+                            empty_files = self.conn.listPath(self.share, empty_check_path + '\\*')
+                            # Directory is empty if it only contains . and ..
+                            is_empty = len([f for f in empty_files if f.get_longname() not in ['.', '..']]) == 0
+                            if not is_empty:
+                                subdirs.append(f.get_longname())
+                                continue
+                        except:
+                            # If we can't check, assume not empty
+                            subdirs.append(f.get_longname())
+                            continue
+                    else:
+                        # For files, check if size is 0
+                        if file_info['size'] != 0:
+                            continue
+                
+                # File matches all criteria
+                results.append(file_info)
+                
+                # Add to subdirs if it's a directory for further traversal
+                if file_info['is_directory']:
+                    subdirs.append(f.get_longname())
+                
+                # Check limit
+                if limit and len(results) >= limit:
+                    return
+            
+            # Recursively search subdirectories
+            for subdir in subdirs:
+                if limit and len(results) >= limit:
+                    break
+                    
+                new_path = ntpath.join(current_path, subdir) if current_path else subdir
+                self._recursive_find(
+                    new_path, original_pattern, compiled_pattern, use_regex, case_insensitive,
+                    file_type, size_operator, size_bytes, mtime_threshold, ctime_threshold, atime_threshold,
+                    include_hidden, find_empty, max_depth, min_depth, current_depth + 1, results,
+                    total_dirs_searched, total_files_examined, show_progress, limit
+                )
+                
+        except Exception as e:
+            print_debug(f"Error searching directory '{current_path}': {str(e)}")
+            # Continue searching other directories
+
+    def _extract_file_info(self, f, current_path):
+        """
+        Extract file information from SMB file object.
+        
+        Returns:
+            Dictionary with file metadata
+        """
+        from datetime import datetime
+        
+        try:
+            filename = f.get_longname()
+            is_directory = f.is_directory()
+            
+            # Build full path
+            if current_path:
+                full_path = ntpath.join(current_path, filename)
+            else:
+                full_path = filename
+            
+            # Get timestamps (convert from Windows FILETIME to datetime)
+            try:
+                mtime = datetime(1601, 1, 1) + timedelta(microseconds=f.get_mtime()/10)
+                ctime = datetime(1601, 1, 1) + timedelta(microseconds=f.get_ctime()/10)
+                atime = datetime(1601, 1, 1) + timedelta(microseconds=f.get_atime()/10)
+            except:
+                # Fallback to current time if timestamp conversion fails
+                now = datetime.now()
+                mtime = ctime = atime = now
+            
+            return {
+                'name': filename,
+                'path': full_path,
+                'size': f.get_filesize(),
+                'is_directory': is_directory,
+                'mtime': mtime,
+                'ctime': ctime,
+                'atime': atime,
+                'attributes': self._get_file_attributes(f),
+                'is_hidden': f.is_hidden() if hasattr(f, 'is_hidden') else False,
+                'is_readonly': f.is_readonly() if hasattr(f, 'is_readonly') else False
+            }
+            
+        except Exception as e:
+            print_debug(f"Error extracting file info for {f.get_longname()}: {str(e)}")
+            # Return minimal info on error
+            return {
+                'name': f.get_longname(),
+                'path': f.get_longname(),
+                'size': 0,
+                'is_directory': False,
+                'mtime': datetime.now(),
+                'ctime': datetime.now(),
+                'atime': datetime.now(),
+                'attributes': '-',
+                'is_hidden': False,
+                'is_readonly': False
+            }
+
+    def _parse_size_filter(self, size_filter):
+        """
+        Parse size filter string (e.g., '+1MB', '-100KB', '=5GB').
+        
+        Returns:
+            Tuple of (operator, size_in_bytes)
+        """
+        import re
+        
+        if not size_filter:
+            return None, None
+            
+        # Parse size filter format: [+|-|=]<number><unit>
+        match = re.match(r'^([+\-=]?)(\d+(?:\.\d+)?)([KMGT]?B?)$', size_filter.upper())
+        if not match:
+            raise ValueError(f"Invalid size filter format: {size_filter}")
+        
+        operator = match.group(1) or '='
+        number = float(match.group(2))
+        unit = match.group(3) or 'B'
+        
+        # Convert to bytes
+        multipliers = {
+            'B': 1,
+            'KB': 1024,
+            'MB': 1024**2,
+            'GB': 1024**3,
+            'TB': 1024**4
+        }
+        
+        if unit not in multipliers:
+            raise ValueError(f"Invalid size unit: {unit}")
+        
+        size_bytes = int(number * multipliers[unit])
+        
+        return operator, size_bytes
+
+    def _matches_size_filter(self, file_size, operator, target_size):
+        """
+        Check if file size matches the filter criteria.
+        """
+        if operator == '+':
+            return file_size > target_size
+        elif operator == '-':
+            return file_size < target_size
+        else:  # operator == '='
+            return file_size == target_size
+
+    def _sort_find_results(self, results, sort_field, reverse_order):
+        """
+        Sort find results by specified field.
+        """
+        try:
+            if sort_field == 'name':
+                key_func = lambda x: x['name'].lower()
+            elif sort_field == 'size':
+                key_func = lambda x: x['size']
+            elif sort_field == 'mtime':
+                key_func = lambda x: x['mtime']
+            elif sort_field == 'ctime':
+                key_func = lambda x: x['ctime']
+            elif sort_field == 'atime':
+                key_func = lambda x: x['atime']
+            else:
+                key_func = lambda x: x['name'].lower()  # Default to name
+            
+            return sorted(results, key=key_func, reverse=reverse_order)
+            
+        except Exception as e:
+            print_debug(f"Error sorting results: {str(e)}")
+            return results  # Return unsorted on error
+
+    def _display_find_results(self, results, output_format, search_path):
+        """
+        Display search results in specified format.
+        """
+        import json
+        
+        if not results:
+            return
+        
+        print_info(f"Found {len(results)} file(s) in '{search_path}':")
+        
+        if output_format == 'table':
+            self._display_results_table(results)
+        elif output_format == 'list':
+            self._display_results_list(results)
+        elif output_format == 'paths':
+            self._display_results_paths(results)
+        elif output_format == 'json':
+            self._display_results_json(results)
+        else:
+            # Default to table format
+            self._display_results_table(results)
+
+    def _display_results_table(self, results):
+        """Display results in table format."""
+        table_data = []
+        for item in results:
+            size_str = sizeof_fmt(item['size']) if not item['is_directory'] else '<DIR>'
+            mtime_str = item['mtime'].strftime('%Y-%m-%d %H:%M:%S')
+            
+            table_data.append([
+                item['attributes'],
+                size_str,
+                mtime_str,
+                item['path']
+            ])
+        
+        headers = ['Attrs', 'Size', 'Modified', 'Path']
+        print_log(tabulate(table_data, headers=headers, tablefmt='psql'))
+
+    def _display_results_list(self, results):
+        """Display results in detailed list format."""
+        for item in results:
+            type_str = "Directory" if item['is_directory'] else "File"
+            size_str = sizeof_fmt(item['size']) if not item['is_directory'] else ""
+            
+            print_log(f"{type_str}: {item['path']}")
+            if not item['is_directory']:
+                print_log(f"  Size: {size_str}")
+            print_log(f"  Attributes: {item['attributes']}")
+            print_log(f"  Modified: {item['mtime'].strftime('%Y-%m-%d %H:%M:%S')}")
+            print_log(f"  Created: {item['ctime'].strftime('%Y-%m-%d %H:%M:%S')}")
+            print_log("")
+
+    def _display_results_paths(self, results):
+        """Display only file paths."""
+        for item in results:
+            print_log(item['path'])
+
+    def _display_results_json(self, results):
+        """Display results in JSON format."""
+        import json
+        
+        # Convert datetime objects to strings for JSON serialization
+        json_results = []
+        for item in results:
+            json_item = item.copy()
+            json_item['mtime'] = item['mtime'].isoformat()
+            json_item['ctime'] = item['ctime'].isoformat()
+            json_item['atime'] = item['atime'].isoformat()
+            json_results.append(json_item)
+        
+        print_log(json.dumps(json_results, indent=2))
 
     def _normalize_path(self, path):
         """
