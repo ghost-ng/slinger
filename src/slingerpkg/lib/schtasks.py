@@ -6,10 +6,11 @@ import os
 import traceback
 
 
-class schtasks():
+class schtasks:
     """
     This class provides methods for interacting with the Windows Task Scheduler.
     """
+
     def __init__(self):
         print_debug("Scheduled Tasks Module Loaded!")
         self.visited_folders = set()
@@ -19,28 +20,27 @@ class schtasks():
         self.folder_list_dict = {}
         self.task_id = 1  # Initialize the task ID counter
 
-         
     def enum_folders_old(self, folder_path="\\", start_index=0):
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
 
         # Call SchRpcEnumFolders
-        
+
         response = self.dce_transport._enum_folders(folder_path, start_index)
-        if response['ErrorCode'] == 0:
-            
-            folders = response['pNames']
-            #print_log(response.dump())
-            
+        if response["ErrorCode"] == 0:
+
+            folders = response["pNames"]
+            # print_log(response.dump())
+
             for folder in folders:
-                folder_name = folder['Data']
-                full_folder_path = reduce_slashes(os.path.normpath(folder_path + "\\" + folder_name.rstrip("\\")))
-                
-                
+                folder_name = folder["Data"]
+                full_folder_path = reduce_slashes(
+                    os.path.normpath(folder_path + "\\" + folder_name.rstrip("\\"))
+                )
+
                 if folder_name is not None and full_folder_path not in self.folder_list:
                     print_info("Found Folder: " + full_folder_path)
                     self.folder_list.append(full_folder_path)
-
 
     def enum_folders(self, folder_path="\\", start_index=0):
         """
@@ -54,11 +54,11 @@ class schtasks():
             None
         """
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
         response = self.dce_transport._enum_folders(folder_path, start_index)
-        if response['ErrorCode'] == 0:
-            folders = response['pNames']
-            found_folders = [f['Data'].strip("\x00") for f in folders]
+        if response["ErrorCode"] == 0:
+            folders = response["pNames"]
+            found_folders = [f["Data"].strip("\x00") for f in folders]
             for folder_name in found_folders:
                 if not folder_path == "\\":
                     full_folder_path = folder_path + "\\" + folder_name
@@ -78,8 +78,8 @@ class schtasks():
             start_index (int): The starting index for the enumeration. Defaults to 0.
         """
         print_info("Getting all tasks, this might take a while...")
-        folder="\\"
-        start_index=0
+        folder = "\\"
+        start_index = 0
         print_info("Enumerating Task Scheduler...")
         self.folder_list = ["\\"]
         self.folder_list_dict = {}
@@ -87,8 +87,7 @@ class schtasks():
         self.task_id = 1  # Reset the task ID counter
         self.view_tasks_in_folder()
         self.print_folder_tree()
-        #print_log(self.folder_list)
-
+        # print_log(self.folder_list)
 
     def print_folder_tree(self):
         """
@@ -100,12 +99,15 @@ class schtasks():
         printed using the `print_info` function.
 
         """
-        data = [{'ID': task_id, 'Folder': folder, 'TaskName': task} for folder, tasks in self.folder_list_dict.items() for task_id, task in tasks]
-        table = tabulate(data, headers='keys', tablefmt='psql')
+        data = [
+            {"ID": task_id, "Folder": folder, "TaskName": task}
+            for folder, tasks in self.folder_list_dict.items()
+            for task_id, task in tasks
+        ]
+        table = tabulate(data, headers="keys", tablefmt="psql")
         print_log(table)
-        #print total df entries
+        # print total df entries
         print_info(f"Found {len(data)} tasks")
-        
 
     def parse_folder_tasks(self, response, folder):
         """
@@ -119,17 +121,21 @@ class schtasks():
             None: If the response has an error code.
 
         """
-        if response['ErrorCode'] == 0:
-            tasks = response['pNames']
+        if response["ErrorCode"] == 0:
+            tasks = response["pNames"]
             for task in tasks:
-                data = task['Data']
-                if folder.strip('\x00') == "":
+                data = task["Data"]
+                if folder.strip("\x00") == "":
                     folder = "\\"
-                #print_info(f"\tFound Task: {folder}\\{data}")
+                # print_info(f"\tFound Task: {folder}\\{data}")
                 if folder in self.folder_list_dict:
-                    self.folder_list_dict[folder].append((self.task_id, data))  # Add the task ID to the task data
+                    self.folder_list_dict[folder].append(
+                        (self.task_id, data)
+                    )  # Add the task ID to the task data
                 else:
-                    self.folder_list_dict[folder] = [(self.task_id, data)]  # Add the task ID to the task data
+                    self.folder_list_dict[folder] = [
+                        (self.task_id, data)
+                    ]  # Add the task ID to the task data
 
                 self.task_id += 1  # Increment the task ID counter
         else:
@@ -137,26 +143,30 @@ class schtasks():
 
     def view_tasks_in_folder(self, folder=None):
         self.setup_dce_transport()
-        #self.dce_transport.connect('atsvc')
+        # self.dce_transport.connect('atsvc')
 
         folder_paths = self.folder_list if folder is None else [folder]
 
         for folder_path in folder_paths:
-            self.dce_transport._connect('atsvc')
+            self.dce_transport._connect("atsvc")
             folder_path = folder_path.rstrip("\\")
             try:
                 print_info(f"Enumerating tasks in folder: {folder_path}")
                 response = self.dce_transport._view_tasks_in_folder(folder_path)
-                #print_log(response.dump())
-                #print_info(f"Parsing Tasks in {folder_path}:")
+                # print_log(response.dump())
+                # print_info(f"Parsing Tasks in {folder_path}:")
                 self.parse_folder_tasks(response, folder_path)
             except Exception as e:
                 if "Bind context rejected: reason_not_specified" in str(e):
                     if folder is not None:
-                        print_warning("Unable to view tasks in folder: " + folder +" - invalid context")
+                        print_warning(
+                            "Unable to view tasks in folder: " + folder + " - invalid context"
+                        )
                 elif "ERROR_INVALID_NAME" in str(e):
                     if folder is not None:
-                        print_warning("Unable to view tasks in folder: " + folder +" - invalid name")
+                        print_warning(
+                            "Unable to view tasks in folder: " + folder + " - invalid name"
+                        )
                 else:
                     print_bad("Unable to view tasks in folder: " + folder_path)
                     print_log(e)
@@ -164,9 +174,9 @@ class schtasks():
     def task_run(self, args):
         abs_path = args.task_path
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
         response = self.dce_transport._run_task(abs_path)
-        if response['ErrorCode'] == 0:
+        if response["ErrorCode"] == 0:
             print_good(f"Task '{abs_path}' run successfully.")
         else:
             print_bad(f"Error running task '{abs_path}': {response['ErrorCode']}")
@@ -177,7 +187,7 @@ class schtasks():
         arguments = args.arguments
         folder_path = args.folder
         # generate random date in last year using format 2023-01-01T08:00:00
-        
+
         if args.date:
             new_date = reformat_datetime(args.date)
         else:
@@ -185,8 +195,8 @@ class schtasks():
 
         interval = None
         if args.interval:
-            #if less than 60, -> PT_M
-            #if greater than 60, -> PT_H
+            # if less than 60, -> PT_M
+            # if greater than 60, -> PT_H
             if int(args.interval) % 60 == 0:
                 h = int(args.interval) / 60
                 interval = f"PT{h}H"
@@ -246,7 +256,7 @@ class schtasks():
   </Actions>
 </Task>
 """
-        
+
         task_xml_interval = f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
@@ -299,13 +309,12 @@ class schtasks():
     </Exec>
   </Actions>
 </Task>
-"""     
+"""
         task_xml = task_xml_interval if args.interval else task_xml_once
-        #validate_xml(task_xml)
+        # validate_xml(task_xml)
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
-        
-        
+        self.dce_transport._connect("atsvc")
+
         print_info("Using Program: " + program)
         print_info("Using Arguments: " + arguments)
         print_info("Using Date: " + new_date)
@@ -313,7 +322,7 @@ class schtasks():
         print_debug("Task XML:")
         print_debug(task_xml)
         abs_path = folder_path + "\\" + task_name
-        abs_path = abs_path.replace(r'\\', chr(92))
+        abs_path = abs_path.replace(r"\\", chr(92))
         print_log(f"Creating Task: {abs_path}")
         try:
             response = self.dce_transport._create_task(task_name, folder_path, task_xml)
@@ -325,11 +334,10 @@ class schtasks():
                 print_bad(f"Error creating task '{task_name}': {e}")
                 return
 
-        if response['ErrorCode'] == 0:
+        if response["ErrorCode"] == 0:
             print_log(f"Task '{task_name}' created successfully.")
         else:
             print_log(f"Error creating task '{task_name}': {response['ErrorCode']}")
-
 
     def task_delete_handler(self, args):
         if not self.folder_list_dict and args.task_id:
@@ -340,7 +348,7 @@ class schtasks():
 
     def task_delete(self, task_arg):
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
 
         task_name = None
         task_path = None
@@ -351,7 +359,9 @@ class schtasks():
                     if task[0] == task_arg:
                         task_name = task[1]
                         task_path = folder
-                        task_abs_path = os.path.normpath(folder + "\\" + task_name).replace(r'\\', chr(92))
+                        task_abs_path = os.path.normpath(folder + "\\" + task_name).replace(
+                            r"\\", chr(92)
+                        )
                         break
 
         else:
@@ -364,10 +374,10 @@ class schtasks():
                 print_warning("Task ID not found")
                 return
             else:
-                #print_info(f"Chosen Task:\nTask Path: {task_path}\nTask Name: {task_name}")
+                # print_info(f"Chosen Task:\nTask Path: {task_path}\nTask Name: {task_name}")
                 try:
                     response = self.dce_transport._delete_task(task_abs_path)
-                    if response['ErrorCode'] == 0:
+                    if response["ErrorCode"] == 0:
                         print_good(f"Task '{task_abs_path}' deleted successfully.")
                     else:
                         print_bad(f"Error deleting task '{task_abs_path}': {response['ErrorCode']}")
@@ -378,17 +388,17 @@ class schtasks():
                     else:
                         print_bad(f"Error deleting task '{task_abs_path}': {e}")
                         return
-                
+
         except Exception as e:
             task_arg = str(task_arg)
             if "Bind context rejected: reason_not_specified" in str(e):
-                print_warning("Unable to delete task: " + task_arg +" - invalid context")
+                print_warning("Unable to delete task: " + task_arg + " - invalid context")
             elif "ERROR_INVALID_NAME" in str(e):
-                print_warning("Unable to delete task: " + task_arg +" - invalid name")
+                print_warning("Unable to delete task: " + task_arg + " - invalid name")
             else:
                 print_bad("Unable to delete task: " + task_arg)
                 print_debug("An error occurred:", sys.exc_info())
-                
+
     def task_show_handler(self, args):
 
         if not self.folder_list_dict and args.task_id:
@@ -397,14 +407,16 @@ class schtasks():
             task_arg = args.task_id if args.task_id else args.task_path
             self.view_task_details(task_arg)
         else:
-            print_warning("No task specified. Use taskshow -i <taskid> or taskshow <name> to specify a task.")
+            print_warning(
+                "No task specified. Use taskshow -i <taskid> or taskshow <name> to specify a task."
+            )
 
     def task_manager(self):
         pass
 
     def view_task_details(self, task_arg):
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
         # lookup taskpath and task name from dict with task_id
         task_name = None
         task_path = None
@@ -430,19 +442,18 @@ class schtasks():
             else:
                 print_info(f"Chosen Task:\nTask Path: {task_path}\nTask Name: {task_name}")
                 response = self.dce_transport._view_tasks(task_name, task_path)
-            if response['ErrorCode'] == 0:
-                task_xml = response['pXml']
+            if response["ErrorCode"] == 0:
+                task_xml = response["pXml"]
                 print_log(f"{task_xml}")
             else:
                 print_log(f"Error retrieving task '{task_name}': {response['ErrorCode']}")
-        
+
         except Exception as e:
             if "Bind context rejected: reason_not_specified" in str(e):
-                print_warning("Unable to view task: " + task_arg +" - invalid context")
+                print_warning("Unable to view task: " + task_arg + " - invalid context")
             elif "ERROR_INVALID_NAME" in str(e) or "ERROR_FILE_NOT_FOUND" in str(e):
-                print_warning("Unable to view task: " + task_arg +" - invalid name")
+                print_warning("Unable to view task: " + task_arg + " - invalid name")
             else:
                 print_bad("Unable to view task: " + task_arg)
                 print_bad("An error occurred:")
                 traceback.print_exc()
-        

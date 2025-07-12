@@ -115,8 +115,8 @@ Slinger offers multiple authentication methods.  All methods are built on impack
 
 ### Login with password
 
-```bash                                                                                                                                 
-python3 slinger.py --host 192.168.177.130 --username admin --password admin                                                        
+```bash
+python3 slinger.py --host 192.168.177.130 --username admin --password admin
 
       __,_____
      / __.==--"   SLINGER
@@ -142,7 +142,7 @@ Stop Time: 2023-12-30 23:46:09.633701
 ### Login with NTLM
 
 ```bash
-python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919CC3B1D7AD859697CFA659          
+python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919CC3B1D7AD859697CFA659
 
       __,_____
      / __.==--"   SLINGER
@@ -170,31 +170,31 @@ Stop Time: 2023-12-30 23:42:19.886846
 ```bash
 Available commands:
 ------------------------------------------
-!                     get                   regstop               svcdelete           
-#shell                hashdump              reguse                svcdisable          
-cat                   help                  reload                svcenable           
-cd                    hostname              rm                    svcenum             
-config                ifconfig              rmdir                 svcshow             
-debug-availcounters   info                  run                   svcstart            
-debug-counter         ipconfig              secretsdump           svcstop             
-disableservice        logoff                serviceadd            taskadd             
-disablesvc            logout                servicecreate         taskcreate          
-download              ls                    servicedel            taskdel             
-enableservice         mget                  servicedelete         taskdelete          
-enablesvc             mkdir                 servicedisable        taskenum            
-enumdisk              plugincmd             serviceenable         taskexec            
-enuminfo              portfwd               servicerun            tasklist            
-enuminterfaces        procs                 services              taskrm              
-enumlogons            ps                    servicesenum          taskrun             
-enumservices          put                   serviceshow           tasksenum           
-enumshares            pwd                   servicestart          taskshow            
-enumsys               quit                  servicestop           tasksshow           
-enumtasks             regcheck              set                   upload              
-enumtime              regcreate             shares                use                 
-enumtransport         regdel                showservice           who                 
-env                   regquery              showtask                                  
-exit                  regset                svcadd                                    
-fwrules               regstart              svccreate                                 
+!                     get                   regstop               svcdelete
+#shell                hashdump              reguse                svcdisable
+cat                   help                  reload                svcenable
+cd                    hostname              rm                    svcenum
+config                ifconfig              rmdir                 svcshow
+debug-availcounters   info                  run                   svcstart
+debug-counter         ipconfig              secretsdump           svcstop
+disableservice        logoff                serviceadd            taskadd
+disablesvc            logout                servicecreate         taskcreate
+download              ls                    servicedel            taskdel
+enableservice         mget                  servicedelete         taskdelete
+enablesvc             mkdir                 servicedisable        taskenum
+enumdisk              plugincmd             serviceenable         taskexec
+enuminfo              portfwd               servicerun            tasklist
+enuminterfaces        procs                 services              taskrm
+enumlogons            ps                    servicesenum          taskrun
+enumservices          put                   serviceshow           tasksenum
+enumshares            pwd                   servicestart          taskshow
+enumsys               quit                  servicestop           tasksshow
+enumtasks             regcheck              set                   upload
+enumtime              regcreate             shares                use
+enumtransport         regdel                showservice           who
+env                   regquery              showtask
+exit                  regset                svcadd
+fwrules               regstart              svccreate
 
 Type help <command> or <command> -h for more information on a specific command
 ```

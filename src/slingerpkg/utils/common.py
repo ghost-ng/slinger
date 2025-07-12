@@ -17,8 +17,9 @@ uuid_endpoints = {
     wkst.MSRPC_UUID_WKST: "wkst",
     tsch.MSRPC_UUID_TSCHS: "tsch",
     scmr.MSRPC_UUID_SCMR: "scmr",
-    rrp.MSRPC_UUID_RRP: "rrp"
+    rrp.MSRPC_UUID_RRP: "rrp",
 }
+
 
 def convert_to_bool(value):
     # Define strings that should be interpreted as True
@@ -32,6 +33,7 @@ def convert_to_bool(value):
     # For non-string values, use the standard bool conversion
     return bool(value)
 
+
 def reduce_slashes(paths):
     """
     Reduces all consecutive backslashes in each string of the list to a single backslash.
@@ -40,16 +42,18 @@ def reduce_slashes(paths):
     :return: List of strings with reduced backslashes
     """
     if type(paths) is not list:
-        return re.sub(r'\\+', r'\\', paths)
+        return re.sub(r"\\+", r"\\", paths)
     if type(paths) is list:
-        return [re.sub(r'\\+', r'\\', path) for path in paths]
+        return [re.sub(r"\\+", r"\\", path) for path in paths]
 
-def sizeof_fmt(num, suffix='B'):
-    for unit in ['','K','M','G','T','P','E','Z']:
+
+def sizeof_fmt(num, suffix="B"):
+    for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
         if abs(num) < 1024.0:
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix)
+    return "%.1f%s%s" % (num, "Yi", suffix)
+
 
 def run_local_command(command):
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -59,48 +63,53 @@ def run_local_command(command):
     if stderr:
         print_log(stderr.decode())
 
+
 def remove_null_terminator(s):
     # Remove common null terminator patterns from the end of the string
-    return re.sub(r'(\x00|\\0)$', '', s)
+    return re.sub(r"(\x00|\\0)$", "", s)
+
 
 def escape_single_backslashes(path):
     # Replace single backslashes with double backslashes, but not already doubled ones
-    return re.sub(r'(?<!\\)\\(?!\\)', r'\\\\', path)
+    return re.sub(r"(?<!\\)\\(?!\\)", r"\\\\", path)
+
 
 def enum_struct(obj, indent=0):
     """Recursively enumerate and print the fields of a struct."""
-    spacing = ' ' * indent
+    spacing = " " * indent
     if isinstance(obj, dict):
         for k, v in obj.items():
             if isinstance(v, bytes):
-                v = v.decode('utf-8', errors='replace')
+                v = v.decode("utf-8", errors="replace")
             print(f"{spacing}{k}: {v}")
-            if hasattr(v, '__dict__'):
+            if hasattr(v, "__dict__"):
                 enum_struct(v, indent + 4)
     else:
         for k, v in obj.__dict__.items():
             if isinstance(v, bytes):
-                v = v.decode('utf-8', errors='replace')
+                v = v.decode("utf-8", errors="replace")
             print(f"{spacing}{k}: {v}")
-            if hasattr(v, '__dict__'):
+            if hasattr(v, "__dict__"):
                 enum_struct(v, indent + 4)
-            elif hasattr(v, 'fields'):
+            elif hasattr(v, "fields"):
                 print(f"{spacing}{k} (fields):")
                 enum_struct(v.fields, indent + 4)
-            elif hasattr(v, 'structure'):
+            elif hasattr(v, "structure"):
                 print(f"{spacing}{k} (structure):")
                 enum_struct(dict(v.structure), indent + 4)
+
 
 def generate_random_date(lower_time_bound=None):
     if lower_time_bound is None:
         lower_time_bound = datetime.datetime.now() - datetime.timedelta(days=365)
     upper_time_bound = datetime.datetime.now()
-    #lower_bound = upper_bound - datetime.timedelta(days=365)
+    # lower_bound = upper_bound - datetime.timedelta(days=365)
     delta = upper_time_bound - lower_time_bound
     int_delta = (delta.days * 24 * 60 * 60) + delta.seconds
     random_second = random.randrange(int_delta)
     random_date = lower_time_bound + datetime.timedelta(seconds=random_second)
     return random_date.strftime("%Y-%m-%dT%H:%M:%S")
+
 
 def reformat_datetime(datetime_str):
     original_format = "%Y-%m-%d %H:%M:%S"  # Assuming the original format is "%Y-%m-%d %H:%M:%S"
@@ -114,21 +123,25 @@ def reformat_datetime(datetime_str):
 
     return formatted_datetime
 
+
 def xml_escape(data):
     replace_table = {
-            "&": "&amp;",
-            '"': "&quot;",
-            "'": "&apos;",
-            ">": "&gt;",
-            "<": "&lt;",
-            }
-    return ''.join(replace_table.get(c, c) for c in data)
+        "&": "&amp;",
+        '"': "&quot;",
+        "'": "&apos;",
+        ">": "&gt;",
+        "<": "&lt;",
+    }
+    return "".join(replace_table.get(c, c) for c in data)
 
 
 def generate_random_string(length=6, end=6):
     random.seed()
-    #return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
-    return ''.join(random.choices(string.ascii_letters + string.digits, k=random.randint(length, end)))
+    # return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+    return "".join(
+        random.choices(string.ascii_letters + string.digits, k=random.randint(length, end))
+    )
+
 
 def validate_xml(xml_string):
     try:
@@ -137,6 +150,7 @@ def validate_xml(xml_string):
     except ET.ParseError as e:
         print_log(e)
         return False
+
 
 def enter_interactive_debug_mode(local=None):
     import code
@@ -168,10 +182,10 @@ def enter_interactive_debug_mode(local=None):
 
     def custom_exit():
         print_warning("Invalid Exit Caught")
-    
+
     # Add custom exit handlers to the local scope
-    combined_scope['exit'] = custom_exit
-    combined_scope['quit'] = custom_exit
+    combined_scope["exit"] = custom_exit
+    combined_scope["quit"] = custom_exit
 
     try:
         # Override `sys.ps1` to include the warning message
@@ -181,14 +195,16 @@ def enter_interactive_debug_mode(local=None):
         sys.stdout = CustomStdout(original_stdout)
 
         # Start the interactive session
-        code.interact(banner=f"\n{colors.HEADER}[*] Interactive Debug Mode Activated{colors.ENDC}", local=combined_scope)
+        code.interact(
+            banner=f"\n{colors.HEADER}[*] Interactive Debug Mode Activated{colors.ENDC}",
+            local=combined_scope,
+        )
 
     finally:
         # Restore the original settings
         sys.ps1 = original_ps1
         sys.stdout = original_stdout
         print_info("Exited interactive mode")
-
 
 
 def get_config_value(key):
@@ -200,6 +216,7 @@ def get_config_value(key):
     except KeyError:
         print_warning(f"Config variable '{key}' does not exist")
         return
+
 
 # function to set a value in the config dictionary
 def set_config_value(key, value):
@@ -215,20 +232,26 @@ def set_config_value(key, value):
                         print_warning(f"Invalid value for '{key}', needs to be an integer")
                 else:
                     c["Value"] = value
-                
+
                 print_log(f"{key} --> {str(c['Value'])}")
-                
+
                 return
         print_warning(f"Config variable '{key}' does not exist")
     except KeyError:
         print_warning(f"Config variable '{key}' does not exist")
         return
-    
+
 
 # function to display the current config
 def show_config():
     # print the config in a tabulate table
-    print_log(tabulate([[c["Name"], c["Value"], c["Description"]] for c in config_vars], headers=["Name", "Value", "Description"]))
+    print_log(
+        tabulate(
+            [[c["Name"], c["Value"], c["Description"]] for c in config_vars],
+            headers=["Name", "Value", "Description"],
+        )
+    )
+
 
 class TeeOutput:
     def __init__(self, filename):
@@ -238,7 +261,7 @@ class TeeOutput:
 
     def write(self, data):
         self.stdout.write(data)  # Write to the console
-        self.file.write(data)    # Write to the file
+        self.file.write(data)  # Write to the file
 
     def flush(self):
         self.stdout.flush()
@@ -246,6 +269,7 @@ class TeeOutput:
 
     def close(self):
         self.file.close()
+
 
 @contextmanager
 def tee_output(filename):
@@ -261,5 +285,3 @@ def tee_output(filename):
         sys.stdout = tee.stdout
         sys.stderr = tee.stderr
         tee.close()
-
-
