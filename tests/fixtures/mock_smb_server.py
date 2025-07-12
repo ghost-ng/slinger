@@ -188,6 +188,58 @@ class MockSMBConnection:
         else:
             raise Exception(f"File {pathName} not found")
     
+    def openFile(self, tree_id: int, pathName: str, desiredAccess: int = 0x1) -> int:
+        """Open a file and return file ID (mock implementation)"""
+        if not self.authenticated:
+            raise Exception("Not authenticated")
+        
+        # Generate a mock file ID
+        file_id = hash(pathName) & 0xFFFF
+        return file_id
+    
+    def readFile(self, tree_id: int, file_id: int, offset: int = 0, bytesToRead: int = 4096) -> bytes:
+        """Read data from an open file at specified offset"""
+        if not self.authenticated:
+            raise Exception("Not authenticated")
+        
+        if not self.current_share or self.current_share not in self.shares:
+            raise Exception("No share connected")
+        
+        share = self.shares[self.current_share]
+        
+        # Find file by file_id (this is a simplified mapping)
+        # In a real implementation, we'd maintain a file handle table
+        for path, file_obj in share.files.items():
+            if hash(path) & 0xFFFF == file_id and not file_obj.is_directory:
+                content = file_obj.content
+                end_offset = min(offset + bytesToRead, len(content))
+                return content[offset:end_offset]
+        
+        raise Exception(f"File with ID {file_id} not found")
+    
+    def closeFile(self, tree_id: int, file_id: int) -> None:
+        """Close an open file"""
+        # Mock implementation - nothing to do
+        pass
+    
+    def getFileSize(self, shareName: str, pathName: str) -> int:
+        """Get file size without downloading"""
+        if not self.authenticated:
+            raise Exception("Not authenticated")
+        
+        if shareName not in self.shares:
+            raise Exception(f"Share {shareName} not found")
+        
+        share = self.shares[shareName]
+        
+        if not pathName.startswith("\\"):
+            pathName = "\\" + pathName
+        
+        if pathName in share.files and not share.files[pathName].is_directory:
+            return share.files[pathName].size
+        else:
+            raise Exception(f"File {pathName} not found")
+    
     def putFile(self, shareName: str, pathName: str, callback: Any = None) -> None:
         """Upload a file"""
         if not self.authenticated:
@@ -364,6 +416,32 @@ class MockSMBServer:
                 )
         self.connection.shares[name] = share
     
+    def add_file(self, remote_path: str, local_file_path: str) -> None:
+        """Add a file from local filesystem to the mock server"""
+        # Default to test_share if no share specified
+        if remote_path.startswith("/"):
+            share_name = "test_share"
+            file_path = remote_path[1:].replace("/", "\\")
+        else:
+            parts = remote_path.split("/", 1)
+            share_name = parts[0]
+            file_path = parts[1].replace("/", "\\") if len(parts) > 1 else ""
+        
+        if not file_path.startswith("\\"):
+            file_path = "\\" + file_path
+        
+        # Create share if it doesn't exist
+        if share_name not in self.connection.shares:
+            self.connection.shares[share_name] = MockShare(share_name)
+        
+        # Read file content
+        with open(local_file_path, 'rb') as f:
+            content = f.read()
+        
+        filename = file_path.split("\\")[-1]
+        self.connection.shares[share_name].files[file_path] = MockFile(filename, content)
+        print(f"Added file to mock server: {share_name}:{file_path} ({len(content)} bytes)")
+    
     def add_service(self, name: str, **kwargs) -> None:
         """Add a service to the mock server"""
         self.dce_connection.services[name] = {
@@ -410,3 +488,15 @@ class MockSMBServer:
     def log_command(self, command: str) -> None:
         """Log a command for verification"""
         self.command_history.append(command)
+    
+    def start(self) -> None:
+        """Start the mock server (placeholder for threading)"""
+        print(f"Mock SMB server started on {self.host}:{self.port}")
+        # In a real server, this would start the network listener
+        # For testing, we just mark as started
+        self.started = True
+    
+    def stop(self) -> None:
+        """Stop the mock server"""
+        print("Mock SMB server stopped")
+        self.started = False

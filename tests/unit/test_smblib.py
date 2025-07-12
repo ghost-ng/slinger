@@ -10,7 +10,7 @@ sys.path.insert(0, 'src')
 
 # We'll need to mock the actual module since it depends on impacket
 with patch('impacket.smbconnection.SMBConnection'):
-    from slingerpkg.lib.smblib import SMBLibMixin
+    from slingerpkg.lib.smblib import smblib
 
 
 class TestSMBLib:
@@ -19,7 +19,7 @@ class TestSMBLib:
     @pytest.fixture
     def mock_client(self):
         """Create a mock client with SMBLib mixin"""
-        client = Mock(spec=SMBLibMixin)
+        client = Mock(spec=smblib)
         
         # Add required attributes
         client.smb = MagicMock()

@@ -49,6 +49,7 @@ jobs:
         pre-commit run --all-files
     
     - name: Run unit tests
+      shell: bash
       run: |
         if [ -d "tests/unit" ] && [ "$(ls -A tests/unit)" ]; then
           pytest tests/unit -v --cov=slingerpkg --cov-report=xml --cov-report=term-missing
@@ -57,6 +58,7 @@ jobs:
         fi
     
     - name: Run integration tests
+      shell: bash
       run: |
         if [ -d "tests/integration" ] && [ "$(ls -A tests/integration)" ]; then
           pytest tests/integration -v --cov=slingerpkg --cov-append --cov-report=xml --cov-report=term-missing
@@ -66,6 +68,7 @@ jobs:
     
     - name: Run E2E tests
       if: matrix.os == 'ubuntu-latest'  # E2E tests only on Linux for now
+      shell: bash
       run: |
         if [ -d "tests/e2e" ] && [ "$(ls -A tests/e2e)" ]; then
           pytest tests/e2e -v --cov=slingerpkg --cov-append --cov-report=xml --cov-report=term-missing
