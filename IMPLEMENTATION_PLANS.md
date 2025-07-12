@@ -33,7 +33,7 @@ This document outlines implementation plans for advanced security and operationa
 
 3. **Search Implementation**
    ```python
-   def find_files(self, pattern, search_path=".", file_type="a", size_filter=None, 
+   def find_files(self, pattern, search_path=".", file_type="a", size_filter=None,
                   mtime_filter=None, use_regex=False, case_insensitive=False, max_depth=10):
        """
        Advanced file search with multiple criteria
@@ -74,7 +74,7 @@ This document outlines implementation plans for advanced security and operationa
    ```python
    parser_eventlog = subparsers.add_parser('eventlog', help='Windows event log operations')
    subparsers_eventlog = parser_eventlog.add_subparsers(dest='eventlog_action')
-   
+
    # Query logs
    parser_query = subparsers_eventlog.add_parser('query', help='Query event logs')
    parser_query.add_argument('-log', required=True, help='Log name (System, Security, Application)')
@@ -82,14 +82,14 @@ This document outlines implementation plans for advanced security and operationa
    parser_query.add_argument('-level', choices=['critical', 'error', 'warning', 'info'], help='Event level')
    parser_query.add_argument('-since', help='Events since date (YYYY-MM-DD)')
    parser_query.add_argument('-count', type=int, default=100, help='Maximum events to return')
-   
+
    # Enable/Disable logging
    parser_enable = subparsers_eventlog.add_parser('enable', help='Enable event logging')
    parser_enable.add_argument('log_name', help='Log to enable')
-   
+
    parser_disable = subparsers_eventlog.add_parser('disable', help='Disable event logging')
    parser_disable.add_argument('log_name', help='Log to disable')
-   
+
    # Monitor in real-time
    parser_monitor = subparsers_eventlog.add_parser('monitor', help='Monitor events in real-time')
    parser_monitor.add_argument('-log', required=True, help='Log to monitor')
@@ -103,10 +103,10 @@ This document outlines implementation plans for advanced security and operationa
        Query Windows Event Log via WMI
        Uses Win32_NTLogEvent WMI class
        """
-   
+
    def enable_event_logging(self, log_name):
        """Enable event logging for specified log"""
-   
+
    def disable_event_logging(self, log_name):
        """Disable event logging for specified log"""
    ```
@@ -127,7 +127,7 @@ This document outlines implementation plans for advanced security and operationa
 
 ## 3. Archive Operations (ZIP file handling)
 
-### Implementation Plan  
+### Implementation Plan
 **Priority: Medium | Complexity: Medium | Development Time: 2-3 weeks**
 
 #### Core Components
@@ -141,7 +141,7 @@ This document outlines implementation plans for advanced security and operationa
    ```python
    parser_zip = subparsers.add_parser('zip', help='Archive operations')
    subparsers_zip = parser_zip.add_subparsers(dest='zip_action')
-   
+
    # Create archive
    parser_create = subparsers_zip.add_parser('create', help='Create ZIP archive')
    parser_create.add_argument('archive_name', help='Name of archive to create')
@@ -149,14 +149,14 @@ This document outlines implementation plans for advanced security and operationa
    parser_create.add_argument('-compression', type=int, default=6, help='Compression level (0-9)')
    parser_create.add_argument('-password', help='Password protect the archive')
    parser_create.add_argument('-exclude', action='append', help='Exclude patterns')
-   
+
    # Extract archive
    parser_extract = subparsers_zip.add_parser('extract', help='Extract ZIP archive')
    parser_extract.add_argument('archive_name', help='Archive to extract')
    parser_extract.add_argument('-dest', default='.', help='Destination directory')
    parser_extract.add_argument('-password', help='Archive password')
    parser_extract.add_argument('-overwrite', action='store_true', help='Overwrite existing files')
-   
+
    # List contents
    parser_list = subparsers_zip.add_parser('list', help='List archive contents')
    parser_list.add_argument('archive_name', help='Archive to list')
@@ -164,11 +164,11 @@ This document outlines implementation plans for advanced security and operationa
 
 3. **Implementation Details**
    ```python
-   def create_archive_remote(self, archive_name, file_patterns, compression_level=6, 
+   def create_archive_remote(self, archive_name, file_patterns, compression_level=6,
                            password=None, exclude_patterns=None):
        """Create ZIP archive on remote system"""
-   
-   def extract_archive_remote(self, archive_name, destination=".", password=None, 
+
+   def extract_archive_remote(self, archive_name, destination=".", password=None,
                             overwrite=False):
        """Extract ZIP archive on remote system"""
    ```
@@ -195,7 +195,7 @@ This document outlines implementation plans for advanced security and operationa
 
 2. **Enhanced Download Handler**
    ```python
-   def download_with_resume(self, remote_path, local_path, chunk_size=1024*1024, 
+   def download_with_resume(self, remote_path, local_path, chunk_size=1024*1024,
                           max_retries=3, resume=True):
        """
        Download with resume capability
@@ -207,7 +207,7 @@ This document outlines implementation plans for advanced security and operationa
 
 3. **CLI Integration**
    ```python
-   parser_download.add_argument('--resume', action='store_true', 
+   parser_download.add_argument('--resume', action='store_true',
                               help='Resume interrupted download')
    parser_download.add_argument('--chunk-size', type=int, default=1048576,
                               help='Chunk size for transfer (bytes)')
@@ -251,7 +251,7 @@ This document outlines implementation plans for advanced security and operationa
    ```python
    def modify_timestamps(self, file_path, created=None, modified=None, accessed=None):
        """Modify file timestamps via SMB file operations"""
-   
+
    def clone_timestamps(self, source_file, target_file):
        """Copy timestamps from source to target file"""
    ```
@@ -279,12 +279,12 @@ This document outlines implementation plans for advanced security and operationa
    ```python
    parser_logclean = subparsers.add_parser('logclean', help='Clean system logs')
    subparsers_clean = parser_logclean.add_subparsers(dest='clean_action')
-   
+
    # Clear event logs
    parser_clear = subparsers_clean.add_parser('clear', help='Clear event logs')
    parser_clear.add_argument('log_name', help='Log to clear (System, Security, Application)')
    parser_clear.add_argument('--backup', help='Backup log before clearing')
-   
+
    # Selective cleaning
    parser_selective = subparsers_clean.add_parser('selective', help='Selective log cleaning')
    parser_selective.add_argument('log_file', help='Log file to clean')
@@ -297,7 +297,7 @@ This document outlines implementation plans for advanced security and operationa
    ```python
    def clear_event_log(self, log_name, backup_path=None):
        """Clear Windows Event Log with optional backup"""
-   
+
    def selective_log_clean(self, log_file, patterns=None, timeframe=None, keywords=None):
        """Remove specific entries from log files"""
    ```
@@ -326,13 +326,13 @@ This document outlines implementation plans for advanced security and operationa
    ```python
    parser_inject = subparsers.add_parser('inject', help='Process injection operations')
    subparsers_inject = parser_inject.add_subparsers(dest='inject_action')
-   
+
    # Process hollowing
    parser_hollow = subparsers_inject.add_parser('hollow', help='Process hollowing')
    parser_hollow.add_argument('target_process', help='Target process to hollow')
    parser_hollow.add_argument('payload', help='Payload to inject')
    parser_hollow.add_argument('-technique', choices=['classic', 'manual_map', 'module_stomping'])
-   
+
    # DLL injection
    parser_dll = subparsers_inject.add_parser('dll', help='DLL injection')
    parser_dll.add_argument('target_pid', type=int, help='Target process PID')
@@ -386,7 +386,7 @@ This document outlines implementation plans for advanced security and operationa
        - Supports both visible and hidden execution
        - Returns exit code and output
        """
-   
+
    def wmi_interactive_shell(self):
        """WMI-based interactive shell with command history"""
    ```
@@ -422,7 +422,7 @@ This document outlines implementation plans for advanced security and operationa
 
 ### Phase 1 (Weeks 1-6): Core Infrastructure
 1. File Search Functionality
-2. Resume Downloads  
+2. Resume Downloads
 3. WMI Command Execution
 
 ### Phase 2 (Weeks 7-12): System Integration

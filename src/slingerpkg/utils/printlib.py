@@ -3,15 +3,17 @@ from slingerpkg.utils.logger import SlingerLogger, error_logging
 from slingerpkg.var.config import config_vars
 import os
 
+
 class colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[0;32m'
-    WARNING = '\033[91m'
-    BLUE = '\033[0;34m'
-    YELLOW = '\033[93m'
-    FAIL = '\033[1;31m'
-    ENDC = '\033[0m'
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKGREEN = "\033[0;32m"
+    WARNING = "\033[91m"
+    BLUE = "\033[0;34m"
+    YELLOW = "\033[93m"
+    FAIL = "\033[1;31m"
+    ENDC = "\033[0m"
+
 
 def get_config_value(key):
     try:
@@ -50,46 +52,50 @@ def print_block(msg, color=colors.YELLOW, block_char="*", max_width=50):
     # Print the block
     border = block_char * required_width
     print_log(f"{color}{border}{colors.ENDC}")  # Top border
-    #print_log(centered_msg)  # Centered message
+    # print_log(centered_msg)  # Centered message
     print_log(f"{color}{centered_msg}{colors.ENDC}")
-    #print_log(border)  # Bottom border
+    # print_log(border)  # Bottom border
     print_log(f"{color}{border}{colors.ENDC}")
 
 
-
-
 def print_log(msg="", end="\n"):
-    #TODO: test codecs
-    #print(msg.encode().decode(get_config_value("Codec")), end=end)
+    # TODO: test codecs
+    # print(msg.encode().decode(get_config_value("Codec")), end=end)
 
     print(msg, end=end)
     try:
-        #TODO: test codecs
-        #log.debug(msg.encode().decode(get_config_value("Codec")))
+        # TODO: test codecs
+        # log.debug(msg.encode().decode(get_config_value("Codec")))
         log.debug(msg)
     except Exception as e:
         print_warning(f"Unable to write to log file: {e}")
         raise e
 
+
 def print_good(msg):
     print_log(f"{colors.OKGREEN}[+] {msg}{colors.ENDC}")
+
 
 def print_bad(msg):
     print_log(f"{colors.FAIL}[-] {msg}{colors.ENDC}")
 
+
 def print_warning(msg):
     print_log(f"{colors.WARNING}[!] {msg}{colors.ENDC}")
 
+
 def print_info(msg):
     print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
+
 
 def print_verbose(msg):
     if get_config_value("Verbose"):
         print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
+
 def print_debug(msg, e=None, force_debug=False):
     # find the Debug Dict in config
-    
+
     if e:
         verbose_trace = error_logging(e)
     else:
@@ -113,13 +119,14 @@ def print_debug(msg, e=None, force_debug=False):
         if not force_debug:
             return
     print_log(debug_msg)
- 
+
+
 def trace_print(*args, **kwargs):
     # Print the standard message
-    #print_log(*args, **kwargs)
+    # print_log(*args, **kwargs)
 
     # Check if tracing is requested
-    if kwargs.get('trace_calls', False):
+    if kwargs.get("trace_calls", False):
         # Create a stack trace from the current frame
         frame = inspect.currentframe().f_back
 
@@ -133,7 +140,7 @@ def trace_print(*args, **kwargs):
             if module:
                 module_name = module.__name__
             else:
-                module_name = '(unknown module)'
+                module_name = "(unknown module)"
 
             filename = frame.f_code.co_filename
             lineno = frame.f_lineno
@@ -145,9 +152,10 @@ def trace_print(*args, **kwargs):
         # Return the message
         return message
 
+
 def print_struct(struct, indent=0):
     """Recursively print a struct without knowing the keys."""
-    spacing = ' ' * indent
+    spacing = " " * indent
     if isinstance(struct, dict):
         for key, value in struct.items():
             if isinstance(value, (dict, list)):
@@ -155,7 +163,7 @@ def print_struct(struct, indent=0):
                 print_struct(value, indent + 4)
             else:
                 if isinstance(value, bytes):
-                    value = value.decode('utf-8', errors='replace')
+                    value = value.decode("utf-8", errors="replace")
                 print(f"{spacing}{key}: {value}")
     elif isinstance(struct, list):
         for index, item in enumerate(struct):
@@ -163,10 +171,11 @@ def print_struct(struct, indent=0):
             print_struct(item, indent + 4)
     else:
         if isinstance(struct, bytes):
-            struct = struct.decode('utf-8', errors='replace')
+            struct = struct.decode("utf-8", errors="replace")
         print(f"{spacing}{struct}")
 
-log_location = os.path.expanduser(get_config_value('Logs_Folder'))
+
+log_location = os.path.expanduser(get_config_value("Logs_Folder"))
 # Initialize the logger at the start of your application
 log = SlingerLogger(log_location, "slingerlog").get_logger()
 

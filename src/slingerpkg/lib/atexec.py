@@ -8,33 +8,32 @@ import os
 import traceback
 
 
-class atexec():
+class atexec:
     def __init__(self):
         print_debug("ATExec Module Loaded!")
-    
+
     def _cmd_split(self, cmdline):
         cmdline = cmdline.split(" ", 1)
         cmd = cmdline[0]
-        args = cmdline[1] if len(cmdline) > 1 else ''
+        args = cmdline[1] if len(cmdline) > 1 else ""
 
         return [cmd, args]
 
-
-    def _create_task(self, args):    
+    def _create_task(self, args):
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
 
         cmd = "cmd.exe"
-        #arguments = "/C %s > %%windir%%\\Temp\\%s 2>&1" % (self.__command, tmpFileName)
+        # arguments = "/C %s > %%windir%%\\Temp\\%s 2>&1" % (self.__command, tmpFileName)
         share_path = args.share_path
         # remove trailing backslash
         share_path = share_path.rstrip("\\")
         cmd = "cmd.exe"
         if not args.save_name:
-            random_save_name = generate_random_string(8,10) + ".txt"
+            random_save_name = generate_random_string(8, 10) + ".txt"
         else:
             random_save_name = args.save_name
-        #save_file_path = args.path + f"{share_path}\\{random_save_name}"
+        # save_file_path = args.path + f"{share_path}\\{random_save_name}"
         save_file_path = ntpath.join(share_path, random_save_name)
         arguments = f"/C {args.command} > {save_file_path} 2>&1"
         timestamp = generate_random_date()
@@ -87,16 +86,18 @@ class atexec():
 	</Actions>
 </Task>
 """
-        print_info(f"""Task Details: 
+        print_info(
+            f"""Task Details:
 Name:     '{args.name}'
 Command:  '{args.command}'
 Share Path: '{share_path}'
-Saved to: '{save_file_path}'""")
+Saved to: '{save_file_path}'"""
+        )
         resp = self.dce_transport._create_task(args.name, args.folder, xml)
         return resp, random_save_name
 
     def atexec(self, args):
-        
+
         task_name = args.name
         task_author = args.author
         task_description = args.description
@@ -105,33 +106,32 @@ Saved to: '{save_file_path}'""")
 
         # get a list of shares
         share_info_dict = self.list_shares(args=None, echo=False, ret=True)
-        #print(share_info_dict)
+        # print(share_info_dict)
         share_exists = False
         if share_info_dict is None:
             print_bad("Failed to list shares")
             return
         # check if the share exists
         for share_info in share_info_dict:
-            if share_info['name'] == args.share:
+            if share_info["name"] == args.share:
                 share_exists = True
-                args.share_path = ntpath.join(share_info['path'], args.path)
+                args.share_path = ntpath.join(share_info["path"], args.path)
                 print_info(f"Share '{args.share}' resolves to '{share_info['path']}'")
                 print_debug(f"Full Resolved Path: '{args.share_path}'")
                 break
-        
+
         if not share_exists:
             print_bad(f"Share '{args.name}' does not exist")
             return
 
-
         # Connect to the pipe
         self.setup_dce_transport()
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
         # Create the task
         save_file_name = None
         try:
             response, save_file_name = self._create_task(args)
-            if response['ErrorCode'] == 0:
+            if response["ErrorCode"] == 0:
                 print_good(f"Task '{args.name}' created successfully")
             else:
                 print_bad(f"Failed to create task '{args.name}'")
@@ -141,16 +141,15 @@ Saved to: '{save_file_path}'""")
             if "ERROR_ALREADY_EXISTS" in str(e):
                 print_warning(f"Task file '{args.name}' already exists, please delete it first")
             return
-        
-        
-        #Reconnect to the pipe
-        self.dce_transport._connect('atsvc')
-        
+
+        # Reconnect to the pipe
+        self.dce_transport._connect("atsvc")
+
         # Run the task
         try:
             full_task_path = ntpath.join(task_folder, task_name)
             response = self.dce_transport._run_task(full_task_path)
-            if response['ErrorCode'] == 0:
+            if response["ErrorCode"] == 0:
                 print_good(f"Task '{full_task_path}' executed successfully")
             else:
                 print_bad(f"Failed to execute task '{full_task_path}'")
@@ -158,15 +157,15 @@ Saved to: '{save_file_path}'""")
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
             return
-        
+
         # Reconnect to the pipe
-        self.dce_transport._connect('atsvc')
+        self.dce_transport._connect("atsvc")
 
         # Delete the task
         try:
-            
+
             response = self.dce_transport._delete_task(full_task_path)
-            if response['ErrorCode'] == 0:
+            if response["ErrorCode"] == 0:
                 print_good(f"Task '{args.name}' deleted successfully")
             else:
                 print_bad(f"Failed to delete task '{args.name}'")
@@ -174,14 +173,14 @@ Saved to: '{save_file_path}'""")
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
             return
-        
+
         # Retrieve the output
         try:
-            args.remote_path = ntpath.join("\\",args.path, save_file_name)
+            args.remote_path = ntpath.join("\\", args.path, save_file_name)
             # connect to the share
             self.connect_share(args)
             # reverse the slashes
-            #args.remote_path = args.remote_path.replace("\\", "/")
+            # args.remote_path = args.remote_path.replace("\\", "/")
             print_info(f"Output saved to '{args.remote_path}'")
             sleep(args.wait)
             self.cat(args, echo=False)
@@ -189,7 +188,7 @@ Saved to: '{save_file_path}'""")
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
             return
-        
+
     def atexec_handler(self, args):
         cmd = None
         # handle mistakes in which the user specifies a full path

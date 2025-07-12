@@ -106,7 +106,7 @@ class TestExample:
         client = Mock()
         client.host = "192.168.1.100"
         return client
-    
+
     def test_example_function(self, mock_client):
         """Test example functionality"""
         result = example_function(mock_client)
@@ -131,7 +131,7 @@ class TestCommandIntegration:
         runner.start(host="192.168.1.100", username="test", password="test")
         yield runner
         runner.stop()
-    
+
     def test_command_execution(self, runner):
         """Test command execution"""
         output = runner.send_command("ls")

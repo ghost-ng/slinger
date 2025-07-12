@@ -1,7 +1,7 @@
 # my_plugin.py
-from slingerpkg.lib.plugin_base import PluginBase   # required
+from slingerpkg.lib.plugin_base import PluginBase  # required
 import argparse  # required
-from slingerpkg.utils.printlib import * # required, use pre-defined print functions
+from slingerpkg.utils.printlib import *  # required, use pre-defined print functions
 
 from slingerpkg.utils.common import tee_output  # optional but cool
 
@@ -11,21 +11,27 @@ author_meta = "https://github.com/ghost-ng/"
 credits = "iamSiddhartha"
 version = "1.0"
 
+
 class MyPlugin(PluginBase):
     # Name
     name = plugin_name  # required
-    author_block = {"name": author_name, "meta": author_meta, "credits": credits, "version": version} # required
+    author_block = {
+        "name": author_name,
+        "meta": author_meta,
+        "credits": credits,
+        "version": version,
+    }  # required
 
-    def get_parser(self):   # required
+    def get_parser(self):  # required
         # define a new subparser to return to merge with the main parser
-        parser = argparse.ArgumentParser(add_help=False)    # required
-        subparsers = parser.add_subparsers(dest='command')  # required
+        parser = argparse.ArgumentParser(add_help=False)  # required
+        subparsers = parser.add_subparsers(dest="command")  # required
         plugincmd_parser = subparsers.add_parser("audit", help="System Audit")  # required
         plugincmd_parser.add_argument("-s", "--save", help="Save to file")
-        plugincmd_parser.set_defaults(func=self.run) # required entry point
+        plugincmd_parser.set_defaults(func=self.run)  # required entry point
         return parser
 
-    def run(self, args):    # required
+    def run(self, args):  # required
         print_block(f"Running System Audit")
 
         # Dictionary mapping audit actions to their corresponding method calls
@@ -49,7 +55,7 @@ class MyPlugin(PluginBase):
                 print_log()
                 print_block(f"{key}", color=colors.BLUE)
                 try:
-                    result = func()  
+                    result = func()
                     if result:
                         print_log(f"{key} Result: {result}")
                 except Exception as e:

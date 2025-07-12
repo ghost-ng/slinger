@@ -63,7 +63,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 #### `create_ntlm_hash(password)`
 - **Purpose**: Generate NTLM hash from plaintext password
-- **Parameters**: 
+- **Parameters**:
   - `password` (str): Plaintext password
 - **Returns**: str - NTLM hash or None on failure
 - **Description**: Uses passlib to create NTLM hash for authentication
@@ -74,14 +74,14 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `upload_handler(args)`
 - **Purpose**: Handle file upload command with path validation
-- **Parameters**: 
+- **Parameters**:
   - `args`: Parsed arguments containing local_path and remote_path
 - **Returns**: None
 - **Description**: Validates paths, shows verbose output, calls upload()
 
 ##### `upload(local_path, remote_path)`
 - **Purpose**: Core file upload functionality
-- **Parameters**: 
+- **Parameters**:
   - `local_path` (str): Local file path to upload
   - `remote_path` (str): Remote destination path
 - **Returns**: None
@@ -89,7 +89,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `download_handler(args, echo=True)`
 - **Purpose**: Handle file download command with path validation
-- **Parameters**: 
+- **Parameters**:
   - `args`: Parsed arguments containing remote_path and local_path
   - `echo` (bool): Whether to show progress messages
 - **Returns**: None
@@ -98,7 +98,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `download(remote_path, local_path, echo=True)`
 - **Purpose**: Core file download functionality
-- **Parameters**: 
+- **Parameters**:
   - `remote_path` (str): Remote file path to download
   - `local_path` (str): Local destination path
   - `echo` (bool): Whether to show progress messages
@@ -109,28 +109,28 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `ls(args=None)`
 - **Purpose**: List directory contents with various options
-- **Parameters**: 
+- **Parameters**:
   - `args`: Parsed arguments with path, sort, recursive, output options
 - **Returns**: None
 - **Description**: Lists files/directories, supports recursive listing, output to file
 
 ##### `cd(path)`
 - **Purpose**: Change current directory
-- **Parameters**: 
+- **Parameters**:
   - `path` (str): Target directory path
 - **Returns**: None
 - **Description**: Validates and changes current working directory
 
 ##### `connect_share(args)`
 - **Purpose**: Connect to a specific SMB share
-- **Parameters**: 
+- **Parameters**:
   - `args`: Parsed arguments containing share name
 - **Returns**: None
 - **Description**: Establishes connection to specified share
 
 ##### `find_handler(args)`
 - **Purpose**: Handle file search command with pattern matching and filtering
-- **Parameters**: 
+- **Parameters**:
   - `args`: Parsed arguments containing pattern, type, size, depth, timeout, and progress options
 - **Returns**: None
 - **Description**: Searches for files/directories matching specified criteria
@@ -146,7 +146,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `_find_files(pattern, search_path, timeout=120, ...)`
 - **Purpose**: Core file search implementation with recursive directory traversal
-- **Parameters**: 
+- **Parameters**:
   - `pattern` (str): Search pattern (wildcard or regex)
   - `search_path` (str): Starting directory for search
   - `timeout` (int): Search timeout in seconds (configurable via CLI)
@@ -163,7 +163,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `_validate_path_security(current_path, target_path)`
 - **Purpose**: Validate and normalize paths for security
-- **Parameters**: 
+- **Parameters**:
   - `current_path` (str): Current working directory
   - `target_path` (str): User-provided target path
 - **Returns**: tuple (bool, str, str) - (is_valid, resolved_path, warning_message)
@@ -171,7 +171,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 ##### `_resolve_remote_path(user_path, default_name=None)`
 - **Purpose**: Resolve user-provided paths for remote operations
-- **Parameters**: 
+- **Parameters**:
   - `user_path` (str): User-provided path
   - `default_name` (str): Default filename if path is empty
 - **Returns**: tuple (bool, str, str) - (success, resolved_path, error_message)
@@ -182,21 +182,21 @@ The project follows a modular, plugin-based architecture with these key componen
 
 #### `setup_cli_parser(slingerClient)`
 - **Purpose**: Configure argparse-based command system
-- **Parameters**: 
+- **Parameters**:
   - `slingerClient`: SMB client instance for command routing
 - **Returns**: ArgumentParser - Configured parser with all commands
 - **Description**: Sets up all available commands with their arguments and handlers
 
 #### `print_all_commands(parser)`
 - **Purpose**: Display available commands in formatted columns
-- **Parameters**: 
+- **Parameters**:
   - `parser`: ArgumentParser instance
 - **Returns**: None
 - **Description**: Shows user all available commands in 4-column format
 
 #### `force_help(parser, command)`
 - **Purpose**: Show help for specific command
-- **Parameters**: 
+- **Parameters**:
   - `parser`: ArgumentParser instance
   - `command` (str): Command name to show help for
 - **Returns**: None
@@ -206,14 +206,14 @@ The project follows a modular, plugin-based architecture with these key componen
 
 #### `print_verbose(msg)`
 - **Purpose**: Display verbose messages when verbose mode is enabled
-- **Parameters**: 
+- **Parameters**:
   - `msg` (str): Message to display
 - **Returns**: None
 - **Description**: Checks verbose config setting and prints with [*] prefix
 
 #### `print_good(msg)`, `print_bad(msg)`, `print_warning(msg)`, `print_info(msg)`
 - **Purpose**: Colored output functions for different message types
-- **Parameters**: 
+- **Parameters**:
   - `msg` (str): Message to display
 - **Returns**: None
 - **Description**: Provides consistent colored output with appropriate prefixes
@@ -222,7 +222,7 @@ The project follows a modular, plugin-based architecture with these key componen
 
 #### Configuration Variables
 - **Debug**: Enable debug messages (bool)
-- **Verbose**: Enable verbose output (bool) 
+- **Verbose**: Enable verbose output (bool)
 - **Logs_Folder**: Directory for log files (str)
 - **History_File**: Command history file location (str)
 - **Plugin_Folders**: Directories to search for plugins (list)
@@ -232,14 +232,14 @@ The project follows a modular, plugin-based architecture with these key componen
 
 #### `tee_output(filename)`
 - **Purpose**: Context manager for redirecting output to file and console
-- **Parameters**: 
+- **Parameters**:
   - `filename` (str): Output file path
 - **Returns**: Context manager
 - **Description**: Allows saving command output to file while still showing on console
 
 #### `TeeOutput` class
 - **Purpose**: Output redirection implementation
-- **Methods**: 
+- **Methods**:
   - `write(data)`: Write to both console and file
   - `flush()`: Flush both outputs
   - `close()`: Close file handle

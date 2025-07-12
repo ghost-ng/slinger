@@ -61,7 +61,7 @@ The Slinger project follows a modular architecture with clear separation of conc
 
 ### User Experience Improvements
 1. **Enhanced Verbose Output**: More granular control over what information is displayed
-2. **Better Error Messages**: More informative feedback for common issues  
+2. **Better Error Messages**: More informative feedback for common issues
 3. **Path Auto-completion**: Smart completion based on remote directory structure
 4. **Progress Indicators**: For long-running operations like large file transfers
 
@@ -125,7 +125,7 @@ Eight advanced features have been identified and planned with detailed technical
 
 **Technical Implementation:**
 - Core method: `_find_files()` with recursive `_recursive_find()` helper
-- Timeout protection using shared warning flag to prevent duplicate messages  
+- Timeout protection using shared warning flag to prevent duplicate messages
 - Verbose progress output shows real-time directory traversal
 - Integration with existing CLI argument parser system
 - Error handling for network issues and access denied scenarios

