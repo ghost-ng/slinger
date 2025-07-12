@@ -20,6 +20,7 @@ config_vars = [
     {"Name": "History_File", "Value": "~/.slinger/history", "Description": "History file location", "Type": "str"},
     {"Name": "Codec", "Value": "utf-8", "Description": "Codec to use for print decoding", "Type": "str"},
     {"Name": "Plugin_Folders", "Value": ["~/.slinger/plugins", plugin_dir], "Description": "Folder to store plugins", "Type": "str"},
+    {"Name": "Verbose", "Value": False, "Description": "Enable verbose output for operations", "Type": "bool"},
 ]
 
 logwriter = None

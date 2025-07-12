@@ -82,6 +82,7 @@ def main():
     parser.add_argument('-domain', '--domain', default='', help='Domain for authentication')
     parser.add_argument('-port', type=int, default=445, help='Port to connect to')
     parser.add_argument('-nojoy', action='store_true', help='Turn off emojis')
+    parser.add_argument('-verbose', action='store_true', help='Enable verbose output')
 
     
 
@@ -102,6 +103,8 @@ def main():
     password = None
     if prgm_args.debug:
         set_config_value('debug', True)
+    if prgm_args.verbose:
+        set_config_value('Verbose', True)
 
     if prgm_args.password is None and not prgm_args.ntlm and not prgm_args.kerberos:
         password = getpass.getpass(prompt='Password: ')
@@ -167,10 +170,11 @@ def main():
                     user_input = session.prompt(to_formatted_text(ANSI(prompt_text)), complete_while_typing=False, complete_style='readline')
 
                 logwriter.info(user_input)
-                split = shlex.split(user_input)
-                #user_input = prompt('', history=history)
-                #user_input = input(prompt_text)
-                split = shlex.split(user_input)
+                try:
+                    split = shlex.split(user_input)
+                except ValueError:
+                    # Fall back to simple split if shlex fails
+                    split = user_input.split()
                 args = slinger_parser.parse_args(split)
                 if hasattr(args, 'func'):
                     args.func(args)
