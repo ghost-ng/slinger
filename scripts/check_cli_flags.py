@@ -115,9 +115,15 @@ def main():
     print("          Multi-letter flags use double hyphen (--list)")
     print("=" * 60)
 
-    for py_file in src_dir.rglob("*.py"):
-        violations = extract_add_argument_calls(py_file)
-        all_violations.extend(violations)
+    # Only check CLI-related files, exclude internal tools like secretsdump
+    cli_files = [src_dir / "slingerpkg" / "utils" / "cli.py", src_dir / "slingerpkg" / "slinger.py"]
+
+    for py_file in cli_files:
+        if py_file.exists():
+            violations = extract_add_argument_calls(py_file)
+            all_violations.extend(violations)
+        else:
+            print(f"Warning: CLI file not found: {py_file}")
 
     # Report violations
     if all_violations:
@@ -154,7 +160,7 @@ def main():
         sys.exit(1)
     else:
         print("✅ All CLI flags adhere to naming standards!")
-        print(f"   Checked {len(list(src_dir.rglob('*.py')))} Python files")
+        print(f"   Checked {len([f for f in cli_files if f.exists()])} CLI files")
 
 
 if __name__ == "__main__":

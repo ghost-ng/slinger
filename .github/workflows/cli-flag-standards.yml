@@ -97,13 +97,18 @@ jobs:
 
             return violations[0] if violations else None
 
-        # Check all Python files in src/
+        # Check only CLI-related files, exclude internal tools like secretsdump
         src_dir = Path('src')
         all_violations = []
 
-        if src_dir.exists():
-            for py_file in src_dir.rglob('*.py'):
-                violations = extract_add_argument_calls(py_file)
+        cli_files = [
+            src_dir / 'slingerpkg' / 'utils' / 'cli.py',
+            src_dir / 'slingerpkg' / 'slinger.py'
+        ]
+
+        for py_file in cli_files:
+            if py_file.exists():
+                violations = extract_add_argument_calls(str(py_file))
                 all_violations.extend(violations)
 
         # Report violations
