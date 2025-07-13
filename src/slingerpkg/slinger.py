@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.slingerclient import SlingerClient
+from slingerpkg.lib.local_log_processor import LocalLogProcessor
 from slingerpkg.utils.common import (
     get_config_value,
     set_config_value,
@@ -315,6 +316,8 @@ def main():
 
             elif args.command == "!":
                 local_command = " ".join(args.commands)
+
+                # Enhanced bang command processing with log processing support
                 if local_command.startswith("cd "):
                     new_dir = local_command[3:]
                     try:
@@ -323,6 +326,39 @@ def main():
                     except Exception as e:
                         print_debug("", sys.exc_info())
                         print_log(f"Failed to change local directory to {new_dir}: {e}")
+
+                # Check for log processing commands
+                elif any(
+                    local_command.startswith(cmd)
+                    for cmd in [
+                        "logparse",
+                        "logclean",
+                        "logreplace",
+                        "logmerge",
+                        "logexport",
+                        "logstats",
+                    ]
+                ):
+                    try:
+                        # Initialize local log processor if not already done
+                        if not hasattr(slingerClient, "local_log_processor"):
+                            slingerClient.local_log_processor = LocalLogProcessor()
+
+                        # Process the log command
+                        command_line = f"! {local_command}"
+                        success = slingerClient.local_log_processor.process_bang_command(
+                            command_line
+                        )
+
+                        if success:
+                            print_good("Log processing command completed successfully")
+                        else:
+                            print_warning("Log processing command failed or had warnings")
+
+                    except Exception as e:
+                        print_bad(f"Log processing error: {e}")
+                        print_debug("Log processing error details", sys.exc_info())
+
                 else:
                     print_info("Running Local Command: " + local_command)
                     run_local_command(local_command)

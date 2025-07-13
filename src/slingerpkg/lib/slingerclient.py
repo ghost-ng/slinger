@@ -4,6 +4,7 @@ from slingerpkg.lib.atexec import atexec
 from slingerpkg.lib.scm import scm
 from slingerpkg.lib.smblib import smblib
 from slingerpkg.lib.secrets import secrets
+from slingerpkg.lib.wmi_eventlog import WMIEventLog
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from slingerpkg.lib.dcetransport import *
@@ -22,7 +23,7 @@ dialect_mapping = {
 }
 
 
-class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec):
+class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, WMIEventLog):
     def __init__(
         self, host, username, password, domain, port=445, ntlm_hash=None, use_kerberos=False
     ):
@@ -32,6 +33,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec):
         smblib.__init__(self)
         secrets.__init__(self)
         atexec.__init__(self)
+        WMIEventLog.__init__(self)
         self.host = host
         self.username = username
         self.password = password

@@ -2291,3 +2291,149 @@ Example Usage: plugins
 ```
 
 ---
+
+## `eventlog`
+
+**Description:** Windows Event Log operations via WMI - Query, monitor, and manage Windows Event Logs
+
+**Help:**
+```
+eventlog [-h] {query,list,clear,backup,monitor,enable,disable,clean}
+Query, monitor, and manage Windows Event Logs via WMI
+```
+
+**Example Usage:**
+```
+eventlog query -log System -type Error -count 50           # Query 50 error events from System log
+eventlog monitor -log Security -timeout 300 -filter "EventCode=4625"  # Monitor failed logins
+eventlog clear -log Application --backup /tmp/app_backup.evt           # Clear with backup
+eventlog clean -log System -method local --backup                      # Advanced cleaning
+```
+
+### Subcommands
+
+#### `eventlog query`
+Query Windows Event Log entries with filtering
+```
+-log <name>        Event log name (System, Application, Security, etc.) [Required]
+-id <number>       Specific event ID to filter
+-type <level>      Event level (error, warning, information, success, failure)
+-since <date>      Events since date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')
+-count <number>    Maximum number of events to return (default: 100)
+-source <name>     Filter by event source name
+-format <format>   Output format (table, json, list, csv) (default: table)
+-o <file>          Save output to file
+```
+
+#### `eventlog list`
+List all available event logs on the remote system
+
+#### `eventlog clear`
+Clear specified event log with optional backup
+```
+-log <name>        Event log name to clear [Required]
+--backup <file>    Backup log to file before clearing
+--force           Clear without backup confirmation
+```
+
+#### `eventlog backup`
+Backup event log to file
+```
+-log <name>        Event log name to backup [Required]
+-o <file>          Output file path for backup [Required]
+```
+
+#### `eventlog monitor`
+Monitor event log for new entries in real-time
+```
+-log <name>        Event log name to monitor [Required]
+-timeout <seconds> Monitoring timeout in seconds (default: 300)
+-filter <wql>      WQL filter for events (e.g., 'EventCode=4625')
+--interactive      Enable interactive commands during monitoring
+```
+
+**Interactive monitoring commands:**
+- `Ctrl+C` - Stop monitoring but maintain SMB connection
+- `q` + Enter - Quit gracefully with summary
+- `s` + Enter - Show current statistics
+- `p` + Enter - Pause/Resume monitoring
+
+#### `eventlog enable/disable`
+Enable or disable event logging for specified log
+```
+-log <name>        Event log name to enable/disable [Required]
+```
+
+#### `eventlog clean`
+Advanced event log cleaning with local processing
+```
+-log <name>        Event log name to clean [Required]
+-method <type>     Cleaning method: local (download/process/upload) or upload (default: local)
+--backup <file>    Backup original log before cleaning
+--from <file>      Upload cleaned log from local file (use with -method upload)
+```
+
+### Bang Commands for Local Log Processing
+
+After downloading logs with `eventlog clean -method local`, use these bang commands:
+
+#### `! logparse <logfile> [options]`
+Parse and analyze downloaded log files
+```
+--analyze          Perform detailed analysis with statistics
+--show-summary     Show event summary information
+--verify           Verify log file integrity
+```
+
+#### `! logclean <logfile> [options]`
+Clean log files by removing specific events
+```
+--remove-pattern <pattern>     Remove events matching pattern
+--remove-eventcode <codes>     Remove events with specific codes (comma-separated)
+--remove-source <source>       Remove events from specific source
+--time-range <start> <end>     Remove events in time range
+```
+
+#### `! logreplace <logfile> [options]`
+Replace patterns in log events
+```
+--pattern <regex>      Regular expression pattern to find
+--replace <text>       Replacement text
+--field <fieldname>    Target field (default: Message)
+```
+
+#### `! logmerge <output> <log1> <log2> [options]`
+Merge multiple log files
+```
+--sort-by-time         Sort merged events chronologically
+```
+
+#### `! logexport <logfile> [options]`
+Export logs to different formats
+```
+--format <type>        Export format (json, csv, xml)
+--output <file>        Output file path
+```
+
+#### `! logstats <logfile> [options]`
+Generate log file statistics
+```
+--detailed             Show detailed statistics breakdown
+```
+
+### Example Workflow
+
+```bash
+# 1. Download and clean a log locally
+eventlog clean -log Application -method local --backup
+
+# 2. Use bang commands to process the downloaded log
+! logparse /tmp/Application_1234567890.evt --analyze
+! logclean /tmp/Application_1234567890.evt --remove-eventcode "1001,1002"
+! logreplace /tmp/Application_1234567890.evt.cleaned --pattern "UserName=.*" --replace "UserName=REDACTED"
+
+# 3. Upload the cleaned log back
+eventlog clean -log Application -method upload --from /tmp/Application_1234567890.evt.cleaned
+```
+
+---
