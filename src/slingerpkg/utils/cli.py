@@ -64,33 +64,143 @@ def print_all_help(parser):
 
 
 def print_all_commands(parser):
-    """Print available commands in 4-column format"""
+    """Print available commands grouped by function with aliases"""
     # Get commands from parser
     subparsers_action = [
         action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
     ][0]
     commands = subparsers_action.choices
 
-    # Sort commands alphabetically
-    sorted_commands = sorted(commands.keys())
+    # Build alias mapping
+    alias_map = {}
+    primary_commands = set()
 
-    # Calculate rows for 4 columns
-    rows = -(-len(sorted_commands) // 4)  # Ceiling division
+    for cmd_name, subparser in commands.items():
+        # Find aliases by checking if subparsers share the same object
+        aliases = []
+        for other_name, other_parser in commands.items():
+            if other_name != cmd_name and other_parser is subparser:
+                aliases.append(other_name)
 
-    # Split into columns
-    columns = [sorted_commands[i : i + rows] for i in range(0, len(sorted_commands), rows)]
+        # Use the shortest name as primary, rest as aliases
+        all_names = [cmd_name] + aliases
+        primary = min(all_names, key=len)
+        primary_commands.add(primary)
 
-    # Print header
-    print("\nAvailable commands:")
-    print("-" * 42)
+        # Map primary to its aliases
+        alias_map[primary] = [name for name in all_names if name != primary]
 
-    # Print commands in columns
-    for row in zip_longest(*columns, fillvalue=""):
-        formatted_row = [f"{cmd:<20}" for cmd in row]
-        print("  ".join(formatted_row))
+    # Define command categories
+    categories = {
+        "📁 File Operations": [
+            "use",
+            "ls",
+            "find",
+            "cat",
+            "cd",
+            "pwd",
+            "download",
+            "upload",
+            "mget",
+            "mkdir",
+            "rmdir",
+            "rm",
+        ],
+        "🔍 System Enumeration": [
+            "shares",
+            "who",
+            "enumdisk",
+            "enumlogons",
+            "enuminfo",
+            "enumsys",
+            "enumtransport",
+            "hostname",
+            "procs",
+            "fwrules",
+            "env",
+            "network",
+            "ifconfig",
+        ],
+        "⚙️ Service Management": [
+            "enumservices",
+            "serviceshow",
+            "servicestart",
+            "servicestop",
+            "serviceenable",
+            "servicedisable",
+            "servicedel",
+            "serviceadd",
+        ],
+        "📅 Task Management": ["enumtasks", "taskshow", "taskcreate", "taskrun", "taskdelete"],
+        "🗂️ Registry Operations": [
+            "reguse",
+            "regstop",
+            "regquery",
+            "regset",
+            "regdel",
+            "regcreate",
+            "regcheck",
+        ],
+        "📊 Event Log Operations": ["eventlog"],
+        "🔒 Security Operations": ["hashdump", "secretsdump", "atexec", "portfwd"],
+        "💾 Download Management": ["downloads"],
+        "🖥️ Session Management": [
+            "info",
+            "set",
+            "config",
+            "run",
+            "help",
+            "exit",
+            "clear",
+            "reload",
+            "plugins",
+        ],
+        "🔧 Local System": ["#shell", "!"],
+        "🐛 Debug Operations": ["debug-availcounters", "debug-counter"],
+    }
 
-    # Print footer
-    print("\nType help <command> or <command> -h for more information on a specific command\n")
+    print("\n" + "=" * 70)
+    print("                        SLINGER COMMAND REFERENCE")
+    print("=" * 70)
+
+    for category, cmd_list in categories.items():
+        print(f"\n{category}")
+        print("-" * (len(category) - 2))  # Subtract emoji width
+
+        for cmd in cmd_list:
+            if cmd in primary_commands or cmd in commands:
+                aliases = alias_map.get(cmd, [])
+                if aliases:
+                    alias_str = f" ({', '.join(sorted(aliases))})"
+                else:
+                    alias_str = ""
+
+                # Get help text
+                try:
+                    help_text = commands[cmd].description or commands[cmd].help or ""
+                    if len(help_text) > 50:
+                        help_text = help_text[:47] + "..."
+                except:
+                    help_text = ""
+
+                print(f"  {cmd:<18}{alias_str:<25} {help_text}")
+
+        # Handle special subcommands
+        if category == "📊 Event Log Operations":
+            if "eventlog" not in [cmd for cmd in cmd_list if cmd in commands]:
+                print(
+                    "  eventlog                                        Query, monitor, and manage Windows Event Logs v..."
+                )
+            print("    Subcommands: query, list, clear, backup, monitor, enable, disable, clean")
+        elif category == "💾 Download Management":
+            print("    Subcommands: list, cleanup")
+
+    print("\n" + "=" * 70)
+    print("💡 Usage:")
+    print("   help <command>     - Show detailed help for specific command")
+    print("   <command> -h       - Show command arguments and options")
+    print("   Type command name or any alias to execute")
+    print("=" * 70 + "\n")
 
 
 class InvalidParsing(Exception):
