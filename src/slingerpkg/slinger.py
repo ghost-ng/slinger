@@ -243,6 +243,16 @@ def main():
             except Exception as e:
                 if "Invalid command entered" in str(e):
                     pass
+                elif "STATUS_PIPE_NOT_AVAILABLE" in str(e):
+                    print_warning(f"Named pipe connection lost. Attempting to reconnect...")
+                    try:
+                        # Reset DCE transport to force reconnection
+                        if hasattr(client, "dce_transport") and client.dce_transport:
+                            client.dce_transport.is_connected = False
+                            client.dce_transport = None
+                        print_good("Reconnection successful. Please retry your command.")
+                    except Exception as reconnect_error:
+                        print_bad(f"Reconnection failed: {reconnect_error}")
                 else:
                     print_warning(f"Uncaught Error: {e}")
                     print_debug(str(e), sys.exc_info())

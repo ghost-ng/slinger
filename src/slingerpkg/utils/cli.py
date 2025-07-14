@@ -545,9 +545,16 @@ def setup_cli_parser(slingerClient):
         "enumtasks",
         help="Enumerate scheduled tasks",
         description="Enumerate scheduled tasks on the remote server",
-        epilog="Example Usage: enumtasks",
+        epilog="Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Windows OR enumtasks -n",
         aliases=["tasksenum", "taskenum"],
     )
+    parser_taskenum.add_argument(
+        "-n",
+        "--new",
+        action="store_true",
+        help="Perform a new enumeration of tasks even if already enumerated",
+    )
+    parser_taskenum.add_argument("--filter", help="Filter tasks by name or folder")
     parser_taskenum.set_defaults(func=slingerClient.enum_task_folders_recursive)
     # Subparser for 'tasksshow' command
     parser_taskshow = subparsers.add_parser(
@@ -1068,10 +1075,13 @@ def setup_cli_parser(slingerClient):
         "atexec",
         help="Execute a command at a specified time",
         description="Execute a command on the remote server",
-        epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\Downloads\\\\ -c ipconfig',
+        epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\Downloads\\\\ -c ipconfig\nFor multi-word commands: atexec -c "echo hello world" -tn MyTask',
     )
     parser_atexec.add_argument(
-        "-c", "--command", help="Specify the command to execute", required=True
+        "-c",
+        "--command",
+        help="Specify the command to execute. For commands with spaces, wrap in quotes (e.g., 'echo hello world')",
+        required=True,
     )
     parser_atexec.add_argument(
         "-sp",
@@ -1087,7 +1097,10 @@ def setup_cli_parser(slingerClient):
         default=None,
     )
     parser_atexec.add_argument(
-        "-tn", "--name", help="Specify the name of the scheduled task", required=True
+        "-tn",
+        "--name",
+        help="Specify the name of the scheduled task (default: auto-generated)",
+        default=None,
     )
     parser_atexec.add_argument(
         "-ta",

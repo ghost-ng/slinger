@@ -19,6 +19,25 @@ class schtasks:
         self.folder_list = ["\\"]
         self.folder_list_dict = {}
         self.task_id = 1  # Initialize the task ID counter
+        self.tasks_list = []  # Store cached task list for filtering
+
+    def filter_tasks(self, filtered):
+        # filter format: name=blah, folder=blah
+        new_list = []
+        if "folder" in filtered:
+            folder = filtered.split("=")[1]
+            for task in self.tasks_list:
+                if folder.lower() in task["Folder"].lower():
+                    new_list.append(task)
+            return new_list
+        elif "name" in filtered:
+            name = filtered.split("=")[1]
+            for task in self.tasks_list:
+                if name.lower() in task["TaskName"].lower():
+                    new_list.append(task)
+            return new_list
+        else:
+            return self.tasks_list
 
     def enum_folders_old(self, folder_path="\\", start_index=0):
         self.setup_dce_transport()
@@ -74,39 +93,101 @@ class schtasks:
         Enumerates the Task Scheduler folders recursively.
 
         Args:
-            folder (str): The folder to start the enumeration from. Defaults to "\\".
-            start_index (int): The starting index for the enumeration. Defaults to 0.
+            args: Command arguments containing filter and new options
         """
-        print_info("Getting all tasks, this might take a while...")
-        folder = "\\"
-        start_index = 0
-        print_info("Enumerating Task Scheduler...")
-        self.folder_list = ["\\"]
-        self.folder_list_dict = {}
-        self.enum_folders(folder, start_index)
-        self.task_id = 1  # Reset the task ID counter
-        self.view_tasks_in_folder()
-        self.print_folder_tree()
-        # print_log(self.folder_list)
+        try:
+            force = args.new
+        except:
+            force = False
+        try:
+            filtered = args.filter
+        except:
+            filtered = None
 
-    def print_folder_tree(self):
+        # Check if we should use cached data
+        if force or len(self.tasks_list) == 0:
+            print_debug("Getting all tasks, this might take a while...")
+            folder = "\\"
+            start_index = 0
+            print_debug("Enumerating Task Scheduler...")
+            self.folder_list = ["\\"]
+            self.folder_list_dict = {}
+            self.enum_folders(folder, start_index)
+            self.task_id = 1  # Reset the task ID counter
+            self.view_tasks_in_folder()
+
+            # Build and cache the tasks list
+            self.tasks_list = [
+                {"ID": task_id, "Folder": folder, "TaskName": task}
+                for folder, tasks in self.folder_list_dict.items()
+                for task_id, task in tasks
+            ]
+        else:
+            print_debug("Using stored tasks list...")
+
+        # Apply filtering if provided
+        if filtered:
+            print_debug("Filtering tasks...")
+            filtered_tasks = self.filter_tasks(filtered)
+        else:
+            filtered_tasks = self.tasks_list
+
+        # Display results
+        self.display_tasks(filtered_tasks)
+
+    def display_tasks(self, tasks_data):
+        """
+        Display tasks in table format, similar to services
+        """
+        # Generate table
+        table = tabulate(tasks_data, headers="keys", tablefmt="psql")
+
+        # Display results
+        print_log(table)
+        print_log("Total Tasks: %d" % len(self.tasks_list))
+        if len(tasks_data) != len(self.tasks_list):
+            print_log("Filtered Tasks: %d" % len(tasks_data))
+
+    def print_folder_tree(self, args=None):
         """
         Prints the folder tree along with the tasks in each folder.
 
-        This method retrieves the folder list dictionary and formats it into a table
-        using the `tabulate` function. The table is then printed to the console using
-        the `print_log` function. Additionally, the total number of tasks found is
-        printed using the `print_info` function.
-
+        Args:
+            args: Command arguments containing filter and save options
         """
-        data = [
+        # Build initial data
+        all_data = [
             {"ID": task_id, "Folder": folder, "TaskName": task}
             for folder, tasks in self.folder_list_dict.items()
             for task_id, task in tasks
         ]
+
+        # Apply filter if provided
+        if args and hasattr(args, "filter") and args.filter:
+            filtered_data = [
+                item for item in all_data if args.filter.lower() in item["TaskName"].lower()
+            ]
+            print_info(
+                f"Applied filter '{args.filter}': {len(filtered_data)} of {len(all_data)} tasks shown"
+            )
+            data = filtered_data
+        else:
+            data = all_data
+
+        # Generate table
         table = tabulate(data, headers="keys", tablefmt="psql")
+
+        # Save to file if requested
+        if args and hasattr(args, "save") and args.save:
+            try:
+                with open(args.save, "w") as f:
+                    f.write(table)
+                print_good(f"Results saved to: {args.save}")
+            except Exception as e:
+                print_bad(f"Failed to save to file: {e}")
+
+        # Display results
         print_log(table)
-        # print total df entries
         print_info(f"Found {len(data)} tasks")
 
     def parse_folder_tasks(self, response, folder):
@@ -151,7 +232,7 @@ class schtasks:
             self.dce_transport._connect("atsvc")
             folder_path = folder_path.rstrip("\\")
             try:
-                print_info(f"Enumerating tasks in folder: {folder_path}")
+                print_debug(f"Enumerating tasks in folder: {folder_path}")
                 response = self.dce_transport._view_tasks_in_folder(folder_path)
                 # print_log(response.dump())
                 # print_info(f"Parsing Tasks in {folder_path}:")
