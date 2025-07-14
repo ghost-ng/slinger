@@ -555,16 +555,23 @@ The standard workflow for implementing new features follows this comprehensive c
 
 #### Testing Strategy
 
-**Virtual Environment Required**: All testing requires an active virtual environment with proper dependencies.
+🚨 **CRITICAL REQUIREMENT: Virtual Environment Must Be Active** 🚨
+
+**ALL TESTING AND CLI EXECUTION REQUIRES AN ACTIVE VIRTUAL ENVIRONMENT**
+
+Before any testing or CLI usage, you MUST activate the virtual environment:
 
 ```bash
-# ALWAYS activate virtual environment first
+# ALWAYS activate virtual environment first - REQUIRED FOR ALL TESTING
 source venv/bin/activate  # Main development environment
 # OR
 source test_env/bin/activate  # Dedicated testing environment
 
-# Verify environment setup
+# Verify environment setup before proceeding
 pip list | grep -E "pytest|pexpect|slinger"
+
+# Test CLI functionality (requires virtual environment)
+python src/slingerpkg/slinger.py --user administrator --host 10.10.11.69 --ntlm :8da83a3fa618b6e3a00e93f676c92a6e
 
 # Run all tests
 pytest

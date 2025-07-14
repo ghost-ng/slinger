@@ -63,7 +63,38 @@ def print_all_help(parser):
         parser.print_help()
 
 
-def print_all_commands(parser):
+def print_all_commands_simple(parser):
+    """Print available commands in simple 4-column format"""
+    # Get commands from parser
+    subparsers_action = [
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+    ][0]
+    commands = subparsers_action.choices
+
+    # Sort commands alphabetically
+    sorted_commands = sorted(commands.keys())
+
+    # Calculate rows for 4 columns
+    rows = -(-len(sorted_commands) // 4)  # Ceiling division
+
+    # Split into columns
+    columns = [sorted_commands[i : i + rows] for i in range(0, len(sorted_commands), rows)]
+
+    # Print header
+    print("\nAvailable commands:")
+    print("-" * 42)
+
+    # Print commands in columns
+    for row in zip_longest(*columns, fillvalue=""):
+        formatted_row = [f"{cmd:<20}" for cmd in row]
+        print("  ".join(formatted_row))
+
+    # Print footer
+    print("\nType help <command> or <command> -h for more information on a specific command")
+    print("Type help --verbose for detailed categorized help\n")
+
+
+def print_all_commands_verbose(parser):
     """Print available commands grouped by function with aliases"""
     # Get commands from parser
     subparsers_action = [
@@ -165,7 +196,8 @@ def print_all_commands(parser):
 
     for category, cmd_list in categories.items():
         print(f"\n{category}")
-        print("-" * (len(category) - 2))  # Subtract emoji width
+        # Use consistent spacing for category headers - always 60 dashes
+        print("-" * 60)
 
         for cmd in cmd_list:
             if cmd in primary_commands or cmd in commands:
@@ -201,6 +233,14 @@ def print_all_commands(parser):
     print("   <command> -h       - Show command arguments and options")
     print("   Type command name or any alias to execute")
     print("=" * 70 + "\n")
+
+
+def print_all_commands(parser, verbose=False):
+    """Print available commands - simple or verbose format based on flag"""
+    if verbose:
+        print_all_commands_verbose(parser)
+    else:
+        print_all_commands_simple(parser)
 
 
 class InvalidParsing(Exception):
@@ -448,6 +488,7 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: help",
     )
     parser_help.add_argument("cmd", nargs="?", help="Specify a command to show help for")
+    parser_help.add_argument("--verbose", action="store_true", help="Show detailed categorized help")
 
     # Subparser for 'who' command
     parser_who = subparsers.add_parser(
