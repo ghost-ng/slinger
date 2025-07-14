@@ -98,29 +98,29 @@ def main():
             print(f"NTLM hash: :{hash}")
         sys.exit(0)
 
-    parser.add_argument("-host", required=True, help="Host to connect to")
-    parser.add_argument("-user", "--username", required=True, help="Username for authentication")
-    parser.add_argument("-domain", "--domain", default="", help="Domain for authentication")
-    parser.add_argument("-port", type=int, default=445, help="Port to connect to")
-    parser.add_argument("-nojoy", action="store_true", help="Turn off emojis")
-    parser.add_argument("-verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--host", required=True, help="Host to connect to")
+    parser.add_argument("--user", "--username", required=True, help="Username for authentication")
+    parser.add_argument("--domain", default="", help="Domain for authentication")
+    parser.add_argument("--port", type=int, default=445, help="Port to connect to")
+    parser.add_argument("--nojoy", action="store_true", help="Turn off emojis")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
     # authentication mutually exclusive group
     auth_group = parser.add_mutually_exclusive_group(required=False)
     auth_group.add_argument(
-        "-pass",
+        "--pass",
         "--password",
         help="Password for authentication",
         dest="password",
         nargs="?",
         default=None,
     )
-    auth_group.add_argument("-ntlm", help="NTLM hash for authentication")
+    auth_group.add_argument("--ntlm", help="NTLM hash for authentication")
     auth_group.add_argument(
-        "-kerberos", action="store_true", help="Use Kerberos for authentication"
+        "--kerberos", action="store_true", help="Use Kerberos for authentication"
     )
-    parser.add_argument("-debug", action="store_true", help="Turn on debug output")
-    parser.add_argument("-gen-ntlm-hash", help="Generate NTLM hash from password", nargs=1)
+    parser.add_argument("--debug", action="store_true", help="Turn on debug output")
+    parser.add_argument("--gen-ntlm-hash", help="Generate NTLM hash from password", nargs=1)
     parser.add_argument("-v", "--version", action="version", help="Show version information")
 
     if len(sys.argv) == 1:
