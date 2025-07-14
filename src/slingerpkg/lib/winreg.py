@@ -849,7 +849,7 @@ class winreg:
         psl = {}
         for name in names:
             if name != "_Total":
-                if args.verbose:
+                if args and hasattr(args, "verbose") and args.verbose:
                     psl[process_list[name]["ID Process"]] = {
                         "Name": name,
                         "PID": process_list[name]["ID Process"],
@@ -864,13 +864,14 @@ class winreg:
                         "PID": process_list[name]["ID Process"],
                         "PPID": process_list[name]["Creating Process ID"],
                     }
-        if not args.tree:
+        if not (args and hasattr(args, "tree") and args.tree):
             print(tabulate(psl.values(), headers="keys"))
 
         # print in a heirarchical tree format with PPID as parents
-        if args.tree:
+        if args and hasattr(args, "tree") and args.tree:
             print_info("Process Tree:")
-            self._print_process_tree(psl, args.verbose)
+            verbose_mode = args.verbose if hasattr(args, "verbose") else False
+            self._print_process_tree(psl, verbose_mode)
 
         # print(psl)
 

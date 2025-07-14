@@ -29,7 +29,7 @@ Slinger is a Python-based SMB (Server Message Block) client framework designed a
 
 ### Root Directory Structure
 ```
-/home/unknown/Documents/Github/slinger/
+/home/unknown/Documents/slinger/
 ├── CLAUDE.md                  # This comprehensive guide
 ├── docs/                      # Documentation directory
 │   ├── README.md              # Project introduction and setup
@@ -37,8 +37,12 @@ Slinger is a Python-based SMB (Server Message Block) client framework designed a
 │   ├── RESEARCH.md            # Technical research findings
 │   ├── TECHNICAL_SPEC.md      # Detailed technical specifications
 │   ├── IMPLEMENTATION_PLANS.md # Advanced feature implementation plans
+│   ├── IMPLEMENTATION_PLAN_RESUME_DOWNLOADS.md # Resume downloads implementation
+│   ├── RESUME_DOWNLOADS_TECH_SPEC.md # Resume downloads technical specifications
 │   ├── cli_menu.md            # CLI command reference
 │   └── assets/                # Documentation images and assets
+│       ├── clidocs.jpg        # CLI documentation screenshot
+│       └── image.png          # Additional documentation images
 ├── Configuration Files
 │   ├── pyproject.toml         # Project metadata and dependencies
 │   ├── requirements.txt       # Python dependencies
@@ -47,17 +51,22 @@ Slinger is a Python-based SMB (Server Message Block) client framework designed a
 │   └── LICENSE               # Project license
 ├── Build and Deployment
 │   ├── build/                # Build artifacts
-│   ├── build_script.py       # Build automation
-│   └── .github/              # GitHub Actions CI/CD
+│   ├── scripts/              # Development and build scripts
+│   │   ├── build_script.py   # Build automation
+│   │   ├── check_cli_flags.py # CLI flag validation
+│   │   └── generate_test_stub.py # Test generation utility
 ├── Source Code
 │   └── src/                  # Main source directory
 ├── Testing Infrastructure
-│   └── tests/                # Comprehensive test suite
-├── Development Tools
-│   └── scripts/              # Development utilities
-└── Reports and Output
-    ├── htmlcov/             # Coverage reports
-    └── coverage.xml         # Coverage data
+│   ├── tests/                # Comprehensive test suite
+│   ├── test_env/             # Virtual environment for testing
+│   └── research/             # Research and POC scripts
+├── Reports and Output
+│   ├── htmlcov/             # Coverage reports
+│   └── coverage.xml         # Coverage data
+└── Development Environments
+    ├── venv/                # Main development virtual environment
+    └── htb_test_env/        # HTB-specific test environment
 ```
 
 ### Source Code Structure (`src/slingerpkg/`)
@@ -367,6 +376,8 @@ History File   Plugin System         Connection Manager      Log Files
 #### Documentation
 - **Technical Specs**: Update `docs/TECHNICAL_SPEC.md`
 - **Implementation Plans**: Add to `docs/IMPLEMENTATION_PLANS.md`
+- **Feature-Specific Plans**: Create in `docs/IMPLEMENTATION_PLAN_<FEATURE>.md`
+- **Feature Technical Specs**: Document in `docs/<FEATURE>_TECH_SPEC.md`
 - **User Documentation**: Enhance `docs/README.md` and `docs/cli_menu.md`
 - **Research Notes**: Document in `docs/RESEARCH.md`
 
@@ -424,10 +435,22 @@ History File   Plugin System         Connection Manager      Log Files
 - **Update Frequency**: During research phases
 
 #### **docs/IMPLEMENTATION_PLANS.md**
-- **Purpose**: Detailed implementation plans for advanced features
+- **Purpose**: General implementation plans and strategies
 - **Audience**: Feature developers
 - **Content**: Implementation strategies, timelines, technical approaches
 - **Update Frequency**: When planning new features
+
+#### **docs/IMPLEMENTATION_PLAN_<FEATURE>.md**
+- **Purpose**: Feature-specific implementation plans
+- **Audience**: Feature developers
+- **Content**: Detailed feature implementation strategies and timelines
+- **Update Frequency**: During feature development
+
+#### **docs/<FEATURE>_TECH_SPEC.md**
+- **Purpose**: Feature-specific technical specifications
+- **Audience**: Developers implementing specific features
+- **Content**: Detailed technical requirements and architectural decisions
+- **Update Frequency**: During feature development and updates
 
 #### **docs/cli_menu.md**
 - **Purpose**: Command reference and usage examples
@@ -455,12 +478,21 @@ History File   Plugin System         Connection Manager      Log Files
    ```bash
    git clone <repository>
    cd slinger
+   
+   # Create and activate virtual environment
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Install package in development mode
    pip install -e ".[dev]"
    ```
 
 2. **Development Dependencies**
    ```bash
-   pip install pytest pytest-cov black flake8 mypy pre-commit
+   # Ensure virtual environment is activated
+   source venv/bin/activate
+   
+   pip install pytest pytest-cov black flake8 mypy pre-commit pexpect
    ```
 
 3. **Pre-commit Hooks**
@@ -522,7 +554,18 @@ The standard workflow for implementing new features follows this comprehensive c
 - **Security**: Security-focused code review
 
 #### Testing Strategy
+
+**Virtual Environment Required**: All testing requires an active virtual environment with proper dependencies.
+
 ```bash
+# ALWAYS activate virtual environment first
+source venv/bin/activate  # Main development environment
+# OR
+source test_env/bin/activate  # Dedicated testing environment
+
+# Verify environment setup
+pip list | grep -E "pytest|pexpect|slinger"
+
 # Run all tests
 pytest
 
@@ -537,6 +580,12 @@ pytest tests/e2e
 # Generate test stubs for new features
 python scripts/generate_test_stub.py <feature_name>
 ```
+
+**Important Testing Notes**:
+- **Virtual Environment**: ALWAYS use a virtual environment for testing
+- **Dependencies**: Ensure pexpect, pytest, and slinger package are installed
+- **HTB Testing**: Integration tests require HTB connectivity (10.10.11.69)
+- **Interactive Tests**: Some tests use pexpect for realistic CLI interaction
 
 ### Configuration System
 The tool uses a configuration system with the following key settings:
@@ -599,6 +648,11 @@ The resume downloads functionality includes comprehensive testing workflows to e
 
 **Purpose**: Full end-to-end testing with MD5 integrity verification as requested.
 
+**Prerequisites**:
+- Virtual environment with slinger and pexpect installed
+- HTB connectivity to 10.10.11.69
+- Administrator credentials with NTLM hash
+
 **Test Sequence**:
 1. **Complete Download**: Download large file (ntoskrnl.exe) completely and calculate reference MD5
 2. **Interrupted Download**: Start same download and interrupt after 6 seconds using pexpect
@@ -607,7 +661,14 @@ The resume downloads functionality includes comprehensive testing workflows to e
 
 **Usage**:
 ```bash
+# REQUIRED: Activate virtual environment
 source test_env/bin/activate
+
+# Verify environment setup
+echo "Validating test environment..."
+python -c "import pexpect, slingerpkg; print('✓ Environment ready')"
+
+# Run comprehensive test
 python test_resume_pexpect.py
 ```
 
@@ -623,6 +684,10 @@ python test_resume_pexpect.py
 
 **Purpose**: Fast validation of core functionality without full MD5 workflow.
 
+**Prerequisites**:
+- Virtual environment activated
+- Basic connectivity to HTB target
+
 **Test Coverage**:
 - HTB connection (10.10.11.69 with NTLM authentication)
 - CLI flags (`--resume`, `--restart`) integration
@@ -632,7 +697,14 @@ python test_resume_pexpect.py
 
 **Usage**:
 ```bash
+# REQUIRED: Activate virtual environment
 source test_env/bin/activate
+
+# Quick environment check
+which slinger || echo "ERROR: slinger not in PATH"
+python -c "import pexpect" || echo "ERROR: pexpect not installed"
+
+# Run quick verification
 python test_quick_verify.py
 ```
 
@@ -660,11 +732,39 @@ python test_quick_verify.py
 
 ### Test Environment Setup
 
-#### Virtual Environment
+#### Virtual Environment Requirements
+
+**Critical**: All resume downloads testing MUST be performed in a properly configured virtual environment.
+
 ```bash
+# Create dedicated test environment
 python -m venv test_env
 source test_env/bin/activate
+
+# Install package and test dependencies
 pip install -e .
+pip install pexpect pytest pytest-cov
+
+# Verify installation
+python -c "import slingerpkg; print('✓ Slinger package available')"
+python -c "import pexpect; print('✓ Pexpect available')"
+
+# Test slinger CLI availability
+slinger --help
+```
+
+**Environment Validation**:
+```bash
+# Verify all required components
+source test_env/bin/activate
+echo "Testing environment validation..."
+python -c "
+import sys, os
+print(f'Python: {sys.executable}')
+print(f'Virtual Env: {os.environ.get(\"VIRTUAL_ENV\", \"Not activated\")}')
+import slingerpkg, pexpect
+print('✓ All required packages available')
+"
 ```
 
 #### HTB Target Configuration
@@ -730,11 +830,27 @@ Test results are documented with:
 ### Continuous Integration Considerations
 
 The test suite is designed for:
-- **Automated Execution**: Can run in CI/CD pipelines
+- **Automated Execution**: Can run in CI/CD pipelines with proper environment setup
+- **Virtual Environment**: All CI/CD must use virtual environments with proper dependencies
 - **Timeout Management**: Appropriate timeouts for network operations
 - **Error Isolation**: Individual test failures don't block other tests
 - **Resource Cleanup**: Automatic cleanup of test files and directories
 - **Detailed Reporting**: Comprehensive pass/fail reporting with metrics
+
+#### CI/CD Environment Setup
+```bash
+# Example CI/CD test setup
+python -m venv ci_test_env
+source ci_test_env/bin/activate
+pip install -e .
+pip install pytest pytest-cov pexpect
+
+# Validate environment before testing
+python -c "import slingerpkg, pexpect; print('CI environment ready')"
+
+# Run test suite
+pytest tests/ --cov=slingerpkg --cov-report=xml
+```
 
 ---
 

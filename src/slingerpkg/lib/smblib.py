@@ -1020,6 +1020,9 @@ class smblib:
         Args:
             args: Parsed command line arguments containing search parameters
         """
+        # Show control message for user
+        print_info("Ctrl-C to safely exit [Enter]")
+
         if not self.check_if_connected():
             print_warning("You are not connected to a share.")
             return
