@@ -26,7 +26,9 @@ class MyPlugin(PluginBase):
         # define a new subparser to return to merge with the main parser
         parser = argparse.ArgumentParser(add_help=False)  # required
         subparsers = parser.add_subparsers(dest="command")  # required
-        plugincmd_parser = subparsers.add_parser("audit", help="System Audit")  # required
+        plugincmd_parser = subparsers.add_parser(
+            "audit", help="Runs through typical system audit functions"
+        )  # required
         plugincmd_parser.add_argument("-s", "--save", help="Save to file")
         plugincmd_parser.set_defaults(func=self.run)  # required entry point
         return parser

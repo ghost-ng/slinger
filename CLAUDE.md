@@ -478,11 +478,11 @@ History File   Plugin System         Connection Manager      Log Files
    ```bash
    git clone <repository>
    cd slinger
-   
+
    # Create and activate virtual environment
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   
+
    # Install package in development mode
    pip install -e ".[dev]"
    ```
@@ -491,7 +491,7 @@ History File   Plugin System         Connection Manager      Log Files
    ```bash
    # Ensure virtual environment is activated
    source venv/bin/activate
-   
+
    pip install pytest pytest-cov black flake8 mypy pre-commit pexpect
    ```
 
@@ -552,6 +552,41 @@ The standard workflow for implementing new features follows this comprehensive c
 - **Type Hints**: MyPy validation
 - **Documentation**: Comprehensive docstrings
 - **Security**: Security-focused code review
+
+#### 🚨 **ESSENTIAL CLI WORKFLOW REQUIREMENT** 🚨
+
+**ALL NEW CLI COMMANDS MUST BE ADDED TO THE HELP MENU**
+
+When implementing new CLI commands, you MUST add them to the help categorization system:
+
+1. **Add Command to Help Categories**: In `src/slingerpkg/utils/cli.py`, locate the `categories` dictionary in the `print_all_commands_verbose()` function
+2. **Choose Appropriate Category**: Place the command in the correct functional category:
+   - 📁 File Operations
+   - 🔍 System Enumeration
+   - ⚙️ Service Management
+   - 📅 Task Management
+   - 🗂️ Registry Operations
+   - 📊 Event Log Operations
+   - 🔒 Security Operations
+   - 💾 Download Management
+   - 🖥️ Session Management
+   - 🧩 Plugin System
+   - 🔧 Local System
+   - 🐛 Debug Operations
+3. **Verify Help Integration**: Test both `help` and `help --verbose` to ensure the command appears correctly
+4. **Update Documentation**: Document the command's purpose and usage
+
+**Example Addition**:
+```python
+"🔍 System Enumeration": [
+    "shares",
+    "enumpipes",  # ← New command added here
+    "who",
+    # ... other commands
+],
+```
+
+**Critical**: Commands not added to the help menu are effectively invisible to users and make the tool less discoverable. This is a mandatory step for all CLI feature implementations.
 
 #### Testing Strategy
 
