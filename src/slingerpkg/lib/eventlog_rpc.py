@@ -186,11 +186,20 @@ class EventLogRPC:
                             numberOfBytesToRead=64000,  # 64KB buffer
                         )
 
-                        # Parse the returned buffer
-                        buffer = response["Buffer"]
+                        # Parse the returned buffer - use getData() method for Impacket responses
+                        if hasattr(response, 'getData'):
+                            buffer = response.getData()
+                            print_debug(f"Retrieved buffer via getData(): {len(buffer)} bytes")
+                        else:
+                            # Fallback to dictionary access
+                            buffer = response.get("Buffer", b"")
+                            print_debug(f"Retrieved buffer via dict access: {len(buffer)} bytes")
+                        
                         if not buffer:
+                            print_debug("Empty buffer received, breaking read loop")
                             break
 
+                        print_debug(f"Buffer ready for parsing: {len(buffer)} bytes")
                         parsed_events = self._parse_eventlog_buffer(buffer)
                         events.extend(parsed_events)
                         records_read += len(parsed_events)
