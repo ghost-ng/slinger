@@ -99,9 +99,16 @@ def main():
         sys.exit(0)
 
     parser.add_argument("--host", required=True, help="Host to connect to")
-    parser.add_argument("-u", "--user", "--username", required=True, help="Username for authentication", dest="username")
-    parser.add_argument("-d","--domain", default="", help="Domain for authentication")
-    parser.add_argument("-p","--port", type=int, default=445, help="Port to connect to")
+    parser.add_argument(
+        "-u",
+        "--user",
+        "--username",
+        required=True,
+        help="Username for authentication",
+        dest="username",
+    )
+    parser.add_argument("-d", "--domain", default="", help="Domain for authentication")
+    parser.add_argument("-p", "--port", type=int, default=445, help="Port to connect to")
     parser.add_argument("--nojoy", action="store_true", help="Turn off emojis")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
@@ -119,7 +126,7 @@ def main():
     auth_group.add_argument(
         "--kerberos", action="store_true", help="Use Kerberos for authentication"
     )
-    parser.add_argument("-d","--debug", action="store_true", help="Turn on debug output")
+    parser.add_argument("--debug", action="store_true", help="Turn on debug output")
     parser.add_argument("--gen-ntlm-hash", help="Generate NTLM hash from password", nargs=1)
     parser.add_argument("-v", "--version", action="version", help="Show version information")
 
@@ -381,7 +388,7 @@ def main():
                         force_help(slinger_parser, args.cmd)
                 else:
                     # Use verbose flag if present
-                    verbose = getattr(args, 'verbose', False)
+                    verbose = getattr(args, "verbose", False)
                     print_all_commands(slinger_parser, verbose=verbose)
             elif args.command == "clear":
                 os.system("clear")

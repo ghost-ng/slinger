@@ -488,7 +488,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: help",
     )
     parser_help.add_argument("cmd", nargs="?", help="Specify a command to show help for")
-    parser_help.add_argument("--verbose", action="store_true", help="Show detailed categorized help")
+    parser_help.add_argument(
+        "--verbose", action="store_true", help="Show detailed categorized help"
+    )
 
     # Subparser for 'who' command
     parser_who = subparsers.add_parser(
@@ -1346,15 +1348,15 @@ def setup_cli_parser(slingerClient):
         description="Query, monitor, and manage Windows Event Logs via named pipes",
         epilog="Example Usage: eventlog query --log System --level Error --count 50",
     )
-    
+
     # Add global method option for all eventlog commands
     parser_eventlog.add_argument(
         "--method",
         choices=["auto", "rpc", "wmi", "smb"],
         default="auto",
-        help="Communication method: auto (detect best), rpc (named pipe), wmi (queries), smb (file access)"
+        help="Communication method: auto (detect best), rpc (named pipe), wmi (queries), smb (file access)",
     )
-    
+
     eventlog_subparsers = parser_eventlog.add_subparsers(
         dest="eventlog_action", help="Event log actions"
     )
@@ -1373,6 +1375,7 @@ def setup_cli_parser(slingerClient):
     parser_eventlog_query.add_argument(
         "--type",
         "--level",
+        dest="level",
         choices=["error", "warning", "information", "success", "failure"],
         help="Event level to filter",
     )

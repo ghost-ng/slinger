@@ -160,7 +160,7 @@ Combine named pipes for metadata operations and WMI for complex queries:
 ```python
 class EventLogNamedPipe:
     """Direct named pipe communication with Windows Event Log service"""
-    
+
     def __init__(self, host, username, password, domain=None, ntlm_hash=None):
         self.host = host
         self.username = username
@@ -168,28 +168,28 @@ class EventLogNamedPipe:
         self.domain = domain
         self.ntlm_hash = ntlm_hash
         self.dce = None
-        
+
     def connect(self):
         """Connect to eventlog named pipe"""
         try:
             # Connect to \\.\pipe\eventlog
             stringbinding = f'ncacn_np:{self.host}[\\pipe\\eventlog]'
             self.dce = transport.DCERPCTransportFactory(stringbinding).get_dce_rpc()
-            
+
             if self.ntlm_hash:
                 lmhash, nthash = self.ntlm_hash.split(':')
                 self.dce.set_credentials(self.username, '', self.domain, lmhash, nthash)
             else:
                 self.dce.set_credentials(self.username, self.password, self.domain)
-                
+
             self.dce.connect()
             self.dce.bind(eventlog.MSRPC_UUID_EVENTLOG)
             return True
-            
+
         except Exception as e:
             print_debug(f"Named pipe connection failed: {e}")
             return False
-    
+
     def enumerate_logs(self):
         """Enumerate available event logs via named pipe"""
         try:
@@ -199,20 +199,20 @@ class EventLogNamedPipe:
         except Exception as e:
             print_debug(f"Log enumeration failed: {e}")
             return []
-    
+
     def query_events(self, log_name, **kwargs):
         """Query events using direct RPC calls"""
         try:
             # Open event log
             log_handle = eventlog.hRPCOpenEventLogW(self.dce, log_name)
-            
+
             # Read events
             events = []
             # Implement reading logic here
-            
+
             # Close handle
             eventlog.hRPCCloseEventLog(self.dce, log_handle)
-            
+
             return events
         except Exception as e:
             print_debug(f"Event query failed: {e}")
@@ -224,35 +224,35 @@ class EventLogNamedPipe:
 ```python
 class EventLogManager:
     """Unified event log management with multiple connection methods"""
-    
+
     def __init__(self, client):
         self.client = client
         self.pipe_connection = None
         self.wmi_connection = None
         self.preferred_method = None
-        
+
     def auto_detect_best_method(self):
         """Automatically detect the best connection method"""
         methods = []
-        
+
         # Test named pipe access
         if self._test_named_pipe_access():
             methods.append(('pipe', 'Named Pipe (Direct)'))
-            
+
         # Test WMI access
         if self._test_wmi_access():
             methods.append(('wmi', 'WMI (Query-based)'))
-            
+
         # SMB is always available if connected
         if self.client.is_connected_to_remote_share():
             methods.append(('smb', 'SMB (File-based)'))
-            
+
         return methods
-    
+
     def execute_operation(self, operation, **kwargs):
         """Execute operation using best available method"""
         methods = self.auto_detect_best_method()
-        
+
         for method_type, method_name in methods:
             try:
                 if method_type == 'pipe':
@@ -264,7 +264,7 @@ class EventLogManager:
             except Exception as e:
                 print_debug(f"Method {method_name} failed: {e}")
                 continue
-                
+
         raise Exception("All eventlog communication methods failed")
 ```
 
@@ -302,11 +302,11 @@ With enhanced help text explaining method options and share requirements.
 ```python
 def eventlog_handler(self, args):
     """Enhanced handler with connection independence"""
-    
+
     # Check if named pipe method is available
     if args.method == 'pipe' or (args.method == 'auto' and not self.check_if_connected()):
         return self.eventlog_via_pipes(args)
-    
+
     # Fallback to existing WMI/SMB methods
     return self.eventlog_via_existing_methods(args)
 ```

@@ -29,7 +29,7 @@ This research analyzes Impacket library's eventlog modules and capabilities for 
 
 ```python
 def hElfrOpenELW(dce, moduleName=NULL, regModuleName=NULL)
-def hElfrReadELW(dce, logHandle='', readFlags=EVENTLOG_SEEK_READ|EVENTLOG_FORWARDS_READ, 
+def hElfrReadELW(dce, logHandle='', readFlags=EVENTLOG_SEEK_READ|EVENTLOG_FORWARDS_READ,
                  recordOffset=0, numberOfBytesToRead=MAX_BATCH_BUFF)
 def hElfrCloseEL(dce, logHandle)
 def hElfrNumberOfRecords(dce, logHandle)
@@ -65,18 +65,18 @@ from impacket.dcerpc.v5 import even, even6
 def connect_to_eventlog_service(smb_connection, interface='legacy'):
     pipe = r"\eventlog"
     rpctransport = transport.SMBTransport(
-        smb_connection.getRemoteHost(), 
-        filename=pipe, 
+        smb_connection.getRemoteHost(),
+        filename=pipe,
         smb_connection=smb_connection
     )
     dce = rpctransport.get_dce_rpc()
     dce.connect()
-    
+
     if interface == 'legacy':
         dce.bind(even.MSRPC_UUID_EVEN)
     else:  # modern
         dce.bind(even6.MSRPC_UUID_EVEN6)
-    
+
     return dce
 ```
 
@@ -97,17 +97,17 @@ The EventLog RPC service operates independently of SMB share connections:
 def independent_eventlog_connection(host, username, password, domain=''):
     from impacket.smbconnection import SMBConnection
     from impacket.dcerpc.v5 import transport, even
-    
+
     # Create base SMB connection (no share needed)
     smbClient = SMBConnection(host, host)
     smbClient.login(username, password, domain)
-    
+
     # Connect directly to eventlog named pipe
     rpctransport = transport.SMBTransport(host, filename=r"\eventlog", smb_connection=smbClient)
     dce = rpctransport.get_dce_rpc()
     dce.connect()
     dce.bind(even.MSRPC_UUID_EVEN)
-    
+
     return dce, smbClient
 ```
 
@@ -121,42 +121,42 @@ from impacket.dcerpc.v5.dtypes import NULL
 
 def read_eventlog_entries(dce, log_name="Application", max_entries=100):
     """Read entries from specified event log"""
-    
+
     # Open the event log
     resp = even.hElfrOpenELW(dce, log_name, NULL)
     log_handle = resp['LogHandle']
-    
+
     try:
         # Get record count
         count_resp = even.hElfrNumberOfRecords(dce, log_handle)
         total_records = count_resp['NumberOfRecords']
-        
+
         # Get oldest record number
         oldest_resp = even.hElfrOldestRecordNumber(dce, log_handle)
         oldest_record = oldest_resp['OldestRecordNumber']
-        
+
         # Read entries
         entries = []
         bytes_to_read = min(max_entries * 1024, even.MAX_BATCH_BUFF)  # Estimate
-        
+
         read_resp = even.hElfrReadELW(
-            dce, 
-            log_handle, 
+            dce,
+            log_handle,
             even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_FORWARDS_READ,
             oldest_record,
             bytes_to_read
         )
-        
+
         # Parse the buffer to extract individual records
         buffer = read_resp['Buffer']
         entries = parse_eventlog_buffer(buffer)
-        
+
         return {
             'total_records': total_records,
             'oldest_record': oldest_record,
             'entries': entries
         }
-        
+
     finally:
         # Always close the handle
         even.hElfrCloseEL(dce, log_handle)
@@ -169,35 +169,35 @@ def enumerate_available_logs(dce):
     """Enumerate available event logs"""
     common_logs = [
         'Application',
-        'System', 
+        'System',
         'Security',
         'Setup',
         'Microsoft-Windows-PowerShell/Operational',
         'Microsoft-Windows-Sysmon/Operational',
         'Microsoft-Windows-Windows Defender/Operational'
     ]
-    
+
     available_logs = []
     for log_name in common_logs:
         try:
             resp = even.hElfrOpenELW(dce, log_name, NULL)
             if resp['ErrorCode'] == 0:
                 log_handle = resp['LogHandle']
-                
+
                 # Get log info
                 count_resp = even.hElfrNumberOfRecords(dce, log_handle)
                 record_count = count_resp['NumberOfRecords']
-                
+
                 available_logs.append({
                     'name': log_name,
                     'record_count': record_count
                 })
-                
+
                 even.hElfrCloseEL(dce, log_handle)
         except Exception as e:
             # Log doesn't exist or access denied
             continue
-    
+
     return available_logs
 ```
 
@@ -207,24 +207,24 @@ def enumerate_available_logs(dce):
 def parse_eventlog_buffer(buffer):
     """Parse eventlog buffer into individual records"""
     from impacket.dcerpc.v5.even import EVENTLOGRECORD
-    
+
     records = []
     offset = 0
-    
+
     while offset < len(buffer):
         try:
             # Each record starts with its length
             if offset + 4 > len(buffer):
                 break
-                
+
             record_length = struct.unpack('<L', buffer[offset:offset+4])[0]
             if record_length == 0 or offset + record_length > len(buffer):
                 break
-            
+
             # Extract record data
             record_data = buffer[offset:offset + record_length]
             record = EVENTLOGRECORD(record_data)
-            
+
             records.append({
                 'record_number': record['RecordNumber'],
                 'time_generated': record['TimeGenerated'],
@@ -234,14 +234,14 @@ def parse_eventlog_buffer(buffer):
                 'computer_name': record['Computername'].decode('utf-16le').rstrip('\x00'),
                 'data': record['Data'] if record['DataLength'] > 0 else None
             })
-            
+
             offset += record_length
-            
+
         except Exception as e:
             # Skip malformed records
             offset += 4
             continue
-    
+
     return records
 ```
 
@@ -253,12 +253,12 @@ def parse_eventlog_buffer(buffer):
 # In src/slingerpkg/lib/eventlog_rpc.py
 class EventLogRPC:
     """Direct EventLog RPC implementation using named pipes"""
-    
+
     def __init__(self, smb_connection):
         self.smb_connection = smb_connection
         self.dce = None
         self.log_handles = {}  # Cache for open log handles
-        
+
     def connect(self, interface='legacy'):
         """Connect to EventLog service via named pipe"""
         pipe = r"\eventlog"
@@ -269,22 +269,22 @@ class EventLogRPC:
         )
         self.dce = rpctransport.get_dce_rpc()
         self.dce.connect()
-        
+
         if interface == 'legacy':
             self.dce.bind(even.MSRPC_UUID_EVEN)
         else:
             self.dce.bind(even6.MSRPC_UUID_EVEN6)
-    
+
     def query_events(self, log_name, **kwargs):
         """Query events with various filtering options"""
         # Implementation here
         pass
-    
+
     def list_logs(self):
         """List available event logs"""
         # Implementation here
         pass
-    
+
     def backup_log(self, log_name, backup_path):
         """Backup event log to file"""
         # Implementation here
@@ -307,7 +307,7 @@ uuid_endpoints = {
 def add_eventlog_parser(subparsers):
     eventlog_parser = subparsers.add_parser('eventlog', help='Event Log operations')
     eventlog_subparsers = eventlog_parser.add_subparsers(dest='eventlog_action')
-    
+
     # Query command
     query_parser = eventlog_subparsers.add_parser('query', help='Query event logs')
     query_parser.add_argument('-log', '--log', default='Application', help='Log name')
@@ -318,10 +318,10 @@ def add_eventlog_parser(subparsers):
     query_parser.add_argument('-source', '--source', help='Event source filter')
     query_parser.add_argument('-format', '--format', choices=['table', 'json', 'csv'], default='table', help='Output format')
     query_parser.add_argument('-output', '--output', help='Save to file')
-    
-    # List command  
+
+    # List command
     list_parser = eventlog_subparsers.add_parser('list', help='List available logs')
-    
+
     # Backup command
     backup_parser = eventlog_subparsers.add_parser('backup', help='Backup event log')
     backup_parser.add_argument('-log', '--log', required=True, help='Log name')
@@ -347,11 +347,11 @@ def robust_eventlog_operation(dce, operation_func, *args, **kwargs):
     """Wrapper for robust eventlog operations with retry logic"""
     max_retries = 3
     retry_count = 0
-    
+
     while retry_count < max_retries:
         try:
             return operation_func(dce, *args, **kwargs)
-            
+
         except DCERPCSessionError as e:
             if e.error_code == 0x5:  # Access Denied
                 raise Exception("Access denied. Administrative privileges required.")
@@ -366,7 +366,7 @@ def robust_eventlog_operation(dce, operation_func, *args, **kwargs):
                     raise Exception("EventLog service unavailable.")
             else:
                 raise
-                
+
         except Exception as e:
             if "connection" in str(e).lower() and retry_count < max_retries - 1:
                 time.sleep(1)
@@ -383,44 +383,44 @@ def robust_eventlog_operation(dce, operation_func, *args, **kwargs):
 ```python
 def efficient_eventlog_reading(dce, log_handle, max_records=1000):
     """Efficiently read large numbers of event log entries"""
-    
+
     # Start with larger buffer size
     buffer_size = even.MAX_BATCH_BUFF
     all_records = []
     records_read = 0
     read_offset = 0
-    
+
     while records_read < max_records:
         try:
             resp = even.hElfrReadELW(
-                dce, 
+                dce,
                 log_handle,
                 even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_FORWARDS_READ,
                 read_offset,
                 buffer_size
             )
-            
+
             if resp['NumberOfBytesRead'] == 0:
                 break  # No more data
-                
+
             # Parse records from buffer
             records = parse_eventlog_buffer(resp['Buffer'][:resp['NumberOfBytesRead']])
             all_records.extend(records)
             records_read += len(records)
-            
+
             # Update offset for next read
             if records:
                 read_offset = records[-1]['record_number'] + 1
             else:
                 break
-                
+
         except DCERPCSessionError as e:
             if e.error_code == 0x7A:  # Insufficient buffer
                 buffer_size = resp.get('MinNumberOfBytesNeeded', buffer_size * 2)
                 continue
             else:
                 raise
-    
+
     return all_records[:max_records]
 ```
 
@@ -429,27 +429,27 @@ def efficient_eventlog_reading(dce, log_handle, max_records=1000):
 ```python
 class EventLogConnectionPool:
     """Manage multiple EventLog RPC connections efficiently"""
-    
+
     def __init__(self, max_connections=5):
         self.pool = []
         self.max_connections = max_connections
         self.in_use = set()
-    
+
     def get_connection(self, smb_connection):
         """Get or create EventLog RPC connection"""
         for dce in self.pool:
             if dce not in self.in_use:
                 self.in_use.add(dce)
                 return dce
-        
+
         if len(self.pool) < self.max_connections:
             dce = connect_to_eventlog_service(smb_connection)
             self.pool.append(dce)
             self.in_use.add(dce)
             return dce
-        
+
         raise Exception("Connection pool exhausted")
-    
+
     def return_connection(self, dce):
         """Return connection to pool"""
         self.in_use.discard(dce)
@@ -532,30 +532,30 @@ from datetime import datetime
 
 def connect_and_read_eventlog(host, username, password, domain='', log_name='Application'):
     """Complete example of EventLog RPC usage"""
-    
+
     # Establish SMB connection
     smbClient = SMBConnection(host, host)
     smbClient.login(username, password, domain)
-    
+
     # Connect to EventLog RPC service
     rpctransport = transport.SMBTransport(host, filename=r"\eventlog", smb_connection=smbClient)
     dce = rpctransport.get_dce_rpc()
     dce.connect()
     dce.bind(even.MSRPC_UUID_EVEN)
-    
+
     try:
         # Open event log
         resp = even.hElfrOpenELW(dce, log_name, NULL)
         log_handle = resp['LogHandle']
-        
+
         # Get log statistics
         count_resp = even.hElfrNumberOfRecords(dce, log_handle)
         oldest_resp = even.hElfrOldestRecordNumber(dce, log_handle)
-        
+
         print(f"EventLog: {log_name}")
         print(f"Total Records: {count_resp['NumberOfRecords']}")
         print(f"Oldest Record: {oldest_resp['OldestRecordNumber']}")
-        
+
         # Read recent entries
         read_resp = even.hElfrReadELW(
             dce,
@@ -564,18 +564,18 @@ def connect_and_read_eventlog(host, username, password, domain='', log_name='App
             oldest_resp['OldestRecordNumber'],
             even.MAX_BATCH_BUFF
         )
-        
+
         print(f"Read {read_resp['NumberOfBytesRead']} bytes")
-        
+
         # Parse and display records
         records = parse_eventlog_buffer(read_resp['Buffer'][:read_resp['NumberOfBytesRead']])
         for record in records[:10]:  # Show first 10
             timestamp = datetime.fromtimestamp(record['time_generated'])
             print(f"[{timestamp}] ID:{record['event_id']} Source:{record['source_name']}")
-        
+
         # Clean up
         even.hElfrCloseEL(dce, log_handle)
-        
+
     finally:
         dce.disconnect()
         smbClient.close()
