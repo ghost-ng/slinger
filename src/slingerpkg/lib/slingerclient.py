@@ -5,6 +5,7 @@ from slingerpkg.lib.scm import scm
 from slingerpkg.lib.smblib import smblib
 from slingerpkg.lib.secrets import secrets
 from slingerpkg.lib.wmi_eventlog import WMIEventLog
+from slingerpkg.lib.named_pipes import NamedPipeEnumerator
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from slingerpkg.lib.dcetransport import *
@@ -470,3 +471,48 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, WMIEventLog)
                 return f"{num:3.1f}{unit}{suffix}"
             num /= 1024.0
         return f"{num:.1f}Yi{suffix}"
+
+    def enumerate_named_pipes(self, args):
+        """Enumerate named pipes on the remote system"""
+        try:
+            if not self.is_logged_in:
+                print_bad("Not logged in. Please authenticate first.")
+                return
+
+            if not self.conn:
+                print_bad("No SMB connection available.")
+                return
+
+            # Get verbose setting from args or current debug state
+            verbose = getattr(args, "verbose", False) or getattr(self, "debug", False)
+
+            print_info(f"Enumerating named pipes on {self.host}...")
+            if verbose:
+                print_debug(f"Using enumeration method: {args.method}")
+                if hasattr(self, "share") and self.share:
+                    print_debug(f"Current share: {self.share} (will be preserved)")
+
+            # Create enumerator with current SMB connection
+            enumerator = NamedPipeEnumerator(self.conn, verbose=verbose)
+
+            # Enumerate pipes using specified method
+            pipes = enumerator.enumerate_pipes(method=args.method)
+
+            if pipes:
+                # Display results
+                output = enumerator.format_output(detailed=args.detailed)
+                print(output)
+
+                # Save to file if requested
+                if args.output:
+                    if enumerator.save_output(args.output, detailed=args.detailed):
+                        print_good(f"Results saved to: {args.output}")
+                    else:
+                        print_bad(f"Failed to save results to: {args.output}")
+
+            else:
+                print_warning("No named pipes discovered.")
+
+        except Exception as e:
+            print_debug(f"Error enumerating named pipes: {e}", sys.exc_info())
+            print_bad(f"Failed to enumerate named pipes: {e}")
