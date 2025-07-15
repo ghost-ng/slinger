@@ -1343,9 +1343,18 @@ def setup_cli_parser(slingerClient):
     parser_eventlog = subparsers.add_parser(
         "eventlog",
         help="Windows Event Log operations",
-        description="Query, monitor, and manage Windows Event Logs via WMI",
-        epilog="Example Usage: eventlog query -log System -type Error -count 50",
+        description="Query, monitor, and manage Windows Event Logs via named pipes",
+        epilog="Example Usage: eventlog query --log System --level Error --count 50",
     )
+    
+    # Add global method option for all eventlog commands
+    parser_eventlog.add_argument(
+        "--method",
+        choices=["auto", "rpc", "wmi", "smb"],
+        default="auto",
+        help="Communication method: auto (detect best), rpc (named pipe), wmi (queries), smb (file access)"
+    )
+    
     eventlog_subparsers = parser_eventlog.add_subparsers(
         dest="eventlog_action", help="Event log actions"
     )

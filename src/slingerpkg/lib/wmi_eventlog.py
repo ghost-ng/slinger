@@ -1,6 +1,7 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
 from slingerpkg.utils.common import *
+from slingerpkg.lib.eventlog_rpc import EventLogRPCManager
 import traceback
 import sys
 import time
@@ -24,11 +25,22 @@ class WMIEventLog:
         self.event_count = 0
         self.start_time = None
         self.available_logs = []
+        self.rpc_manager = None
 
     def eventlog_handler(self, args):
         """Main handler for eventlog commands"""
-        if not self.check_if_connected():
-            print_bad("Not connected to a remote host. Use 'connect' first.")
+        # Initialize RPC manager if not already done
+        if not self.rpc_manager:
+            self.rpc_manager = EventLogRPCManager(self)
+        
+        # Check method preference and availability
+        method = getattr(args, 'method', 'auto')
+        
+        # For RPC method, we don't need to be connected to a share
+        if method == 'rpc' or (method == 'auto' and not self.check_if_connected()):
+            print_debug("Using EventLog RPC communication (share-independent)")
+        elif not self.check_if_connected():
+            print_bad("Not connected to a remote host. Use 'connect' first or specify --method rpc")
             return
 
         try:
@@ -146,23 +158,91 @@ class WMIEventLog:
     def _execute_wmi_query(self, wql_query):
         """Execute WMI query and return results"""
         try:
-            # Use the existing WMI execution framework
-            # This would integrate with the DCE transport's WMI capabilities
-
-            # For now, simulate the WMI query execution
-            # In actual implementation, this would use:
-            # return self.dce_transport.execute_wmi_query(wql_query)
-
+            # Try RPC method first for better performance and independence
+            if self.rpc_manager:
+                available_methods = self.rpc_manager.get_available_methods()
+                print_debug(f"Available eventlog methods: {[m[1] for m in available_methods]}")
+                
+                # If RPC is available, use it for better performance
+                if any(m[0] == 'rpc' for m in available_methods):
+                    return self._execute_via_rpc_fallback(wql_query)
+            
+            # Fallback to WMI if available
             print_debug("Executing WMI query via DCE transport...")
-
-            # Placeholder for actual WMI execution
-            # This needs to be implemented with proper Impacket WMI integration
-            mock_events = self._generate_mock_events()
-            return mock_events
+            
+            # TODO: Implement real WMI query execution
+            # This would integrate with the DCE transport's WMI capabilities
+            # return self.dce_transport.execute_wmi_query(wql_query)
+            
+            print_warning("WMI query execution not yet implemented, using RPC fallback")
+            return self._execute_via_rpc_fallback(wql_query)
 
         except Exception as e:
             print_bad(f"WMI query execution failed: {e}")
             return []
+
+    def _execute_via_rpc_fallback(self, wql_query):
+        """Execute query using RPC named pipe fallback"""
+        try:
+            # Parse basic query parameters from WQL
+            log_name = self._extract_log_name_from_wql(wql_query)
+            count = self._extract_count_from_wql(wql_query) or 100
+            
+            # Use RPC manager to execute query
+            events = self.rpc_manager.execute_eventlog_operation(
+                'query',
+                method='rpc',
+                log_name=log_name,
+                count=count
+            )
+            
+            # Convert RPC events to WMI-compatible format
+            return self._convert_rpc_events_to_wmi_format(events)
+            
+        except Exception as e:
+            print_debug(f"RPC fallback failed: {e}")
+            return []
+
+    def _extract_log_name_from_wql(self, wql_query):
+        """Extract log name from WQL query"""
+        try:
+            # Parse "WHERE Logfile = 'LogName'"
+            import re
+            match = re.search(r"Logfile\s*=\s*['\"]([^'\"]+)['\"]", wql_query, re.IGNORECASE)
+            if match:
+                return match.group(1)
+            return "Application"  # Default
+        except:
+            return "Application"
+
+    def _extract_count_from_wql(self, wql_query):
+        """Extract count/limit from WQL query"""
+        try:
+            import re
+            match = re.search(r"TOP\s+(\d+)", wql_query, re.IGNORECASE)
+            if match:
+                return int(match.group(1))
+            return None
+        except:
+            return None
+
+    def _convert_rpc_events_to_wmi_format(self, rpc_events):
+        """Convert RPC event format to WMI-compatible format"""
+        wmi_events = []
+        
+        for event in rpc_events:
+            wmi_event = {
+                "EventCode": event.get('event_id', 0),
+                "EventType": event.get('event_type', 0),
+                "TimeGenerated": event.get('time_generated', datetime.now()).strftime("%Y%m%d%H%M%S.000000+***"),
+                "SourceName": event.get('source_name', ''),
+                "Message": f"Event ID {event.get('event_id', 0)} from {event.get('source_name', 'Unknown')}",
+                "ComputerName": event.get('computer_name', ''),
+                "RecordNumber": event.get('record_number', 0),
+            }
+            wmi_events.append(wmi_event)
+        
+        return wmi_events
 
     def _generate_mock_events(self):
         """Generate mock events for testing (remove in production)"""
@@ -347,40 +427,44 @@ class WMIEventLog:
         return type_map.get(event_type, f"Unknown({event_type})")
 
     def list_event_logs(self, args):
-        """List available event logs"""
-        self.setup_dce_transport()
-
-        print_info("Querying available event logs...")
+        """List available event logs via RPC named pipe"""
+        print_info("Querying available event logs via named pipe...")
 
         try:
-            # Query Win32_NTEventLogFile to get available logs
-            wql_query = "SELECT LogFileName, MaxFileSize, NumberOfRecords, OverwritePolicy FROM Win32_NTEventLogFile"
-            logs = self._execute_wmi_query(wql_query)
+            # Use RPC manager for efficient log enumeration
+            if not self.rpc_manager:
+                self.rpc_manager = EventLogRPCManager(self)
+            
+            logs = self.rpc_manager.execute_eventlog_operation('list', method='rpc')
 
             if not logs:
-                print_warning("No event logs found")
+                print_warning("No event logs found or accessible")
                 return
 
             # Display logs in table format
-            headers = ["Log Name", "Max Size (KB)", "Records", "Overwrite Policy"]
+            headers = ["Log Name", "Records", "Accessible", "Status"]
             rows = []
 
             for log in logs:
+                status = "✓ Ready" if log.get('accessible') else f"✗ {log.get('error', 'Access Denied')}"
                 rows.append(
                     [
-                        log.get("LogFileName", "Unknown"),
-                        (
-                            f"{int(log.get('MaxFileSize', 0)) / 1024:.0f}"
-                            if log.get("MaxFileSize")
-                            else "Unknown"
-                        ),
-                        log.get("NumberOfRecords", "Unknown"),
-                        log.get("OverwritePolicy", "Unknown"),
+                        log.get("name", "Unknown"),
+                        log.get("record_count", "Unknown"),
+                        "Yes" if log.get('accessible') else "No",
+                        status,
                     ]
                 )
 
             print(tabulate(rows, headers=headers, tablefmt="grid"))
-            print_good(f"Found {len(logs)} event logs")
+            
+            accessible_count = sum(1 for log in logs if log.get('accessible'))
+            print_good(f"Found {len(logs)} event logs ({accessible_count} accessible)")
+            
+            # Show available communication methods
+            methods = self.rpc_manager.get_available_methods()
+            if len(methods) > 1:
+                print_info(f"Available methods: {', '.join([m[1] for m in methods])}")
 
         except Exception as e:
             print_bad(f"Failed to list event logs: {e}")
