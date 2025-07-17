@@ -135,7 +135,7 @@ class EventLog:
                     print_warning(f"No events in '{log_name}'")
                     return
 
-                print(f"[DEBUG] Log has {total_records} records, oldest: {oldest_record}")
+                print_debug(f"Log has {total_records} records, oldest: {oldest_record}")
 
                 # Read events - read more than requested to account for filtering
                 all_events = []
@@ -162,19 +162,19 @@ class EventLog:
                             break
 
                         bytes_read = resp["NumberOfBytesRead"]
-                        print(f"[DEBUG] Read {bytes_read} bytes")
+                        print_debug(f"Read {bytes_read} bytes")
 
                         # Parse events from buffer
                         buffer = resp["Buffer"]
                         if isinstance(buffer, list):
                             buffer = b"".join(buffer)
 
-                        print(f"[DEBUG] Buffer size: {len(buffer)} bytes")
+                        print_debug(f"Buffer size: {len(buffer)} bytes")
 
                         # Only parse up to NumberOfBytesRead
                         if bytes_read < len(buffer):
                             buffer = buffer[:bytes_read]
-                            print(f"[DEBUG] Truncated buffer to {bytes_read} bytes")
+                            print_debug(f"Truncated buffer to {bytes_read} bytes")
 
                         parsed_events = self._parse_event_buffer(
                             buffer, max_read_events - len(all_events)
@@ -238,7 +238,7 @@ class EventLog:
 
         # The buffer might contain only valid data up to NumberOfBytesRead
         # Let's check the actual size we should process
-        print(f"[DEBUG] Parsing buffer of {len(buffer)} bytes for up to {max_events} events")
+        print_debug(f"Parsing buffer of {len(buffer)} bytes for up to {max_events} events")
 
         while offset < len(buffer) and len(events) < max_events:
             # Check if we have enough data for a record header (at least Length field)
@@ -258,12 +258,12 @@ class EventLog:
                 break
 
             if offset == 0:
-                print(f"[DEBUG] First record length: {length}")
-                print(f"[DEBUG] First 64 bytes (hex): {buffer[:64].hex()}")
+                print_debug(f"First record length: {length}")
+                print_debug(f"First 64 bytes (hex): {buffer[:64].hex()}")
 
             # Validate length
             if length < 48 or length > 0x10000:  # Min size and sanity check
-                print(f"[DEBUG] Invalid record length {length} at offset {offset}")
+                print_debug(f"Invalid record length {length} at offset {offset}")
                 break
 
             if offset + length > len(buffer):
@@ -277,8 +277,8 @@ class EventLog:
                 # Extract exactly the record length
                 record_data = buffer[offset : offset + length]
                 if len(record_data) < length:
-                    print(
-                        f"[DEBUG] Not enough data for record: need {length}, have {len(record_data)}"
+                    print_debug(
+                        f"Not enough data for record: need {length}, have {len(record_data)}"
                     )
                     break
 
@@ -297,7 +297,7 @@ class EventLog:
                 offset += record["Length"]
 
             except Exception as e:
-                print(f"[DEBUG] Error parsing record at offset {offset}: {e}")
+                print_debug(f"Error parsing record at offset {offset}: {e}")
                 if offset == 0:
                     import traceback
 
@@ -683,3 +683,108 @@ class EventLog:
                 print(f"Event Data:")
                 for j, string in enumerate(event["Strings"]):
                     print(f"  [{j}] {string}")
+
+    def list_event_sources(self, args):
+        """List unique event sources from a specific Windows Event Log"""
+        log_name = args.log
+        scan_count = getattr(args, "count", 1000)
+
+        print_info(
+            f"Scanning '{log_name}' event log for unique sources (up to {scan_count} events)..."
+        )
+
+        try:
+            # Setup transport and connect
+            self.setup_dce_transport()
+            self.dce_transport._connect_eventlog(use_even6=False)
+
+            # Open the log
+            log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
+
+            try:
+                # Get log info
+                total_records = self.dce_transport._eventlog_get_record_count(log_handle)
+
+                if total_records == 0:
+                    print_warning(f"No events in '{log_name}'")
+                    return
+
+                print_debug(f"Log has {total_records} records")
+
+                # Read events and collect sources
+                sources = {}  # source_name -> count
+                events_read = 0
+                bytes_to_read = 65536  # 64KB chunks
+                read_flags = even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ
+
+                while events_read < scan_count:
+                    try:
+                        resp = self.dce_transport._eventlog_read_events(
+                            log_handle,
+                            read_flags,
+                            0,  # record offset (0 for sequential)
+                            bytes_to_read,
+                        )
+
+                        if resp["NumberOfBytesRead"] == 0:
+                            print_debug("No bytes read, breaking")
+                            break
+
+                        bytes_read = resp["NumberOfBytesRead"]
+
+                        # Parse events from buffer
+                        buffer = resp["Buffer"]
+                        if isinstance(buffer, list):
+                            buffer = b"".join(buffer)
+
+                        # Parse events
+                        parsed_events = self._parse_event_buffer(buffer, scan_count - events_read)
+
+                        # Collect sources
+                        for event in parsed_events:
+                            source = event.get("SourceName", "Unknown")
+                            sources[source] = sources.get(source, 0) + 1
+                            events_read += 1
+
+                        if len(parsed_events) == 0:
+                            break
+
+                    except DCERPCException as e:
+                        if "ERROR_HANDLE_EOF" in str(e):
+                            break
+                        raise
+
+                # Display results
+                if sources:
+                    print_good(f"Found {len(sources)} unique sources in {events_read} events:")
+
+                    # Sort by count (descending) then by name
+                    sorted_sources = sorted(sources.items(), key=lambda x: (-x[1], x[0]))
+
+                    # Display as table
+                    headers = ["Source Name", "Event Count", "Percentage"]
+                    table_data = []
+
+                    for source, count in sorted_sources:
+                        percentage = (count / events_read * 100) if events_read > 0 else 0
+                        table_data.append([source, count, f"{percentage:.1f}%"])
+
+                    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+                else:
+                    print_warning(f"No event sources found in '{log_name}'")
+
+            finally:
+                # Close the log handle
+                self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+
+        except DCERPCException as e:
+            if "ERROR_ACCESS_DENIED" in str(e) or "rpc_s_access_denied" in str(e):
+                print_bad(f"Access denied to '{log_name}' - insufficient privileges")
+            else:
+                print_bad(f"RPC error accessing '{log_name}': {e}")
+        except Exception as e:
+            print_bad(f"Error scanning '{log_name}': {e}")
+            if config.debug:
+                import traceback
+
+                traceback.print_exc()

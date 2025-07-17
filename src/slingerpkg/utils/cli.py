@@ -1416,7 +1416,21 @@ def setup_cli_parser(slingerClient):
     )
     parser_eventlog_list.set_defaults(func=slingerClient.eventlog_handler)
 
-    # Only list and query commands are implemented
+    # eventlog sources command
+    parser_eventlog_sources = eventlog_subparsers.add_parser(
+        "sources",
+        help="List unique event sources from a log",
+        description="Enumerate all unique event sources found in a specific event log",
+    )
+    parser_eventlog_sources.add_argument(
+        "--log", required=True, help="Event log name to scan for sources"
+    )
+    parser_eventlog_sources.add_argument(
+        "--count", type=int, default=1000, help="Number of events to scan (default: 1000)"
+    )
+    parser_eventlog_sources.set_defaults(func=slingerClient.eventlog_handler)
+
+    # Only list, query, and sources commands are implemented
 
     return parser
 

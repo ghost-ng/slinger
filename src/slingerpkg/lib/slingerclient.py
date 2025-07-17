@@ -471,6 +471,8 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
                 self.list_event_logs(args)
             elif args.eventlog_action == "query":
                 self.query_event_log(args)
+            elif args.eventlog_action == "sources":
+                self.list_event_sources(args)
             else:
                 print_bad(f"Unknown eventlog action: {args.eventlog_action}")
 
