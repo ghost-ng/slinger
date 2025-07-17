@@ -803,18 +803,23 @@ class EventLog:
                     print_debug(f"Raw count response: {repr(count_resp)}, type: {type(count_resp)}")
                     
                     # Extract the actual count from the response
-                    if isinstance(count_resp, dict) and "NumberOfRecords" in count_resp:
-                        count = count_resp["NumberOfRecords"]
-                    elif hasattr(count_resp, 'NumberOfRecords'):
-                        count = count_resp.NumberOfRecords
-                    else:
-                        count = count_resp
-                    
-                    # Convert bytes to int if necessary
-                    if isinstance(count, bytes):
-                        count = int.from_bytes(count, byteorder='little')
-                    elif isinstance(count, str):
-                        count = int(count)
+                    # Based on logs: it's an ElfrNumberOfRecordsResponse object with NumberOfRecords field
+                    try:
+                        if hasattr(count_resp, 'NumberOfRecords'):
+                            count = count_resp['NumberOfRecords']  # Use dict-style access for NDR structures
+                        elif isinstance(count_resp, dict) and "NumberOfRecords" in count_resp:
+                            count = count_resp["NumberOfRecords"]
+                        else:
+                            count = count_resp
+                        
+                        # Convert to integer if it's not already
+                        if not isinstance(count, int):
+                            count = int(count)
+                            
+                    except Exception as e:
+                        print_debug(f"Error extracting count: {e}")
+                        # Fallback - try to convert the whole response
+                        count = int(count_resp) if hasattr(count_resp, '__int__') else 0
                         
                     print_debug(f"Extracted count: {count}, type: {type(count)}")
                     print_good(f"Event log '{log_name}' exists and is accessible!")
