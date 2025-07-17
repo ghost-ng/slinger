@@ -790,48 +790,14 @@ class EventLog:
             self.setup_dce_transport()
             self.dce_transport._connect_eventlog(use_even6=False)
 
-            # Since the EventLog API doesn't properly validate log names and opens a 
-            # fallback log instead, we need to detect this by comparing with known logs
-            print_debug("Validating log name by comparing with known logs...")
-            
-            # First, try to open the requested log
-            try:
-                requested_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
-                requested_count = self.dce_transport._eventlog_get_record_count(requested_handle)
-                requested_oldest = self.dce_transport._eventlog_get_oldest_record(requested_handle)
-                self.dce_transport._eventlog_close_log(requested_handle, use_even6=False)
-                print_debug(f"Requested log '{log_name}': count={requested_count}, oldest={requested_oldest}")
-                
-            except Exception as e:
-                print_bad(f"Error opening log '{log_name}': {e}")
-                return
-            
-            # Now open a known default log (Application) to compare
-            try:
-                default_handle = self.dce_transport._eventlog_open_log("Application", use_even6=False) 
-                default_count = self.dce_transport._eventlog_get_record_count(default_handle)
-                default_oldest = self.dce_transport._eventlog_get_oldest_record(default_handle)
-                self.dce_transport._eventlog_close_log(default_handle, use_even6=False)
-                print_debug(f"Default 'Application' log: count={default_count}, oldest={default_oldest}")
-                
-                # If counts and oldest records match exactly, it probably opened the same log
-                if (requested_count == default_count and requested_oldest == default_oldest and 
-                    log_name.lower() not in ["application", "app"]):
-                    print_bad(f"Event log '{log_name}' does not exist on this system")
-                    print_info("Note: Log names are case-sensitive. Common logs include:")
-                    print_info("  - Application")
-                    print_info("  - System") 
-                    print_info("  - Security")
-                    print_info("  - 'Windows PowerShell'")
-                    print_info("  - Microsoft-Windows-*/Operational (e.g., Microsoft-Windows-Sysmon/Operational)")
-                    return
-                    
-            except Exception as e:
-                print_debug(f"Could not open Application log for comparison: {e}")
-                # Continue anyway - maybe Application log doesn't exist
+            # Note: The Windows EventLog API doesn't properly validate log names.
+            # It opens a fallback log (usually Application) for invalid names instead of failing.
+            # Since all logs (valid and invalid) return the same statistics in this environment,
+            # we cannot reliably distinguish between real and fallback logs.
+            print_debug("Opening EventLog (validation not reliable due to API behavior)...")
             
             try:
-                # Re-open the requested log for detailed info
+                # Open the requested log - API will open fallback for invalid names
                 log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
 
                 # If we got here, the log exists - get some info about it
@@ -840,7 +806,8 @@ class EventLog:
                     record_count = self.dce_transport._eventlog_get_record_count(log_handle)
                     oldest_record = self.dce_transport._eventlog_get_oldest_record(log_handle)
 
-                    print_good(f"Event log '{log_name}' exists and is accessible!")
+                    print_good(f"Event log '{log_name}' opened successfully!")
+                    print_warning("Note: Windows EventLog API opens fallback log for invalid names")
                     print_info(f"  Total records: {record_count}")
                     if record_count > 0:
                         print_info(f"  Oldest record number: {oldest_record}")
@@ -875,6 +842,9 @@ class EventLog:
 
                     # Close the handle
                     self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+                    
+                    # Provide guidance to users
+                    print_info("Use 'eventlog list' to see available logs on this system")
 
                 except Exception as e:
                     # Close handle even if we couldn't get info
