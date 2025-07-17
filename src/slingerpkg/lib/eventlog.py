@@ -778,6 +778,7 @@ class EventLog:
             print_bad(f"Error scanning '{log_name}': {e}")
             print_debug(f"Traceback: {traceback.format_exc()}")
 
+
     def check_event_log(self, args):
         """Check if a specific Windows Event Log exists and is accessible"""
         log_name = args.log
@@ -789,8 +790,48 @@ class EventLog:
             self.setup_dce_transport()
             self.dce_transport._connect_eventlog(use_even6=False)
 
+            # Since the EventLog API doesn't properly validate log names and opens a 
+            # fallback log instead, we need to detect this by comparing with known logs
+            print_debug("Validating log name by comparing with known logs...")
+            
+            # First, try to open the requested log
             try:
-                # Try to open the log
+                requested_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
+                requested_count = self.dce_transport._eventlog_get_record_count(requested_handle)
+                requested_oldest = self.dce_transport._eventlog_get_oldest_record(requested_handle)
+                self.dce_transport._eventlog_close_log(requested_handle, use_even6=False)
+                print_debug(f"Requested log '{log_name}': count={requested_count}, oldest={requested_oldest}")
+                
+            except Exception as e:
+                print_bad(f"Error opening log '{log_name}': {e}")
+                return
+            
+            # Now open a known default log (Application) to compare
+            try:
+                default_handle = self.dce_transport._eventlog_open_log("Application", use_even6=False) 
+                default_count = self.dce_transport._eventlog_get_record_count(default_handle)
+                default_oldest = self.dce_transport._eventlog_get_oldest_record(default_handle)
+                self.dce_transport._eventlog_close_log(default_handle, use_even6=False)
+                print_debug(f"Default 'Application' log: count={default_count}, oldest={default_oldest}")
+                
+                # If counts and oldest records match exactly, it probably opened the same log
+                if (requested_count == default_count and requested_oldest == default_oldest and 
+                    log_name.lower() not in ["application", "app"]):
+                    print_bad(f"Event log '{log_name}' does not exist on this system")
+                    print_info("Note: Log names are case-sensitive. Common logs include:")
+                    print_info("  - Application")
+                    print_info("  - System") 
+                    print_info("  - Security")
+                    print_info("  - 'Windows PowerShell'")
+                    print_info("  - Microsoft-Windows-*/Operational (e.g., Microsoft-Windows-Sysmon/Operational)")
+                    return
+                    
+            except Exception as e:
+                print_debug(f"Could not open Application log for comparison: {e}")
+                # Continue anyway - maybe Application log doesn't exist
+            
+            try:
+                # Re-open the requested log for detailed info
                 log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
 
                 # If we got here, the log exists - get some info about it
