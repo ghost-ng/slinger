@@ -4,7 +4,7 @@ import random
 import datetime
 import xml.etree.ElementTree as ET
 import re
-from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr
+from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr, even, even6
 from slingerpkg.utils.printlib import *
 from slingerpkg.var.config import config_vars
 from tabulate import tabulate
@@ -18,6 +18,8 @@ uuid_endpoints = {
     tsch.MSRPC_UUID_TSCHS: "tsch",
     scmr.MSRPC_UUID_SCMR: "scmr",
     rrp.MSRPC_UUID_RRP: "rrp",
+    even.MSRPC_UUID_EVEN: "even",
+    even6.MSRPC_UUID_EVEN6: "even6",
 }
 
 

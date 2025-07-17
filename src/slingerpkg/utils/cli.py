@@ -221,9 +221,9 @@ def print_all_commands_verbose(parser):
         if category == "📊 Event Log Operations":
             if "eventlog" not in [cmd for cmd in cmd_list if cmd in commands]:
                 print(
-                    "  eventlog                                        Query, monitor, and manage Windows Event Logs v..."
+                    "  eventlog                                        Query Windows Event Logs via RPC over \\\\pipe\\\\eventlog"
                 )
-            print("    Subcommands: query, list, clear, backup, monitor, enable, disable, clean")
+            print("    Subcommands: list, query")
         elif category == "💾 Download Management":
             print("    Subcommands: list, cleanup")
 
@@ -1345,17 +1345,12 @@ def setup_cli_parser(slingerClient):
     parser_eventlog = subparsers.add_parser(
         "eventlog",
         help="Windows Event Log operations",
-        description="Query, monitor, and manage Windows Event Logs via named pipes",
+        description="Query Windows Event Logs via RPC over SMB named pipe \\pipe\\eventlog",
         epilog="Example Usage: eventlog query --log System --level Error --count 50",
     )
 
-    # Add global method option for all eventlog commands
-    parser_eventlog.add_argument(
-        "--method",
-        choices=["auto", "rpc", "wmi", "smb"],
-        default="auto",
-        help="Communication method: auto (detect best), rpc (named pipe), wmi (queries), smb (file access)",
-    )
+    # EventLog uses RPC via SMB named pipe only
+    # No method selection needed - always uses \\pipe\\eventlog
 
     eventlog_subparsers = parser_eventlog.add_subparsers(
         dest="eventlog_action", help="Event log actions"
@@ -1365,8 +1360,8 @@ def setup_cli_parser(slingerClient):
     parser_eventlog_query = eventlog_subparsers.add_parser(
         "query",
         help="Query event log entries",
-        description="Query Windows Event Log entries with filtering",
-        epilog="Example: eventlog query --log System --type Error --since '2024-01-01'",
+        description="Query Windows Event Log entries via RPC over \\pipe\\eventlog with filtering",
+        epilog="Example: eventlog query --log System --level Error --since '2024-01-01'",
     )
     parser_eventlog_query.add_argument(
         "--log", required=True, help="Event log name (System, Application, Security, etc.)"
@@ -1389,105 +1384,32 @@ def setup_cli_parser(slingerClient):
     parser_eventlog_query.add_argument(
         "--format",
         choices=["table", "json", "list", "csv"],
-        default="table",
-        help="Output format",
+        default="list",
+        help="Output format (default: list)",
     )
     parser_eventlog_query.add_argument("-o", "--output", help="Save output to file")
+    parser_eventlog_query.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show verbose event message details and additional metadata",
+    )
+    parser_eventlog_query.add_argument(
+        "--order",
+        choices=["newest", "oldest"],
+        default="newest",
+        help="Order events by newest first (default) or oldest first",
+    )
     parser_eventlog_query.set_defaults(func=slingerClient.eventlog_handler)
 
     # eventlog list command
     parser_eventlog_list = eventlog_subparsers.add_parser(
         "list",
         help="List available event logs",
-        description="List all available event logs on the remote system",
+        description="List all available event logs on the remote system via RPC over \\pipe\\eventlog",
     )
     parser_eventlog_list.set_defaults(func=slingerClient.eventlog_handler)
 
-    # eventlog clear command
-    parser_eventlog_clear = eventlog_subparsers.add_parser(
-        "clear",
-        help="Clear event log",
-        description="Clear specified event log (with optional backup)",
-        epilog="Example: eventlog clear --log Application --backup /tmp/app_backup.evt",
-    )
-    parser_eventlog_clear.add_argument("--log", required=True, help="Event log name to clear")
-    parser_eventlog_clear.add_argument("--backup", help="Backup log to file before clearing")
-    parser_eventlog_clear.add_argument(
-        "--force", action="store_true", help="Clear without backup confirmation"
-    )
-    parser_eventlog_clear.set_defaults(func=slingerClient.eventlog_handler)
-
-    # eventlog backup command
-    parser_eventlog_backup = eventlog_subparsers.add_parser(
-        "backup",
-        help="Backup event log",
-        description="Backup event log to file",
-        epilog="Example: eventlog backup --log System -o system_backup.evt",
-    )
-    parser_eventlog_backup.add_argument("--log", required=True, help="Event log name to backup")
-    parser_eventlog_backup.add_argument(
-        "-o", "--output", required=True, help="Output file path for backup"
-    )
-    parser_eventlog_backup.set_defaults(func=slingerClient.eventlog_handler)
-
-    # eventlog monitor command
-    parser_eventlog_monitor = eventlog_subparsers.add_parser(
-        "monitor",
-        help="Monitor event log in real-time",
-        description="Monitor event log for new entries in real-time",
-        epilog="Example: eventlog monitor --log Security --timeout 300 --filter 'EventCode=4625'",
-    )
-    parser_eventlog_monitor.add_argument("--log", required=True, help="Event log name to monitor")
-    parser_eventlog_monitor.add_argument(
-        "--timeout", type=int, default=300, help="Monitoring timeout in seconds"
-    )
-    parser_eventlog_monitor.add_argument(
-        "--filter", help="WQL filter for events (e.g., 'EventCode=4625')"
-    )
-    parser_eventlog_monitor.add_argument(
-        "--interactive", action="store_true", help="Enable interactive commands during monitoring"
-    )
-    parser_eventlog_monitor.set_defaults(func=slingerClient.eventlog_handler)
-
-    # eventlog enable command
-    parser_eventlog_enable = eventlog_subparsers.add_parser(
-        "enable",
-        help="Enable event logging",
-        description="Enable event logging for specified log",
-    )
-    parser_eventlog_enable.add_argument("--log", required=True, help="Event log name to enable")
-    parser_eventlog_enable.set_defaults(func=slingerClient.eventlog_handler)
-
-    # eventlog disable command
-    parser_eventlog_disable = eventlog_subparsers.add_parser(
-        "disable",
-        help="Disable event logging",
-        description="Disable event logging for specified log",
-    )
-    parser_eventlog_disable.add_argument("--log", required=True, help="Event log name to disable")
-    parser_eventlog_disable.set_defaults(func=slingerClient.eventlog_handler)
-
-    # eventlog clean command - advanced cleaning with local processing
-    parser_eventlog_clean = eventlog_subparsers.add_parser(
-        "clean",
-        help="Advanced event log cleaning",
-        description="Download, clean locally, and re-upload event logs",
-        epilog="Example: eventlog clean --log Application --method local --backup",
-    )
-    parser_eventlog_clean.add_argument("--log", required=True, help="Event log name to clean")
-    parser_eventlog_clean.add_argument(
-        "--method",
-        choices=["local", "upload"],
-        default="local",
-        help="Cleaning method: local (download/process/upload) or upload (from existing file)",
-    )
-    parser_eventlog_clean.add_argument("--backup", help="Backup original log before cleaning")
-    parser_eventlog_clean.add_argument(
-        "--from",
-        dest="from_file",
-        help="Upload cleaned log from local file (use with -method upload)",
-    )
-    parser_eventlog_clean.set_defaults(func=slingerClient.eventlog_handler)
+    # Only list and query commands are implemented
 
     return parser
 

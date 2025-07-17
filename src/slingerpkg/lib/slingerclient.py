@@ -4,7 +4,7 @@ from slingerpkg.lib.atexec import atexec
 from slingerpkg.lib.scm import scm
 from slingerpkg.lib.smblib import smblib
 from slingerpkg.lib.secrets import secrets
-from slingerpkg.lib.wmi_eventlog import WMIEventLog
+from slingerpkg.lib.eventlog import EventLog
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from slingerpkg.lib.dcetransport import *
@@ -23,7 +23,7 @@ dialect_mapping = {
 }
 
 
-class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, WMIEventLog):
+class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
     def __init__(
         self, host, username, password, domain, port=445, ntlm_hash=None, use_kerberos=False
     ):
@@ -33,7 +33,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, WMIEventLog)
         smblib.__init__(self)
         secrets.__init__(self)
         atexec.__init__(self)
-        WMIEventLog.__init__(self)
+        EventLog.__init__(self)
         self.host = host
         self.username = username
         self.password = password
@@ -462,6 +462,24 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, WMIEventLog)
         except Exception as e:
             print_debug(f"Error during cleanup: {e}", sys.exc_info())
             print_bad(f"Failed to cleanup downloads: {e}")
+
+    def eventlog_handler(self, args):
+        """Handle eventlog commands"""
+        try:
+            # Handle different eventlog actions using self methods
+            if args.eventlog_action == "list":
+                self.list_event_logs(args)
+            elif args.eventlog_action == "query":
+                self.query_event_log(args)
+            else:
+                print_bad(f"Unknown eventlog action: {args.eventlog_action}")
+
+        except Exception as e:
+            print_bad(f"EventLog error: {e}")
+            if config.debug:
+                import traceback
+
+                traceback.print_exc()
 
     def sizeof_fmt(self, num, suffix="B"):
         """Format file size in human readable format"""
