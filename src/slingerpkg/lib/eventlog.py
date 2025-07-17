@@ -809,8 +809,14 @@ class EventLog:
                         count = count_resp.NumberOfRecords
                     else:
                         count = count_resp
+                    
+                    # Convert bytes to int if necessary
+                    if isinstance(count, bytes):
+                        count = int.from_bytes(count, byteorder='little')
+                    elif isinstance(count, str):
+                        count = int(count)
                         
-                    print_debug(f"Extracted count: {repr(count)}, type: {type(count)}")
+                    print_debug(f"Extracted count: {count}, type: {type(count)}")
                     print_good(f"Event log '{log_name}' exists and is accessible!")
                     print_info(f"  Total records: {count}")
                     
