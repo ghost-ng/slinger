@@ -1355,7 +1355,11 @@ def setup_cli_parser(slingerClient):
         "eventlog",
         help="Windows Event Log operations",
         description="Query Windows Event Logs via RPC over SMB named pipe \\pipe\\eventlog",
-        epilog="Example Usage: eventlog query --log System --level Error --count 50",
+        epilog="Example Usage:\n"
+        "  eventlog list                    # List available event logs\n"
+        "  eventlog check --log 'System'    # Check if a specific log exists\n"
+        "  eventlog query --log System --level Error --count 50\n"
+        "  eventlog sources --log Application",
     )
 
     # EventLog uses RPC via SMB named pipe only
@@ -1439,7 +1443,19 @@ def setup_cli_parser(slingerClient):
     )
     parser_eventlog_sources.set_defaults(func=slingerClient.eventlog_handler)
 
-    # Only list, query, and sources commands are implemented
+    # eventlog check command
+    parser_eventlog_check = eventlog_subparsers.add_parser(
+        "check",
+        help="Check if a specific event log exists",
+        description="Check if a specific Windows Event Log exists and is accessible",
+        epilog="Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'",
+    )
+    parser_eventlog_check.add_argument(
+        "--log", required=True, help="Event log name to check (can include custom paths)"
+    )
+    parser_eventlog_check.set_defaults(func=slingerClient.eventlog_handler)
+
+    # Only list, query, sources, and check commands are implemented
 
     return parser
 

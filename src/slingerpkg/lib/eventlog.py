@@ -777,3 +777,90 @@ class EventLog:
         except Exception as e:
             print_bad(f"Error scanning '{log_name}': {e}")
             print_debug(f"Traceback: {traceback.format_exc()}")
+
+    def check_event_log(self, args):
+        """Check if a specific Windows Event Log exists and is accessible"""
+        log_name = args.log
+
+        print_info(f"Checking if event log '{log_name}' exists...")
+
+        try:
+            # Setup transport and connect to eventlog
+            self.setup_dce_transport()
+            self.dce_transport._connect_eventlog(use_even6=False)
+
+            try:
+                # Try to open the log
+                log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
+
+                # If we got here, the log exists - get some info about it
+                try:
+                    # Get record count
+                    record_count = self.dce_transport._eventlog_get_record_count(log_handle)
+                    oldest_record = self.dce_transport._eventlog_get_oldest_record(log_handle)
+
+                    print_good(f"Event log '{log_name}' exists and is accessible!")
+                    print_info(f"  Total records: {record_count}")
+                    if record_count > 0:
+                        print_info(f"  Oldest record number: {oldest_record}")
+
+                    # Try to get a sample event to show sources
+                    print_debug("Attempting to read a sample event...")
+                    try:
+                        # Read just one event to get source info
+                        resp = self.dce_transport._eventlog_read_events(
+                            log_handle,
+                            even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ,
+                            0,
+                            4096,  # Small buffer for one event
+                        )
+
+                        if resp["NumberOfBytesRead"] > 0:
+                            buffer = resp["Buffer"]
+                            if isinstance(buffer, list):
+                                buffer = b"".join(buffer)
+
+                            events = self._parse_event_buffer(buffer, 1)
+                            if events:
+                                print_info(
+                                    f"  Sample event source: {events[0].get('SourceName', 'Unknown')}"
+                                )
+                                print_info(
+                                    f"  Sample event type: {events[0].get('EventTypeStr', 'Unknown')}"
+                                )
+
+                    except Exception as e:
+                        print_debug(f"Could not read sample event: {e}")
+
+                    # Close the handle
+                    self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+
+                except Exception as e:
+                    # Close handle even if we couldn't get info
+                    try:
+                        self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+                    except:
+                        pass
+                    raise
+
+            except DCERPCException as e:
+                error_msg = str(e)
+                if "ERROR_EVT_INVALID_CHANNEL_PATH" in error_msg:
+                    print_bad(f"Event log '{log_name}' does not exist on this system")
+                    print_info("Note: Log names are case-sensitive. Common logs include:")
+                    print_info("  - Application")
+                    print_info("  - System")
+                    print_info("  - Security")
+                    print_info("  - 'Windows PowerShell'")
+                    print_info(
+                        "  - Microsoft-Windows-*/Operational (e.g., Microsoft-Windows-Sysmon/Operational)"
+                    )
+                elif "ERROR_ACCESS_DENIED" in error_msg or "rpc_s_access_denied" in error_msg:
+                    print_bad(f"Access denied to event log '{log_name}'")
+                    print_info("This log exists but requires elevated privileges to access")
+                else:
+                    print_bad(f"Error accessing event log '{log_name}': {error_msg}")
+
+        except Exception as e:
+            print_bad(f"Error checking event log '{log_name}': {e}")
+            print_debug(f"Traceback: {traceback.format_exc()}")
