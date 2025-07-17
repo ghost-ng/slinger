@@ -3,7 +3,7 @@ Windows EventLog module for querying event logs via RPC
 Legacy Even interface only for list and query operations
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from impacket.dcerpc.v5 import even
 from impacket.dcerpc.v5.rpcrt import DCERPCException
 from slingerpkg.utils.printlib import *
@@ -92,7 +92,31 @@ class EventLog:
         count = getattr(args, "count", 10)
         verbose = getattr(args, "verbose", False)
 
-        print_info(f"Querying '{log_name}' event log for {count} events...")
+        # Get filter arguments
+        event_id = getattr(args, "id", None)
+        level = getattr(args, "level", None)
+        since = getattr(args, "since", None)
+        source = getattr(args, "source", None)
+        last_minutes = getattr(args, "last", None)
+        find_string = getattr(args, "find", None)
+
+        # Build filter description
+        filters = []
+        if event_id:
+            filters.append(f"ID={event_id}")
+        if level:
+            filters.append(f"Level={level}")
+        if source:
+            filters.append(f"Source={source}")
+        if since:
+            filters.append(f"Since={since}")
+        if last_minutes:
+            filters.append(f"Last {last_minutes} minutes")
+        if find_string:
+            filters.append(f"Contains '{find_string}'")
+
+        filter_desc = f" with filters: {', '.join(filters)}" if filters else ""
+        print_info(f"Querying '{log_name}' event log for {count} events{filter_desc}...")
 
         try:
             # Setup transport and connect
@@ -113,12 +137,18 @@ class EventLog:
 
                 print(f"[DEBUG] Log has {total_records} records, oldest: {oldest_record}")
 
-                # Read events
-                events = []
+                # Read events - read more than requested to account for filtering
+                all_events = []
+                filtered_events = []
                 bytes_to_read = 65536  # 64KB chunks
                 read_flags = even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ
+                max_read_events = (
+                    count * 10
+                    if any([event_id, level, source, since, last_minutes, find_string])
+                    else count
+                )
 
-                while len(events) < count:
+                while len(all_events) < max_read_events and len(filtered_events) < count:
                     try:
                         resp = self.dce_transport._eventlog_read_events(
                             log_handle,
@@ -146,8 +176,20 @@ class EventLog:
                             buffer = buffer[:bytes_read]
                             print(f"[DEBUG] Truncated buffer to {bytes_read} bytes")
 
-                        parsed_events = self._parse_event_buffer(buffer, count - len(events))
-                        events.extend(parsed_events)
+                        parsed_events = self._parse_event_buffer(
+                            buffer, max_read_events - len(all_events)
+                        )
+
+                        # Apply filters to newly parsed events
+                        for event in parsed_events:
+                            if self._filter_event(
+                                event, event_id, level, source, since, last_minutes, find_string
+                            ):
+                                filtered_events.append(event)
+                                if len(filtered_events) >= count:
+                                    break
+
+                        all_events.extend(parsed_events)
 
                         if len(parsed_events) == 0:
                             # No more events to parse
@@ -158,6 +200,13 @@ class EventLog:
                             # End of log
                             break
                         raise
+
+                # Use filtered events if filters were applied, otherwise use all events
+                events = (
+                    filtered_events
+                    if any([event_id, level, source, since, last_minutes, find_string])
+                    else all_events[:count]
+                )
 
                 # Display results
                 if events:
@@ -540,6 +589,82 @@ class EventLog:
         except Exception as e:
             print_debug(f"Error parsing EVENTLOGRECORD: {e}")
             return None
+
+    def _filter_event(
+        self,
+        event,
+        event_id=None,
+        level=None,
+        source=None,
+        since=None,
+        last_minutes=None,
+        find_string=None,
+    ):
+        """Apply filters to an event"""
+        # Filter by Event ID
+        if event_id is not None and event["EventID"] != event_id:
+            return False
+
+        # Filter by level/type
+        if level is not None:
+            level_map = {
+                "error": "Error",
+                "warning": "Warning",
+                "information": "Information",
+                "success": "Audit Success",
+                "failure": "Audit Failure",
+            }
+            expected_type = level_map.get(level.lower())
+            if expected_type and event.get("EventTypeStr") != expected_type:
+                return False
+
+        # Filter by source
+        if source is not None:
+            if source.lower() not in event.get("SourceName", "").lower():
+                return False
+
+        # Filter by date/time
+        if since is not None or last_minutes is not None:
+            try:
+                event_time = datetime.strptime(
+                    event.get("TimeGeneratedStr", ""), "%Y-%m-%d %H:%M:%S"
+                )
+
+                if last_minutes is not None:
+                    # Calculate cutoff time
+                    cutoff_time = datetime.now() - timedelta(minutes=last_minutes)
+                    if event_time < cutoff_time:
+                        return False
+
+                if since is not None:
+                    # Parse since date
+                    if " " in since:
+                        since_time = datetime.strptime(since, "%Y-%m-%d %H:%M:%S")
+                    else:
+                        since_time = datetime.strptime(since, "%Y-%m-%d")
+                    if event_time < since_time:
+                        return False
+            except:
+                # If date parsing fails, skip this filter
+                pass
+
+        # Filter by content string
+        if find_string is not None:
+            find_lower = find_string.lower()
+            # Search in source name
+            if find_lower in event.get("SourceName", "").lower():
+                return True
+            # Search in computer name
+            if find_lower in event.get("ComputerName", "").lower():
+                return True
+            # Search in event strings
+            for string in event.get("Strings", []):
+                if find_lower in string.lower():
+                    return True
+            # If find_string specified but not found, exclude event
+            return False
+
+        return True
 
     def _display_events(self, events, verbose=False):
         """Display events in readable format"""

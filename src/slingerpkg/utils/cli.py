@@ -1361,7 +1361,10 @@ def setup_cli_parser(slingerClient):
         "query",
         help="Query event log entries",
         description="Query Windows Event Log entries via RPC over \\pipe\\eventlog with filtering",
-        epilog="Example: eventlog query --log System --level Error --since '2024-01-01'",
+        epilog="Examples:\n"
+        "  eventlog query --log System --id 1000\n"
+        "  eventlog query --log Application --level error --last 60\n"
+        "  eventlog query --log Security --find 'failed logon' --count 20",
     )
     parser_eventlog_query.add_argument(
         "--log", required=True, help="Event log name (System, Application, Security, etc.)"
@@ -1378,9 +1381,13 @@ def setup_cli_parser(slingerClient):
         "--since", help="Events since date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')"
     )
     parser_eventlog_query.add_argument(
+        "--last", type=int, metavar="MINUTES", help="Events from the last X minutes"
+    )
+    parser_eventlog_query.add_argument(
         "--count", type=int, default=100, help="Maximum number of events to return"
     )
     parser_eventlog_query.add_argument("--source", help="Filter by event source name")
+    parser_eventlog_query.add_argument("--find", help="Search for string in event content")
     parser_eventlog_query.add_argument(
         "--format",
         choices=["table", "json", "list", "csv"],
