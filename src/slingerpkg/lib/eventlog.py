@@ -790,87 +790,88 @@ class EventLog:
             self.setup_dce_transport()
             self.dce_transport._connect_eventlog(use_even6=False)
 
-            # Note: The Windows EventLog API doesn't properly validate log names.
-            # It opens a fallback log (usually Application) for invalid names instead of failing.
-            # Since all logs (valid and invalid) return the same statistics in this environment,
-            # we cannot reliably distinguish between real and fallback logs.
-            print_debug("Opening EventLog (validation not reliable due to API behavior)...")
+            # Try to open the log first - this should fail for truly invalid log names
+            print_debug(f"Attempting to open log '{log_name}' for validation...")
             
             try:
-                # Open the requested log - API will open fallback for invalid names
+                # Try to open the log - if it fails with specific errors, the log doesn't exist
                 log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
-
-                # If we got here, the log exists - get some info about it
+                
                 try:
-                    # Get record count
-                    record_count = self.dce_transport._eventlog_get_record_count(log_handle)
-                    oldest_record = self.dce_transport._eventlog_get_oldest_record(log_handle)
-
-                    print_good(f"Event log '{log_name}' opened successfully!")
-                    print_warning("Note: Windows EventLog API opens fallback log for invalid names")
-                    print_info(f"  Total records: {record_count}")
-                    if record_count > 0:
-                        print_info(f"  Oldest record number: {oldest_record}")
-
-                    # Try to get a sample event to show sources
-                    print_debug("Attempting to read a sample event...")
-                    try:
-                        # Read just one event to get source info
-                        resp = self.dce_transport._eventlog_read_events(
-                            log_handle,
-                            even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ,
-                            0,
-                            4096,  # Small buffer for one event
-                        )
-
-                        if resp["NumberOfBytesRead"] > 0:
-                            buffer = resp["Buffer"]
-                            if isinstance(buffer, list):
-                                buffer = b"".join(buffer)
-
-                            events = self._parse_event_buffer(buffer, 1)
-                            if events:
-                                print_info(
-                                    f"  Sample event source: {events[0].get('SourceName', 'Unknown')}"
-                                )
-                                print_info(
-                                    f"  Sample event type: {events[0].get('EventTypeStr', 'Unknown')}"
-                                )
-
-                    except Exception as e:
-                        print_debug(f"Could not read sample event: {e}")
-
-                    # Close the handle
-                    self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+                    # Get record count using the handle
+                    count_resp = even.hElfrNumberOfRecords(self.dce_transport.dce, log_handle)
+                    print_debug(f"Raw count response: {repr(count_resp)}, type: {type(count_resp)}")
                     
-                    # Provide guidance to users
-                    print_info("Use 'eventlog list' to see available logs on this system")
+                    # Extract the actual count from the response
+                    if isinstance(count_resp, dict) and "NumberOfRecords" in count_resp:
+                        count = count_resp["NumberOfRecords"]
+                    elif hasattr(count_resp, 'NumberOfRecords'):
+                        count = count_resp.NumberOfRecords
+                    else:
+                        count = count_resp
+                        
+                    print_debug(f"Extracted count: {repr(count)}, type: {type(count)}")
+                    print_good(f"Event log '{log_name}' exists and is accessible!")
+                    print_info(f"  Total records: {count}")
+                    
+                    # Try to get additional info
+                    if count > 0:
+                        try:
+                            oldest_record = self.dce_transport._eventlog_get_oldest_record(log_handle)
+                            print_info(f"  Oldest record number: {oldest_record}")
 
-                except Exception as e:
-                    # Close handle even if we couldn't get info
+                            # Try to get a sample event to show sources
+                            print_debug("Attempting to read a sample event...")
+                            try:
+                                # Read just one event to get source info
+                                resp = self.dce_transport._eventlog_read_events(
+                                    log_handle,
+                                    even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ,
+                                    0,
+                                    4096,  # Small buffer for one event
+                                )
+
+                                if resp["NumberOfBytesRead"] > 0:
+                                    buffer = resp["Buffer"]
+                                    if isinstance(buffer, list):
+                                        buffer = b"".join(buffer)
+
+                                    events = self._parse_event_buffer(buffer, 1)
+                                    if events:
+                                        print_info(
+                                            f"  Sample event source: {events[0].get('SourceName', 'Unknown')}"
+                                        )
+                                        print_info(
+                                            f"  Sample event type: {events[0].get('EventTypeStr', 'Unknown')}"
+                                        )
+
+                            except Exception as e:
+                                print_debug(f"Could not read sample event: {e}")
+                                
+                        except Exception as e:
+                            print_debug(f"Could not get additional info: {e}")
+                    
+                    else:
+                        print_info("  Log is empty (0 records)")
+                        
+                finally:
+                    # Always close the handle
                     try:
                         self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
                     except:
                         pass
-                    raise
-
+                    
             except DCERPCException as e:
                 error_msg = str(e)
-                if "ERROR_EVT_INVALID_CHANNEL_PATH" in error_msg:
-                    print_bad(f"Event log '{log_name}' does not exist on this system")
-                    print_info("Note: Log names are case-sensitive. Common logs include:")
-                    print_info("  - Application")
-                    print_info("  - System")
-                    print_info("  - Security")
-                    print_info("  - 'Windows PowerShell'")
-                    print_info(
-                        "  - Microsoft-Windows-*/Operational (e.g., Microsoft-Windows-Sysmon/Operational)"
-                    )
-                elif "ERROR_ACCESS_DENIED" in error_msg or "rpc_s_access_denied" in error_msg:
+                if '0x5' in error_msg or 'STATUS_ACCESS_DENIED' in error_msg or "ERROR_ACCESS_DENIED" in error_msg or "rpc_s_access_denied" in error_msg:
                     print_bad(f"Access denied to event log '{log_name}'")
                     print_info("This log exists but requires elevated privileges to access")
+                elif '0xc0000022' in error_msg or 'STATUS_INVALID_NAME' in error_msg or "ERROR_EVT_INVALID_CHANNEL_PATH" in error_msg:
+                    print_bad(f"Event log '{log_name}' does NOT exist on this system")
+                    print_info("Note: Log names are case-sensitive. Use 'eventlog list' to see available logs")
                 else:
-                    print_bad(f"Error accessing event log '{log_name}': {error_msg}")
+                    print_bad(f"Error checking event log '{log_name}': {e}")
+                    print_debug(f"Full error: {error_msg}")
 
         except Exception as e:
             print_bad(f"Error checking event log '{log_name}': {e}")
