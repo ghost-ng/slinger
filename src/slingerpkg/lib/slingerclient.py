@@ -12,6 +12,7 @@ import datetime
 from impacket import smbconnection
 from impacket.dcerpc.v5.rpcrt import DCERPCException
 import slingerpkg.var.config as config
+import traceback
 
 dialect_mapping = {
     0x02FF: "SMB 1.0",
@@ -478,10 +479,60 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
 
         except Exception as e:
             print_bad(f"EventLog error: {e}")
-            if config.debug:
-                import traceback
+            print_debug(f"Traceback: {traceback.format_exc()}")
 
-                traceback.print_exc()
+    def reconnect_handler(self, args):
+        """Reconnect to the server"""
+        try:
+            print_info("Reconnecting to the server...")
+
+            # Store current connection info
+            host = self.host
+            username = self.username
+            password = self.password
+            domain = self.domain
+            ntlm_hash = self.ntlm_hash
+            current_share = self.share if hasattr(self, "share") else None
+            current_path = self.pwd() if current_share else None
+
+            # Close existing connection
+            try:
+                if hasattr(self, "conn") and self.conn:
+                    self.conn.close()
+            except:
+                pass
+
+            # Create new connection
+            self.conn = smbconnection.SMBConnection(host, host, sess_port=445)
+
+            # Re-authenticate
+            if ntlm_hash:
+                lmhash, nthash = ntlm_hash.split(":")
+                self.conn.login(username, password, domain, lmhash, nthash)
+            else:
+                self.conn.login(username, password, domain)
+
+            print_good("Successfully reconnected to the server")
+
+            # If we were connected to a share, reconnect
+            if current_share:
+                try:
+                    self.use(f"use {current_share}")
+                    print_good(f"Reconnected to share {current_share}")
+
+                    # Try to restore path
+                    if current_path and current_path != "\\":
+                        try:
+                            self.cd(f"cd {current_path}")
+                            print_good(f"Restored path to {current_path}")
+                        except:
+                            print_warning(f"Could not restore path to {current_path}")
+                except Exception as e:
+                    print_warning(f"Could not reconnect to share {current_share}: {e}")
+
+        except Exception as e:
+            print_bad(f"Failed to reconnect: {e}")
+            print_debug(f"Traceback: {traceback.format_exc()}")
 
     def sizeof_fmt(self, num, suffix="B"):
         """Format file size in human readable format"""

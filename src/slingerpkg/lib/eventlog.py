@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from impacket.dcerpc.v5 import even
 from impacket.dcerpc.v5.rpcrt import DCERPCException
 from slingerpkg.utils.printlib import *
-from slingerpkg.var import config
 from tabulate import tabulate
+import traceback
 
 
 class EventLog:
@@ -81,10 +81,7 @@ class EventLog:
 
         except Exception as e:
             print_bad(f"Failed to list event logs: {e}")
-            if config.debug:
-                import traceback
-
-                traceback.print_exc()
+            print_debug(f"Traceback: {traceback.format_exc()}")
 
     def query_event_log(self, args):
         """Query events from a specific Windows Event Log"""
@@ -226,10 +223,7 @@ class EventLog:
                 print_bad(f"RPC error querying '{log_name}': {e}")
         except Exception as e:
             print_bad(f"Error querying '{log_name}': {e}")
-            if config.debug:
-                import traceback
-
-                traceback.print_exc()
+            print_debug(f"Traceback: {traceback.format_exc()}")
 
     def _parse_event_buffer(self, buffer, max_events):
         """Parse EVENTLOGRECORD structures from buffer"""
@@ -299,9 +293,7 @@ class EventLog:
             except Exception as e:
                 print_debug(f"Error parsing record at offset {offset}: {e}")
                 if offset == 0:
-                    import traceback
-
-                    traceback.print_exc()
+                    print_debug(f"First record parse error details: {traceback.format_exc()}")
                 # Skip this record and try the next
                 offset += length
 
@@ -784,7 +776,4 @@ class EventLog:
                 print_bad(f"RPC error accessing '{log_name}': {e}")
         except Exception as e:
             print_bad(f"Error scanning '{log_name}': {e}")
-            if config.debug:
-                import traceback
-
-                traceback.print_exc()
+            print_debug(f"Traceback: {traceback.format_exc()}")

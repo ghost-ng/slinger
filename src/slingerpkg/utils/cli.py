@@ -492,6 +492,15 @@ def setup_cli_parser(slingerClient):
         "--verbose", action="store_true", help="Show detailed categorized help"
     )
 
+    # Subparser for 'reconnect' command
+    parser_reconnect = subparsers.add_parser(
+        "reconnect",
+        help="Reconnect to the server",
+        description="Reconnect to the server to fix broken pipe or connection errors",
+        epilog="Use this command when you encounter '[Errno 32] Broken pipe' errors",
+    )
+    parser_reconnect.set_defaults(func=slingerClient.reconnect_handler)
+
     # Subparser for 'who' command
     parser_who = subparsers.add_parser(
         "who",
