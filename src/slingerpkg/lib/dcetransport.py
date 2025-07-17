@@ -1293,8 +1293,12 @@ class DCETransport:
             )
         else:
             # Legacy Even interface
+            # For remote EventLog access:
+            # - moduleName should be NULL (use default)
+            # - regModuleName should be the actual log name (System, Application, etc.)
+            from impacket.dcerpc.v5.ndr import NULL
             log_handle_resp = even.hElfrOpenELW(
-                self.dce, moduleName=f"\\\\{self.host}", regModuleName=log_name
+                self.dce, moduleName=NULL, regModuleName=log_name
             )
             handle = log_handle_resp["LogHandle"]
             print_debug(f"Got Even handle for {log_name}: {handle}")
