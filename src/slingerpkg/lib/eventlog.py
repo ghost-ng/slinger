@@ -778,6 +778,57 @@ class EventLog:
             print_bad(f"Error scanning '{log_name}': {e}")
             print_debug(f"Traceback: {traceback.format_exc()}")
 
+    def _get_known_logs_list(self):
+        """Get list of known EventLog sources using same logic as list command"""
+        known_logs = []
+        
+        # Use the same logic as list_event_logs to get known logs
+        test_logs = [
+            "Application",
+            "System", 
+            "Security",
+            "Setup",
+            "ForwardedEvents",
+            "Windows PowerShell",
+            "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
+            "Microsoft-Windows-PowerShell/Operational",
+            "Microsoft-Windows-Sysmon/Operational",
+            "Microsoft-Windows-DNS-Client/Operational",
+            "Microsoft-Windows-TaskScheduler/Operational",
+        ]
+        
+        for log_name in test_logs:
+            try:
+                # Try to open each log to see if it really exists
+                log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
+                count_resp = even.hElfrNumberOfRecords(self.dce_transport.dce, log_handle)
+                
+                # Extract count - if we can get a count, log probably exists
+                try:
+                    if hasattr(count_resp, 'NumberOfRecords'):
+                        count = count_resp.NumberOfRecords
+                    else:
+                        count = count_resp
+                    count = int(count) if not isinstance(count, int) else count
+                    
+                    # Add to known logs regardless of count (even if 0)
+                    known_logs.append(log_name)
+                    
+                except:
+                    # If we can't get count, still consider it valid since it opened
+                    known_logs.append(log_name)
+                    
+                # Close the handle
+                self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+                
+            except DCERPCException:
+                # This log doesn't exist or isn't accessible
+                continue
+            except Exception:
+                # Other error - skip this log
+                continue
+                
+        return known_logs
 
     def check_event_log(self, args):
         """Check if a specific Windows Event Log exists and is accessible"""
@@ -790,7 +841,20 @@ class EventLog:
             self.setup_dce_transport()
             self.dce_transport._connect_eventlog(use_even6=False)
 
-            # Try to open the log first - this should fail for truly invalid log names
+            # First, check against known valid logs from list_event_logs
+            print_debug(f"Validating '{log_name}' against known logs...")
+            try:
+                known_logs = self._get_known_logs_list()
+                if known_logs and log_name not in known_logs:
+                    print_bad(f"Event log '{log_name}' does NOT exist on this system")
+                    print_info(f"Available logs: {', '.join(sorted(known_logs)[:5])}{'...' if len(known_logs) > 5 else ''}")
+                    print_info("Use 'eventlog list' to see all available logs")
+                    return
+            except Exception as e:
+                print_debug(f"Could not get known logs list: {e}")
+                # Continue with direct validation if list fails
+
+            # Try to open the log - API doesn't validate names properly but we can detect patterns
             print_debug(f"Attempting to open log '{log_name}' for validation...")
             
             try:
@@ -805,12 +869,19 @@ class EventLog:
                     # Extract the actual count from the response
                     # Based on logs: it's an ElfrNumberOfRecordsResponse object with NumberOfRecords field
                     try:
+                        # Try different access patterns for NDR structures
                         if hasattr(count_resp, 'NumberOfRecords'):
-                            count = count_resp['NumberOfRecords']  # Use dict-style access for NDR structures
+                            # Try attribute access first
+                            count = count_resp.NumberOfRecords
+                        elif hasattr(count_resp, '__getitem__') and 'NumberOfRecords' in str(count_resp):
+                            # Try dict-style access
+                            count = count_resp['NumberOfRecords']
                         elif isinstance(count_resp, dict) and "NumberOfRecords" in count_resp:
                             count = count_resp["NumberOfRecords"]
                         else:
                             count = count_resp
+                        
+                        print_debug(f"Raw extracted count: {repr(count)}, type: {type(count)}")
                         
                         # Convert to integer if it's not already
                         if not isinstance(count, int):
@@ -819,7 +890,10 @@ class EventLog:
                     except Exception as e:
                         print_debug(f"Error extracting count: {e}")
                         # Fallback - try to convert the whole response
-                        count = int(count_resp) if hasattr(count_resp, '__int__') else 0
+                        try:
+                            count = int(count_resp) if hasattr(count_resp, '__int__') else 0
+                        except:
+                            count = 0
                         
                     print_debug(f"Extracted count: {count}, type: {type(count)}")
                     print_good(f"Event log '{log_name}' exists and is accessible!")
