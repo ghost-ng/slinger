@@ -30,15 +30,62 @@ class EventLog:
 
             # Common Windows event logs to check
             common_logs = [
+                # Core Windows Logs
                 "Application",
                 "System",
                 "Security",
                 "Setup",
+
+                # Forwarded Logs
                 "ForwardedEvents",
+
+                # PowerShell and Scripting
                 "Windows PowerShell",
-                "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
-                "Microsoft-Windows-PowerShell/Operational",
+                "Microsoft-Windows-PowerShell",
+                "Microsoft-Windows-Scripting",
+
+                # Remote Desktop Services
+                "Microsoft-Windows-TerminalServices-LocalSessionManager",
+                "Microsoft-Windows-TerminalServices-RemoteConnectionManager",
+                "Microsoft-Windows-TerminalServices-SessionBroker-Client",
+                "Microsoft-Windows-TerminalServices-SessionBroker-Manager",
+                "Microsoft-Windows-TerminalServices-SessionBroker-RemoteDesktop",
+                "Microsoft-Windows-TerminalServices-Printers",
+
+                # Logon and Authentication
+                "Microsoft-Windows-Security-Auditing",
+                "Microsoft-Windows-User Profile Service",
+                "Microsoft-Windows-GroupPolicy",
+                "Microsoft-Windows-Kerberos",
+
+                # Task Scheduler
+                "Microsoft-Windows-TaskScheduler",
+
+                # DNS Client and Server
+                "Microsoft-Windows-DNS-Client",
+                "Microsoft-Windows-DNSServer",
+                "Microsoft-Windows-DNSServer",
+
+                # Network and Firewall
+                "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall",
+                "Microsoft-Windows-NetworkProfile",
+                "Microsoft-Windows-NetworkProvider",
+
+                # System Integrity & Updates
+                "Microsoft-Windows-Winlogon",
+                "Microsoft-Windows-CodeIntegrity",
+                "Microsoft-Windows-Windows Defender",
+                "Microsoft-Windows-WindowsUpdateClient",
+
+                # Application Compatibility and Errors
+                "Microsoft-Windows-Application-Experience/Program-Telemetry",
+                "Microsoft-Windows-Application-Experience/Program-Compatibility-Assistant",
+                "Microsoft-Windows-Application-Experience/Program-Inventory",
+
+                # Sysmon (if installed)
+                "Microsoft-Windows-Sysmon"
             ]
+
 
             results = []
             accessible_count = 0
@@ -46,17 +93,15 @@ class EventLog:
             for log_name in common_logs:
                 try:
                     # Try to open the log
-                    log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
+                    exists, count = self.check_event_log(log_name, echo=False)
+                    if not exists:
+                        results.append([log_name, "✗ Not found"])
+                        continue
 
-                    # Get record count
-                    record_count = self.dce_transport._eventlog_get_record_count(log_handle)
 
                     # If we got here, it's accessible
                     accessible_count += 1
-                    status = f"✓ Accessible ({record_count} records)"
-
-                    # Close the handle
-                    self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
+                    status = f"✓ Accessible ({count} records)"
 
                 except Exception as e:
                     error_msg = str(e)
@@ -96,6 +141,7 @@ class EventLog:
         source = getattr(args, "source", None)
         last_minutes = getattr(args, "last", None)
         find_string = getattr(args, "find", None)
+        verbose = True if find_string else verbose
 
         # Build filter description
         filters = []
@@ -112,6 +158,13 @@ class EventLog:
         if find_string:
             filters.append(f"Contains '{find_string}'")
 
+        # check if the log exists
+        log_exist, _ = self.check_event_log(log_name, echo=False)
+        if not log_exist:
+            print_bad(f"Event log '{log_name}' does not exist or is not accessible.")
+            return
+        
+        
         filter_desc = f" with filters: {', '.join(filters)}" if filters else ""
         print_info(f"Querying '{log_name}' event log for {count} events{filter_desc}...")
 
@@ -676,288 +729,19 @@ class EventLog:
                 for j, string in enumerate(event["Strings"]):
                     print(f"  [{j}] {string}")
 
-    def list_event_sources(self, args):
-        """List unique event sources from a specific Windows Event Log"""
-        log_name = args.log
-        scan_count = getattr(args, "count", 1000)
+    
 
-        print_info(
-            f"Scanning '{log_name}' event log for unique sources (up to {scan_count} events)..."
-        )
-
-        try:
-            # Setup transport and connect
-            self.setup_dce_transport()
-            self.dce_transport._connect_eventlog(use_even6=False)
-
-            # Open the log
-            log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
-
-            try:
-                # Get log info
-                total_records = self.dce_transport._eventlog_get_record_count(log_handle)
-
-                if total_records == 0:
-                    print_warning(f"No events in '{log_name}'")
-                    return
-
-                print_debug(f"Log has {total_records} records")
-
-                # Read events and collect sources
-                sources = {}  # source_name -> count
-                events_read = 0
-                bytes_to_read = 65536  # 64KB chunks
-                read_flags = even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ
-
-                while events_read < scan_count:
-                    try:
-                        resp = self.dce_transport._eventlog_read_events(
-                            log_handle,
-                            read_flags,
-                            0,  # record offset (0 for sequential)
-                            bytes_to_read,
-                        )
-
-                        if resp["NumberOfBytesRead"] == 0:
-                            print_debug("No bytes read, breaking")
-                            break
-
-                        bytes_read = resp["NumberOfBytesRead"]
-
-                        # Parse events from buffer
-                        buffer = resp["Buffer"]
-                        if isinstance(buffer, list):
-                            buffer = b"".join(buffer)
-
-                        # Parse events
-                        parsed_events = self._parse_event_buffer(buffer, scan_count - events_read)
-
-                        # Collect sources
-                        for event in parsed_events:
-                            source = event.get("SourceName", "Unknown")
-                            sources[source] = sources.get(source, 0) + 1
-                            events_read += 1
-
-                        if len(parsed_events) == 0:
-                            break
-
-                    except DCERPCException as e:
-                        if "ERROR_HANDLE_EOF" in str(e):
-                            break
-                        raise
-
-                # Display results
-                if sources:
-                    print_good(f"Found {len(sources)} unique sources in {events_read} events:")
-
-                    # Sort by count (descending) then by name
-                    sorted_sources = sorted(sources.items(), key=lambda x: (-x[1], x[0]))
-
-                    # Display as table
-                    headers = ["Source Name", "Event Count", "Percentage"]
-                    table_data = []
-
-                    for source, count in sorted_sources:
-                        percentage = (count / events_read * 100) if events_read > 0 else 0
-                        table_data.append([source, count, f"{percentage:.1f}%"])
-
-                    print(tabulate(table_data, headers=headers, tablefmt="grid"))
-                else:
-                    print_warning(f"No event sources found in '{log_name}'")
-
-            finally:
-                # Close the log handle
-                self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
-
-        except DCERPCException as e:
-            if "ERROR_ACCESS_DENIED" in str(e) or "rpc_s_access_denied" in str(e):
-                print_bad(f"Access denied to '{log_name}' - insufficient privileges")
-            else:
-                print_bad(f"RPC error accessing '{log_name}': {e}")
-        except Exception as e:
-            print_bad(f"Error scanning '{log_name}': {e}")
-            print_debug(f"Traceback: {traceback.format_exc()}")
-
-    def _get_known_logs_list(self):
-        """Get list of known EventLog sources using same logic as list command"""
-        known_logs = []
-        
-        # Use the same logic as list_event_logs to get known logs
-        test_logs = [
-            "Application",
-            "System", 
-            "Security",
-            "Setup",
-            "ForwardedEvents",
-            "Windows PowerShell",
-            "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
-            "Microsoft-Windows-PowerShell/Operational",
-            "Microsoft-Windows-Sysmon/Operational",
-            "Microsoft-Windows-DNS-Client/Operational",
-            "Microsoft-Windows-TaskScheduler/Operational",
-        ]
-        
-        for log_name in test_logs:
-            try:
-                # Try to open each log to see if it really exists
-                log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
-                count_resp = even.hElfrNumberOfRecords(self.dce_transport.dce, log_handle)
-                
-                # Extract count - if we can get a count, log probably exists
-                try:
-                    if hasattr(count_resp, 'NumberOfRecords'):
-                        count = count_resp.NumberOfRecords
-                    else:
-                        count = count_resp
-                    count = int(count) if not isinstance(count, int) else count
-                    
-                    # Add to known logs regardless of count (even if 0)
-                    known_logs.append(log_name)
-                    
-                except:
-                    # If we can't get count, still consider it valid since it opened
-                    known_logs.append(log_name)
-                    
-                # Close the handle
-                self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
-                
-            except DCERPCException:
-                # This log doesn't exist or isn't accessible
-                continue
-            except Exception:
-                # Other error - skip this log
-                continue
-                
-        return known_logs
-
-    def check_event_log(self, args):
+    def check_event_log(self, log_name, echo=True):
         """Check if a specific Windows Event Log exists and is accessible"""
-        log_name = args.log
-
+        self.setup_dce_transport()
+        self.dce_transport._connect_eventlog(use_even6=False)
         print_info(f"Checking if event log '{log_name}' exists...")
-
-        try:
-            # Setup transport and connect to eventlog
-            self.setup_dce_transport()
-            self.dce_transport._connect_eventlog(use_even6=False)
-
-            # First, check against known valid logs from list_event_logs
-            print_debug(f"Validating '{log_name}' against known logs...")
-            try:
-                known_logs = self._get_known_logs_list()
-                if known_logs and log_name not in known_logs:
-                    print_bad(f"Event log '{log_name}' does NOT exist on this system")
-                    print_info(f"Available logs: {', '.join(sorted(known_logs)[:5])}{'...' if len(known_logs) > 5 else ''}")
-                    print_info("Use 'eventlog list' to see all available logs")
-                    return
-            except Exception as e:
-                print_debug(f"Could not get known logs list: {e}")
-                # Continue with direct validation if list fails
-
-            # Try to open the log - API doesn't validate names properly but we can detect patterns
-            print_debug(f"Attempting to open log '{log_name}' for validation...")
-            
-            try:
-                # Try to open the log - if it fails with specific errors, the log doesn't exist
-                log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
-                
-                try:
-                    # Get record count using the handle
-                    count_resp = even.hElfrNumberOfRecords(self.dce_transport.dce, log_handle)
-                    print_debug(f"Raw count response: {repr(count_resp)}, type: {type(count_resp)}")
-                    
-                    # Extract the actual count from the response
-                    # Based on logs: it's an ElfrNumberOfRecordsResponse object with NumberOfRecords field
-                    try:
-                        # Try different access patterns for NDR structures
-                        if hasattr(count_resp, 'NumberOfRecords'):
-                            # Try attribute access first
-                            count = count_resp.NumberOfRecords
-                        elif hasattr(count_resp, '__getitem__') and 'NumberOfRecords' in str(count_resp):
-                            # Try dict-style access
-                            count = count_resp['NumberOfRecords']
-                        elif isinstance(count_resp, dict) and "NumberOfRecords" in count_resp:
-                            count = count_resp["NumberOfRecords"]
-                        else:
-                            count = count_resp
-                        
-                        print_debug(f"Raw extracted count: {repr(count)}, type: {type(count)}")
-                        
-                        # Convert to integer if it's not already
-                        if not isinstance(count, int):
-                            count = int(count)
-                            
-                    except Exception as e:
-                        print_debug(f"Error extracting count: {e}")
-                        # Fallback - try to convert the whole response
-                        try:
-                            count = int(count_resp) if hasattr(count_resp, '__int__') else 0
-                        except:
-                            count = 0
-                        
-                    print_debug(f"Extracted count: {count}, type: {type(count)}")
-                    print_good(f"Event log '{log_name}' exists and is accessible!")
-                    print_info(f"  Total records: {count}")
-                    
-                    # Try to get additional info
-                    if count > 0:
-                        try:
-                            oldest_record = self.dce_transport._eventlog_get_oldest_record(log_handle)
-                            print_info(f"  Oldest record number: {oldest_record}")
-
-                            # Try to get a sample event to show sources
-                            print_debug("Attempting to read a sample event...")
-                            try:
-                                # Read just one event to get source info
-                                resp = self.dce_transport._eventlog_read_events(
-                                    log_handle,
-                                    even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ,
-                                    0,
-                                    4096,  # Small buffer for one event
-                                )
-
-                                if resp["NumberOfBytesRead"] > 0:
-                                    buffer = resp["Buffer"]
-                                    if isinstance(buffer, list):
-                                        buffer = b"".join(buffer)
-
-                                    events = self._parse_event_buffer(buffer, 1)
-                                    if events:
-                                        print_info(
-                                            f"  Sample event source: {events[0].get('SourceName', 'Unknown')}"
-                                        )
-                                        print_info(
-                                            f"  Sample event type: {events[0].get('EventTypeStr', 'Unknown')}"
-                                        )
-
-                            except Exception as e:
-                                print_debug(f"Could not read sample event: {e}")
-                                
-                        except Exception as e:
-                            print_debug(f"Could not get additional info: {e}")
-                    
-                    else:
-                        print_info("  Log is empty (0 records)")
-                        
-                finally:
-                    # Always close the handle
-                    try:
-                        self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
-                    except:
-                        pass
-                    
-            except DCERPCException as e:
-                error_msg = str(e)
-                if '0x5' in error_msg or 'STATUS_ACCESS_DENIED' in error_msg or "ERROR_ACCESS_DENIED" in error_msg or "rpc_s_access_denied" in error_msg:
-                    print_bad(f"Access denied to event log '{log_name}'")
-                    print_info("This log exists but requires elevated privileges to access")
-                elif '0xc0000022' in error_msg or 'STATUS_INVALID_NAME' in error_msg or "ERROR_EVT_INVALID_CHANNEL_PATH" in error_msg:
-                    print_bad(f"Event log '{log_name}' does NOT exist on this system")
-                    print_info("Note: Log names are case-sensitive. Use 'eventlog list' to see available logs")
-                else:
-                    print_bad(f"Error checking event log '{log_name}': {e}")
-                    print_debug(f"Full error: {error_msg}")
-
-        except Exception as e:
-            print_bad(f"Error checking event log '{log_name}': {e}")
-            print_debug(f"Traceback: {traceback.format_exc()}")
+        log_exist, count = self.dce_transport._does_eventlog_exist(log_name, use_even6=False)
+        if log_exist:
+            if echo:
+                print_good(f"Event log '{log_name}' exists and is accessible ({count} records).")
+                return True, count
+        else:
+            if echo:
+                print_bad(f"Event log '{log_name}' does not exist or is not accessible.")
+                return False, 0

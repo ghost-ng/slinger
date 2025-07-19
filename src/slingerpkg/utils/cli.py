@@ -1428,21 +1428,6 @@ def setup_cli_parser(slingerClient):
         description="List all available event logs on the remote system via RPC over \\pipe\\eventlog",
     )
     parser_eventlog_list.set_defaults(func=slingerClient.eventlog_handler)
-
-    # eventlog sources command
-    parser_eventlog_sources = eventlog_subparsers.add_parser(
-        "sources",
-        help="List unique event sources from a log",
-        description="Enumerate all unique event sources found in a specific event log",
-    )
-    parser_eventlog_sources.add_argument(
-        "--log", required=True, help="Event log name to scan for sources"
-    )
-    parser_eventlog_sources.add_argument(
-        "--count", type=int, default=1000, help="Number of events to scan (default: 1000)"
-    )
-    parser_eventlog_sources.set_defaults(func=slingerClient.eventlog_handler)
-
     # eventlog check command
     parser_eventlog_check = eventlog_subparsers.add_parser(
         "check",

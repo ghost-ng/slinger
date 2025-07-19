@@ -472,10 +472,9 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
                 self.list_event_logs(args)
             elif args.eventlog_action == "query":
                 self.query_event_log(args)
-            elif args.eventlog_action == "sources":
-                self.list_event_sources(args)
             elif args.eventlog_action == "check":
-                self.check_event_log(args)
+                
+                self.check_event_log(args.log)
             else:
                 print_bad(f"Unknown eventlog action: {args.eventlog_action}")
 
@@ -496,6 +495,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
             ntlm_hash = self.ntlm_hash
             current_share = self.share if hasattr(self, "share") else None
             current_path = self.pwd() if current_share else None
+            
 
             # Close existing connection
             try:
@@ -513,7 +513,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
                 self.conn.login(username, password, domain, lmhash, nthash)
             else:
                 self.conn.login(username, password, domain)
-
+            self.setup_dce_transport()
             print_good("Successfully reconnected to the server")
 
             # If we were connected to a share, reconnect

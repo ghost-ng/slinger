@@ -92,7 +92,7 @@ def main():
     if "-v" in sys.argv or "--version" in sys.argv:
         print(f"Version Information: {parser.prog} {version}")
         sys.exit(0)
-    if "-gen-ntlm-hash" in sys.argv:
+    if "--gen-ntlm-hash" in sys.argv:
         hash = create_ntlm_hash(sys.argv[2])
         if hash:
             print(f"NTLM hash: :{hash}")
@@ -251,13 +251,8 @@ def main():
                 if "Invalid command entered" in str(e):
                     pass
                 elif "STATUS_PIPE_NOT_AVAILABLE" in str(e):
-                    print_warning(f"Named pipe connection lost. Attempting to reconnect...")
                     try:
-                        # Reset DCE transport to force reconnection
-                        if hasattr(client, "dce_transport") and client.dce_transport:
-                            client.dce_transport.is_connected = False
-                            client.dce_transport = None
-                        print_good("Reconnection successful. Please retry your command.")
+                        print_warning("Broken pipe error. Try to reconnect...")
                     except Exception as reconnect_error:
                         print_bad(f"Reconnection failed: {reconnect_error}")
                 else:

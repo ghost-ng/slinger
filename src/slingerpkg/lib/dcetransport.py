@@ -1324,6 +1324,41 @@ class DCETransport:
             else:
                 even.hElfrCloseEL(self.dce, logHandle=log_handle)
 
+    def _does_eventlog_exist(self, log_name, use_even6=True):
+        """Check if an event log exists using EventLog or EventLog6"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        if use_even6:
+            # Use EventLog6 interface
+            if self.current_bind != even6.MSRPC_UUID_EVEN6:
+                self.bind_override = True
+                self._bind(even6.MSRPC_UUID_EVEN6)
+            try:
+                even6.hEvtRpcOpenLogHandle(self.dce, channel=log_name, flags=0x00000001)
+                return True
+            except Exception as e:
+                print_debug(f"Error checking log existence: {e}")
+                return False
+        else:
+            # Legacy Even interface
+            try:
+                resp_handle = even.hElfrOpenELW(self.dce, moduleName=log_name)['LogHandle']
+                log_resp = even.hElfrNumberOfRecords(self.dce, resp_handle)
+                log_count = int(log_resp['NumberOfRecords'])
+                app_handle = even.hElfrOpenELW(self.dce, moduleName='Application')['LogHandle']
+                app_resp = even.hElfrNumberOfRecords(self.dce, app_handle)
+                #enum_struct(app_resp)
+                app_count = int(app_resp['NumberOfRecords'])
+
+                if log_name != 'Application' and log_count == app_count:
+                    return False, 0
+                else:
+                    return True, log_count
+            except Exception as e:
+                print_debug(f"Error checking log existence: {e}", e=sys.exc_info())
+                return False, 0
+
     def _eventlog_get_record_count(self, log_handle):
         """Get the number of records in an event log"""
         if not self.is_connected:
