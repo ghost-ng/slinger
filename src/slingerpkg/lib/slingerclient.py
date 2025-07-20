@@ -353,11 +353,32 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
                 seconds = tod_info["tod_secs"]
                 current_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-                tod_info = response["BufferPtr"]
+                # Server current date
+                day = tod_info["tod_day"]
+                month = tod_info["tod_month"]
+                year = tod_info["tod_year"]
+                weekday = tod_info["tod_weekday"]
+                weekdays = [
+                    "Sunday",
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                ]
+                current_date = f"{month:02d}/{day:02d}/{year}"
+                day_name = weekdays[weekday] if 0 <= weekday < 7 else "Unknown"
+
+                # Server uptime
                 uptime_seconds = int(tod_info["tod_elapsedt"]) // 1000
-                uptime_hours = uptime_seconds // 3600
+                uptime_days = uptime_seconds // 86400
+                uptime_hours = (uptime_seconds % 86400) // 3600
                 uptime_minutes = (uptime_seconds % 3600) // 60
-                uptime = f"{uptime_hours} hours, {uptime_minutes} minutes"
+                if uptime_days > 0:
+                    uptime = f"{uptime_days} days, {uptime_hours} hours, {uptime_minutes} minutes"
+                else:
+                    uptime = f"{uptime_hours} hours, {uptime_minutes} minutes"
 
                 # Server timezone
                 tz_minutes = int(tod_info["tod_timezone"])
@@ -367,6 +388,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
 
                 # Display the extracted information
                 print_info(f"Server Time: {current_time}")
+                print_info(f"Server Date: {current_date} ({day_name})")
                 print_info(f"Server Uptime: {uptime}")
                 print_info(f"Server Timezone: {timezone}")
 
@@ -466,14 +488,17 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
 
     def eventlog_handler(self, args):
         """Handle eventlog commands"""
+        print_debug(f"Eventlog action: {args.eventlog_action}")
         try:
             # Handle different eventlog actions using self methods
             if args.eventlog_action == "list":
+                print_verbose("Listing Event Logs...")
                 self.list_event_logs(args)
             elif args.eventlog_action == "query":
+                print_verbose("Querying Event Log: " + args.log)
                 self.query_event_log(args)
             elif args.eventlog_action == "check":
-                
+                print_verbose("Checking Log: " + args.log)
                 self.check_event_log(args.log)
             else:
                 print_bad(f"Unknown eventlog action: {args.eventlog_action}")
@@ -495,7 +520,6 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
             ntlm_hash = self.ntlm_hash
             current_share = self.share if hasattr(self, "share") else None
             current_path = self.pwd() if current_share else None
-            
 
             # Close existing connection
             try:

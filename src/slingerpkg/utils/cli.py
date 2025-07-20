@@ -807,9 +807,15 @@ def setup_cli_parser(slingerClient):
     )
     parser_taskdelete.set_defaults(func=slingerClient.task_delete_handler)
 
-    # Subparser for 'enumtime' command
-    # parser_time = subparsers.add_parser('enumtime', help='Get server time', description='Get the current time on the server', epilog='Example Usage: enumtime')
-    # parser_time.set_defaults(func=slingerClient.get_server_time)
+    # Subparser for 'time' command
+    parser_time = subparsers.add_parser(
+        "time",
+        help="Get server time and uptime",
+        description="Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call",
+        epilog="Example Usage: time",
+        aliases=["enumtime", "servertime"],
+    )
+    parser_time.set_defaults(func=slingerClient.get_server_time)
 
     # Subparser for 'upload' command
     parser_upload = subparsers.add_parser(
@@ -1397,7 +1403,7 @@ def setup_cli_parser(slingerClient):
         "--last", type=int, metavar="MINUTES", help="Events from the last X minutes"
     )
     parser_eventlog_query.add_argument(
-        "--count", type=int, default=100, help="Maximum number of events to return"
+        "--limit", type=int, default=1000, help="Maximum number of events to return"
     )
     parser_eventlog_query.add_argument("--source", help="Filter by event source name")
     parser_eventlog_query.add_argument("--find", help="Search for string in event content")
