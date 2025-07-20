@@ -42,6 +42,11 @@ class WMINamedPipeExec:
         
         # Check for memory capture mode
         memory_capture = hasattr(args, 'memory_capture') and args.memory_capture
+        
+        # For now, let's test basic WMI first and disable memory capture
+        if memory_capture:
+            print_warning("Memory capture temporarily disabled for debugging - using basic WMI")
+            memory_capture = False
 
         # Validate command argument
         if not args.interactive and (not hasattr(args, 'command') or not args.command):
@@ -358,7 +363,10 @@ class WMINamedPipeExec:
             print_debug(f"Executing WMI command: {command}")
             # Get Win32_Process object and create process
             win32Process, _ = iWbemServices.GetObject('Win32_Process')
-            result = win32Process.Create(command, None, None)
+            
+            # Create process with proper parameter handling for Impacket
+            # The Create method expects: CommandLine, CurrentDirectory, ProcessStartupInformation
+            result = win32Process.Create(command)
             
             # Cleanup DCOM connection
             dcom.disconnect()
@@ -456,7 +464,8 @@ class WMINamedPipeExec:
             '''
             
             # Execute PowerShell script via DCOM
-            ps_command = f'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{ps_script}"'
+            # Use cmd.exe to avoid potential PowerShell encoding issues
+            ps_command = f'cmd.exe /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{ps_script}"'
             result = self._create_wmi_process_dcom(ps_command)
             
             if result:
