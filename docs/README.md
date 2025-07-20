@@ -11,7 +11,7 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Task Scheduling**: Manage task scheduling such as creating, deleting, and running.
 - **Registry Management**: Manage registry operations such as querying keys, subkeys, and values, deleting, and much more!
 - **Service Control**: Manage windows services through create, delete, and run functions
-- **System Information Gathering**: Gather detailed system information, including server disk information, logged-on users, and transport details.
+- **System Information Gathering**: Gather detailed system information, including server disk information, logged-on users, transport details, and server time/uptime via NetrRemoteTOD RPC.
 - **Wrapper Commands**: Commands to edit port forwarding rules, view the windows firewall, ip information, etc
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 - **Query Performance Data**: (Experimental) Remotely query performance data like remote processes

@@ -414,6 +414,61 @@ Example Usage: enumtransport
 
 ---
 
+## `time`
+
+**Description:** Get server time, date, timezone, and uptime
+
+**Help:**
+```
+time [-h]
+Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+```
+
+**Example Usage:**
+```
+Example Usage: time
+```
+
+### Aliases
+- `enumtime` - Get server time and uptime information
+- `servertime` - Display remote server time details
+
+---
+
+## `enumtime`
+
+**Description:** Get server time, date, timezone, and uptime
+
+**Help:**
+```
+time [-h]
+Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+```
+
+**Example Usage:**
+```
+Example Usage: enumtime
+```
+
+---
+
+## `servertime`
+
+**Description:** Get server time, date, timezone, and uptime
+
+**Help:**
+```
+time [-h]
+Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+```
+
+**Example Usage:**
+```
+Example Usage: servertime
+```
+
+---
+
 ## `enumservices`
 
 **Description:** Enumerate services on the remote host

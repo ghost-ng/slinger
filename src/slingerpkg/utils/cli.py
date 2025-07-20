@@ -1,8 +1,10 @@
 import argparse
-from .printlib import *
-from prompt_toolkit.completion import Completer, Completion
-from slingerpkg.var.config import version, program_name
 from itertools import zip_longest
+
+from prompt_toolkit.completion import Completer, Completion
+
+from slingerpkg.var.config import version, program_name
+from .printlib import print_info, print_log, colors
 
 
 def extract_commands_and_args(parser):
@@ -146,6 +148,7 @@ def print_all_commands_verbose(parser):
             "enuminfo",
             "enumsys",
             "enumtransport",
+            "time",
             "hostname",
             "procs",
             "fwrules",
@@ -213,7 +216,7 @@ def print_all_commands_verbose(parser):
                     help_text = commands[cmd].description or commands[cmd].help or ""
                     if len(help_text) > 50:
                         help_text = help_text[:47] + "..."
-                except:
+                except (AttributeError, TypeError):
                     help_text = ""
 
                 print(f"  {cmd:<18}{alias_str:<25} {help_text}")
@@ -222,7 +225,8 @@ def print_all_commands_verbose(parser):
         if category == "📊 Event Log Operations":
             if "eventlog" not in [cmd for cmd in cmd_list if cmd in commands]:
                 print(
-                    "  eventlog                                        Query Windows Event Logs via RPC over \\\\pipe\\\\eventlog"
+                    "  eventlog                                        "
+                    "Query, monitor, and manage Windows Event Logs v..."
                 )
             print("    Subcommands: list, query")
         elif category == "💾 Download Management":
@@ -231,7 +235,8 @@ def print_all_commands_verbose(parser):
             print("    • Use 'plugins' to list loaded plugins and their information")
             print("    • Use 'reload' to reload all plugins from configured directories")
             print(
-                "    • Plugin commands are dynamically loaded and appear in their respective categories"
+                "    • Plugin commands are dynamically loaded and appear in their "
+                "respective categories"
             )
 
     print("\n" + "=" * 70)
@@ -316,7 +321,8 @@ def setup_cli_parser(slingerClient):
     parser_ls = subparsers.add_parser(
         "ls",
         help="List directory contents",
-        description="List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.",
+        description="List contents of a directory at a specified path. "
+        "File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: ls /path/to/directory",
     )
     parser_ls.add_argument(
@@ -361,7 +367,8 @@ def setup_cli_parser(slingerClient):
     parser_find = subparsers.add_parser(
         "find",
         help="Search for files and directories",
-        description="Search for files and directories across the remote share with advanced filtering options.",
+        description="Search for files and directories across the remote share "
+        "with advanced filtering options.",
         epilog='Example Usage: find "*.txt" -path /Users -type f -size +1MB',
     )
     parser_find.add_argument(
@@ -443,7 +450,8 @@ def setup_cli_parser(slingerClient):
     parser_enumpipes = subparsers.add_parser(
         "enumpipes",
         help="Enumerate named pipes",
-        description="Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.",
+        description="Enumerate named pipes on the remote server via IPC$ share "
+        "and RPC endpoints. Preserves current share connection by default.",
         epilog="Example Usage: enumpipes --detailed --output pipes.txt",
     )
     parser_enumpipes.add_argument(
@@ -470,7 +478,8 @@ def setup_cli_parser(slingerClient):
     parser_cat = subparsers.add_parser(
         "cat",
         help="Display file contents",
-        description="Display the contents of a specified file on the remote server.  File paths with spaces must be entirely in quotes.",
+        description="Display the contents of a specified file on the remote server. "
+        "File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: cat /path/to/file",
     )
     parser_cat.add_argument("remote_path", help="Specify the remote file path to display contents")
@@ -480,7 +489,8 @@ def setup_cli_parser(slingerClient):
     parser_cd = subparsers.add_parser(
         "cd",
         help="Change directory",
-        description="Change to a different directory on the remote server.  File paths with spaces must be entirely in quotes.",
+        description="Change to a different directory on the remote server. "
+        "File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: cd /path/to/directory",
     )
     parser_cd.add_argument(
@@ -500,7 +510,7 @@ def setup_cli_parser(slingerClient):
     )
     parser_pwd.set_defaults(func=slingerClient.print_current_path)
     # Subparser for 'exit' command
-    parser_exit = subparsers.add_parser(
+    subparsers.add_parser(
         "exit",
         help="Exit the program",
         description="Exit the application",
@@ -508,7 +518,7 @@ def setup_cli_parser(slingerClient):
         aliases=["quit", "logout", "logoff"],
     )
 
-    parser_clear = subparsers.add_parser(
+    subparsers.add_parser(
         "clear",
         help="Clear the screen",
         description="Clear the screen",
@@ -534,7 +544,6 @@ def setup_cli_parser(slingerClient):
         epilog="Use this command when you encounter '[Errno 32] Broken pipe' errors",
     )
     parser_reconnect.set_defaults(func=slingerClient.reconnect_handler)
-
 
     # Subparser for 'who' command
     parser_who = subparsers.add_parser(
@@ -595,7 +604,8 @@ def setup_cli_parser(slingerClient):
         "enumservices",
         help="Enumerate services",
         description="Enumerate services on the remote host",
-        epilog="Example Usage: enumservices --filter name=spooler OR enumservices --filter state=running OR enumservices -n",
+        epilog="Example Usage: enumservices --filter name=spooler OR "
+        "enumservices --filter state=running OR enumservices -n",
         aliases=["servicesenum", "svcenum", "services"],
     )
     parser_svcenum.add_argument(
@@ -742,7 +752,8 @@ def setup_cli_parser(slingerClient):
         "enumtasks",
         help="Enumerate scheduled tasks",
         description="Enumerate scheduled tasks on the remote server",
-        epilog="Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Windows OR enumtasks -n",
+        epilog="Example Usage: enumtasks --filter name=Microsoft OR "
+        "enumtasks --filter folder=Windows OR enumtasks -n",
         aliases=["tasksenum", "taskenum"],
     )
     parser_taskenum.add_argument(
@@ -768,7 +779,6 @@ def setup_cli_parser(slingerClient):
     taskshowgroup.add_argument(
         "task_path", type=str, nargs="?", help="Specify the full path of the task to show"
     )
-    # taskshowgroup.add_argument('-f', '--folder', type=str, nargs='?', help='Specify the folder to show tasks from')
     parser_taskshow.set_defaults(func=slingerClient.task_show_handler)
 
     # Subparser for 'taskcreate' command
@@ -776,7 +786,8 @@ def setup_cli_parser(slingerClient):
         "taskcreate",
         help="Create a new task",
         description="Create a new scheduled task on the remote server",
-        epilog="Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\\test' -f \\\\Windows",
+        epilog="Example Usage: taskcreate -n newtask -p cmd.exe "
+        "-a '/c ipconfig /all > C:\\test' -f \\\\Windows",
         aliases=["taskadd"],
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -846,7 +857,8 @@ def setup_cli_parser(slingerClient):
     parser_time = subparsers.add_parser(
         "time",
         help="Get server time and uptime",
-        description="Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call",
+        description="Get the current time, date, timezone, and uptime from "
+        "the remote server via NetrRemoteTOD RPC call",
         epilog="Example Usage: time",
         aliases=["enumtime", "servertime"],
     )
@@ -871,7 +883,8 @@ def setup_cli_parser(slingerClient):
         "download",
         aliases=["get"],
         help="Download a file",
-        description="Download a file from the remote server.  File paths with spaces must be entirely in quotes.",
+        description="Download a file from the remote server. "
+        "File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt",
     )
     parser_download.set_defaults(func=slingerClient.download_handler)
@@ -904,7 +917,8 @@ def setup_cli_parser(slingerClient):
     parser_mget = subparsers.add_parser(
         "mget",
         help="Download multiple files",
-        description="Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.",
+        description="Download all files from a specified directory and its "
+        "subdirectories. File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: mget /remote/path /local/path",
     )
     parser_mget.add_argument(
@@ -959,7 +973,7 @@ def setup_cli_parser(slingerClient):
     parser_rm.set_defaults(func=slingerClient.rm_handler)
 
     # Subparser for '#shell' command
-    parser_shell = subparsers.add_parser(
+    subparsers.add_parser(
         "#shell",
         help="Enter local terminal mode",
         description="Enter local terminal mode for command execution",
@@ -1008,7 +1022,8 @@ def setup_cli_parser(slingerClient):
         "regquery",
         help="Query a registry key",
         description="Query a registry key on the remote server",
-        epilog="Example Usage: regquery HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run (You must use two slashes or quotes)",
+        epilog="Example Usage: regquery HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
+        "CurrentVersion\\\\Run (You must use two slashes or quotes)",
     )
     parser_regquery.add_argument("key", help="Specify the registry key to query")
     parser_regquery.add_argument(
@@ -1026,7 +1041,8 @@ def setup_cli_parser(slingerClient):
         "regset",
         help="Set a registry value",
         description="Set a registry value on the remote server",
-        epilog='Example Usage: regset -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\ -v test -d "C:\\test.exe"',
+        epilog="Example Usage: regset -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
+        'CurrentVersion\\\\Run\\\\ -v test -d "C:\\test.exe"',
     )
     parser_regset.add_argument("-k", "--key", help="Specify the registry key to set", required=True)
     parser_regset.add_argument(
@@ -1048,7 +1064,8 @@ def setup_cli_parser(slingerClient):
         "regdel",
         help="Delete a registry value",
         description="Delete a registry value on the remote server",
-        epilog="Example Usage: regdel -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\ -v test",
+        epilog="Example Usage: regdel -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
+        "CurrentVersion\\\\Run\\\\ -v test",
     )
     parser_regdel.add_argument(
         "-k", "--key", help="Specify the registry key to delete", required=True
@@ -1062,7 +1079,8 @@ def setup_cli_parser(slingerClient):
         "regcreate",
         help="Create a registry key",
         description="Create a registry key on the remote server",
-        epilog="Example Usage: regcreate -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\test",
+        epilog="Example Usage: regcreate -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
+        "CurrentVersion\\\\Run\\\\test",
     )
     parser_regcreate.add_argument("key", help="Specify the registry key to create")
     parser_regcreate.set_defaults(func=slingerClient.reg_create_key)
@@ -1070,8 +1088,10 @@ def setup_cli_parser(slingerClient):
     parser_regcheck = subparsers.add_parser(
         "regcheck",
         help="Check if a registry key exists",
-        description="Check if a registry key exists on the remote server.  This is really just an exposed helper function.",
-        epilog="Example Usage: regcheck HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\test",
+        description="Check if a registry key exists on the remote server. "
+        "This is really just an exposed helper function.",
+        epilog="Example Usage: regcheck HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
+        "CurrentVersion\\\\Run\\\\test",
     )
     parser_regcheck.add_argument("key", help="Specify the registry key to check")
     parser_regcheck.set_defaults(func=slingerClient.does_key_exist)
@@ -1174,7 +1194,6 @@ def setup_cli_parser(slingerClient):
         description="Run a slinger script or command sequence",
         epilog='Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"',
     )
-    # parser_run.add_argument('-v', '--validate', help='Validate the script or command sequence without running it', action='store_true')
     parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
     parser_rungroup.add_argument("-c", "--cmd-chain", help="Specify a command sequence to run")
     parser_rungroup.add_argument("-f", "--file", help="Specify a script file to run")
@@ -1205,8 +1224,10 @@ def setup_cli_parser(slingerClient):
 
     parser_availCounters = subparsers.add_parser(
         "debug-availcounters",
-        help="Display available performance counters.  This is for debug use only, it doesn't really give you anything.",
-        description="Display available performance counters on the remote server.  This is for debug use only, it doesn't really give you anything.",
+        help="Display available performance counters. "
+        "This is for debug use only, it doesn't really give you anything.",
+        description="Display available performance counters on the remote server. "
+        "This is for debug use only, it doesn't really give you anything.",
         epilog="Example Usage: availcounters",
     )
     parser_availCounters.add_argument(
@@ -1219,7 +1240,8 @@ def setup_cli_parser(slingerClient):
     parser_availCounters.add_argument(
         "-p",
         "--print",
-        help="Print the available counters to the screen.  Must be provide with -s if you want to print to screen.",
+        help="Print the available counters to the screen. "
+        "Must be provide with -s if you want to print to screen.",
         action="store_true",
         default=False,
     )
@@ -1236,8 +1258,10 @@ def setup_cli_parser(slingerClient):
 
     parser_getCounter = subparsers.add_parser(
         "debug-counter",
-        help="Display a performance counter.  This is for debug use only, it doesn't really give you anything.",
-        description="Display a performance counter on the remote server.  This is for debug use only, it doesn't really give you anything.",
+        help="Display a performance counter. "
+        "This is for debug use only, it doesn't really give you anything.",
+        description="Display a performance counter on the remote server. "
+        "This is for debug use only, it doesn't really give you anything.",
         epilog="Example Usage: counter -c 123 [-a x86]",
     )
     parser_getCounter.add_argument(
@@ -1278,12 +1302,15 @@ def setup_cli_parser(slingerClient):
         "atexec",
         help="Execute a command at a specified time",
         description="Execute a command on the remote server",
-        epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\Downloads\\\\ -c ipconfig\nFor multi-word commands: atexec -c "echo hello world" -tn MyTask',
+        epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\'
+        "Downloads\\\\ -c ipconfig\n"
+        'For multi-word commands: atexec -c "echo hello world" -tn MyTask',
     )
     parser_atexec.add_argument(
         "-c",
         "--command",
-        help="Specify the command to execute. For commands with spaces, wrap in quotes (e.g., 'echo hello world')",
+        help="Specify the command to execute. For commands with spaces, "
+        "wrap in quotes (e.g., 'echo hello world')",
         required=True,
     )
     parser_atexec.add_argument(
@@ -1342,13 +1369,13 @@ def setup_cli_parser(slingerClient):
 
     parser_atexec.set_defaults(func=slingerClient.atexec_handler)
 
-    parser_reload = subparsers.add_parser(
+    subparsers.add_parser(
         "reload",
         help="Reload the current session context (hist file location, plugins, etc)",
         description="Reload the current sessions context",
         epilog="Example Usage: reload",
     )
-    parser_plugins = subparsers.add_parser(
+    subparsers.add_parser(
         "plugins",
         help="List available plugins",
         description="List available plugins",
@@ -1466,7 +1493,8 @@ def setup_cli_parser(slingerClient):
     parser_eventlog_list = eventlog_subparsers.add_parser(
         "list",
         help="List available event logs",
-        description="List all available event logs on the remote system via RPC over \\pipe\\eventlog",
+        description="List all available event logs on the remote system "
+        "via RPC over \\pipe\\eventlog",
     )
     parser_eventlog_list.set_defaults(func=slingerClient.eventlog_handler)
     # eventlog check command
@@ -1533,7 +1561,7 @@ class CommandCompleter(Completer):
     def __init__(self, commands):
         self.commands = commands
 
-    def get_completions(self, document, complete_event):
+    def get_completions(self, document, _complete_event):
         text_before_cursor = document.text_before_cursor.strip()
         words = text_before_cursor.split(" ")
         first_word = words[0]
@@ -1555,7 +1583,6 @@ class CommandCompleter(Completer):
 def get_prompt(client, nojoy):
     slinger_emoji = "\U0001F920"
     fire_emoji = "\U0001F525"
-    neutral_face_unicode = "\U0001F610"
 
     if client.is_connected_to_remote_share():
         preamble = slinger_emoji + fire_emoji + " "

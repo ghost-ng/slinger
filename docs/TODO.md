@@ -32,6 +32,11 @@
    - Need to handle relative paths properly in upload operations
    - Ensure proper path resolution and validation
 
+4. **Add ls --type {f|d} option to list only files or directories**
+   - Implement `--type f` to list only files
+   - Implement `--type d` to list only directories
+   - Ensure compatibility with existing ls command functionality
+
 ### Medium Priority
 4. **Fix navigation above root to default to root location**
    - When user tries to navigate above share root, default to root instead of error
