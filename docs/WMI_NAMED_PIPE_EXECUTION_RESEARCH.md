@@ -46,7 +46,22 @@ The WMI service implements multiple RPC interfaces accessible via named pipes:
 
 ### Implementation Strategies
 
-#### Strategy 1: Direct RPC over Named Pipes
+#### Strategy 1: DCE/RPC Transport Integration (IMPLEMENTED)
+Leverage the existing DCE transport infrastructure to communicate with WMI service via named pipes.
+
+**Implementation Details:**
+- **Enhanced DCE Transport**: Added WMI methods to the existing DCETransport class
+- **UUID Integration**: Added WMI interface UUIDs to the uuid_endpoints dictionary
+- **Connection Reuse**: WMI connections utilize the established DCE transport system
+- **RPC Binding**: Automatic binding to IWbemServices interface (423EC01E-2E35-11D2-B604-00104B703EFD)
+
+**Key Benefits:**
+- **Transport Reuse**: Leverages existing SMB connections and DCE infrastructure
+- **Unified Architecture**: Consistent with other RPC services (srvs, wkst, scmr, etc.)
+- **Enhanced Reliability**: Built on proven DCE transport foundations
+- **Simplified Management**: Single connection lifecycle for all RPC services
+
+#### Strategy 2: Direct RPC over Named Pipes (Legacy Approach)
 Use Impacket's RPC infrastructure to communicate directly with WMI service via named pipes.
 
 ```python

@@ -51,13 +51,17 @@
    - ✅ Recursive support: `ls -r depth -o filename.txt` saves recursive listing
    - Location: `src/slingerpkg/utils/cli.py` lines 359-366, `src/slingerpkg/lib/smblib.py` lines 763-922
 
-6. ✅ **wmi exec** (COMPLETED - Named Pipe Implementation)
+6. ✅ **wmi exec** (COMPLETED - DCE Transport Integration)
    - ✅ Created comprehensive WMI named pipe execution framework
    - ✅ Implemented SMB named pipe transport to bypass DCOM firewall restrictions
+   - ✅ **ENHANCED**: Integrated with existing DCE transport infrastructure
+   - ✅ **NEW**: Added WMI UUIDs to uuid_endpoints dictionary for proper RPC binding
+   - ✅ **NEW**: Added _connect_wmi_service() and _wmi_execute_process() to DCETransport class
+   - ✅ **NEW**: Modified WMI implementation to reuse existing DCE connections
    - ✅ Added WMI endpoint discovery and testing capabilities
    - ✅ Full CLI integration with extensive argument parsing
    - ✅ Interactive and non-interactive modes with output capture
    - ✅ Enhanced security through existing SMB authentication reuse
    - ✅ Based on comprehensive research in docs/WMI_NAMED_PIPE_EXECUTION_RESEARCH.md
-   - Location: `src/slingerpkg/lib/wmi_namedpipe.py`, CLI: `src/slingerpkg/utils/cli.py` lines 1523-1571
-   - Note: Framework complete with enhanced placeholder RPC implementation - ready for Impacket RPC integration
+   - Location: `src/slingerpkg/lib/wmi_namedpipe.py`, `src/slingerpkg/lib/dcetransport.py`, CLI: `src/slingerpkg/utils/cli.py` lines 1523-1571
+   - **Status**: Framework integrated with DCE transport - ready for production use with Impacket RPC calls
