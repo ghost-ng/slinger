@@ -29,21 +29,27 @@
 
 3. ✅ **Fix put relative path uploads issue** (COMPLETED)
    - ✅ Fixed double path joining bug in _resolve_remote_path method
-   - ✅ Added proper handling for `../` and `../../` parent directory references  
+   - ✅ Added proper handling for `../` and `../../` parent directory references
    - ✅ Enhanced path resolution for `.`, empty paths, and simple filenames
    - ✅ Tested with debug scripts and pexpect integration test
    - Location: `src/slingerpkg/lib/smblib.py` lines 1697-1748
 
 
 ### Medium Priority
-4. **Fix navigation above root to default to root location**
-   - When user tries to navigate above share root, default to root instead of error
-   - Provide user-friendly feedback about the limitation
+4. ✅ **Fix navigation above root to default to root location** (COMPLETED)
+   - ✅ Added protection in _normalize_path_for_smb method to detect above-root navigation
+   - ✅ Automatically redirects users to root when attempting to navigate above share root
+   - ✅ Shows user-friendly warning message: "Cannot navigate above share root. Redirecting to root directory."
+   - ✅ Tested with pexpect integration test - confirmed working on HTB instance
+   - Location: `src/slingerpkg/lib/smblib.py` lines 1679-1685
 
-5. **Add option to save ls -r output to a file**
-   - Add CLI argument for output file specification
-   - Add --show option to display previously saved file contents
-   - Integrate with existing tee_output functionality
+5. ✅ **Add option to save ls -r output to a file** (COMPLETED)
+   - ✅ CLI argument `-o/--output` already implemented for output file specification
+   - ✅ `--show` option already implemented to display saved file contents
+   - ✅ Integrated with existing tee_output functionality
+   - ✅ Tested and confirmed working: `ls -o filename.txt` saves output
+   - ✅ Recursive support: `ls -r depth -o filename.txt` saves recursive listing
+   - Location: `src/slingerpkg/utils/cli.py` lines 359-366, `src/slingerpkg/lib/smblib.py` lines 763-922
 
 6. **wmi exec**
    - Implement WMI exec functionality for remote command execution

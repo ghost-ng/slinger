@@ -1676,6 +1676,14 @@ class smblib:
                 else:
                     final_path = normalized
 
+            # Check for navigation above share root and redirect to root
+            if final_path == ".." or final_path.startswith("..\\") or final_path.startswith("../"):
+                print_warning("Cannot navigate above share root. Redirecting to root directory.")
+                final_path = ""
+            elif final_path == ".":
+                # Current directory resolves to root
+                final_path = ""
+
             return True, final_path, ""
 
         except Exception as e:
@@ -1697,7 +1705,11 @@ class smblib:
         if user_path in [".", "", None]:
             if default_name:
                 # Place file in current directory
-                resolved_path = ntpath.join(self.relative_path, default_name) if self.relative_path else default_name
+                resolved_path = (
+                    ntpath.join(self.relative_path, default_name)
+                    if self.relative_path
+                    else default_name
+                )
                 is_valid, final_path, error = self._normalize_path_for_smb("", resolved_path)
                 return is_valid, final_path, error
             else:
@@ -1709,7 +1721,9 @@ class smblib:
             if default_name:
                 # Get parent directory path and add filename
                 parent_path = ntpath.dirname(self.relative_path) if self.relative_path else ""
-                resolved_path = ntpath.join(parent_path, default_name) if parent_path else default_name
+                resolved_path = (
+                    ntpath.join(parent_path, default_name) if parent_path else default_name
+                )
                 # Already resolved - normalize without joining with base path
                 is_valid, final_path, error = self._normalize_path_for_smb("", resolved_path)
                 return is_valid, final_path, error
@@ -1720,23 +1734,31 @@ class smblib:
             # Handle multiple parent directory references like ../../
             path_parts = user_path.split("/")
             current_path = self.relative_path
-            
+
             # Count how many levels up we need to go
             parent_levels = len([part for part in path_parts if part == ".."])
-            
+
             # Go up the specified number of levels
             for _ in range(parent_levels):
                 current_path = ntpath.dirname(current_path) if current_path else ""
-            
+
             # If there are additional path components after the ../ parts
             remaining_parts = [part for part in path_parts if part not in ["", ".."]]
             if remaining_parts:
                 if default_name:
                     remaining_parts.append(default_name)
-                resolved_path = ntpath.join(current_path, *remaining_parts) if current_path else ntpath.join(*remaining_parts)
+                resolved_path = (
+                    ntpath.join(current_path, *remaining_parts)
+                    if current_path
+                    else ntpath.join(*remaining_parts)
+                )
             else:
-                resolved_path = ntpath.join(current_path, default_name) if (current_path and default_name) else (current_path or default_name or "")
-            
+                resolved_path = (
+                    ntpath.join(current_path, default_name)
+                    if (current_path and default_name)
+                    else (current_path or default_name or "")
+                )
+
             # Already resolved - normalize without joining with base path
             is_valid, final_path, error = self._normalize_path_for_smb("", resolved_path)
             return is_valid, final_path, error
