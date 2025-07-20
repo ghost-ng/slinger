@@ -35,15 +35,12 @@ class EventLog:
                 "System",
                 "Security",
                 "Setup",
-
                 # Forwarded Logs
                 "ForwardedEvents",
-
                 # PowerShell and Scripting
                 "Windows PowerShell",
                 "Microsoft-Windows-PowerShell",
                 "Microsoft-Windows-Scripting",
-
                 # Remote Desktop Services
                 "Microsoft-Windows-TerminalServices-LocalSessionManager",
                 "Microsoft-Windows-TerminalServices-RemoteConnectionManager",
@@ -51,41 +48,33 @@ class EventLog:
                 "Microsoft-Windows-TerminalServices-SessionBroker-Manager",
                 "Microsoft-Windows-TerminalServices-SessionBroker-RemoteDesktop",
                 "Microsoft-Windows-TerminalServices-Printers",
-
                 # Logon and Authentication
                 "Microsoft-Windows-Security-Auditing",
                 "Microsoft-Windows-User Profile Service",
                 "Microsoft-Windows-GroupPolicy",
                 "Microsoft-Windows-Kerberos",
-
                 # Task Scheduler
                 "Microsoft-Windows-TaskScheduler",
-
                 # DNS Client and Server
                 "Microsoft-Windows-DNS-Client",
                 "Microsoft-Windows-DNSServer",
                 "Microsoft-Windows-DNSServer",
-
                 # Network and Firewall
                 "Microsoft-Windows-Windows Firewall With Advanced Security/Firewall",
                 "Microsoft-Windows-NetworkProfile",
                 "Microsoft-Windows-NetworkProvider",
-
                 # System Integrity & Updates
                 "Microsoft-Windows-Winlogon",
                 "Microsoft-Windows-CodeIntegrity",
                 "Microsoft-Windows-Windows Defender",
                 "Microsoft-Windows-WindowsUpdateClient",
-
                 # Application Compatibility and Errors
                 "Microsoft-Windows-Application-Experience/Program-Telemetry",
                 "Microsoft-Windows-Application-Experience/Program-Compatibility-Assistant",
                 "Microsoft-Windows-Application-Experience/Program-Inventory",
-
                 # Sysmon (if installed)
-                "Microsoft-Windows-Sysmon"
+                "Microsoft-Windows-Sysmon",
             ]
-
 
             results = []
             accessible_count = 0
@@ -97,7 +86,6 @@ class EventLog:
                     if not exists:
                         results.append([log_name, "✗ Not found"])
                         continue
-
 
                     # If we got here, it's accessible
                     accessible_count += 1
@@ -131,7 +119,7 @@ class EventLog:
     def query_event_log(self, args):
         """Query events from a specific Windows Event Log"""
         log_name = args.log
-        count = getattr(args, "count", 10)
+        limit = getattr(args, "limit", 10)
         verbose = getattr(args, "verbose", False)
 
         # Get filter arguments
@@ -159,14 +147,13 @@ class EventLog:
             filters.append(f"Contains '{find_string}'")
 
         # check if the log exists
-        log_exist, _ = self.check_event_log(log_name, echo=False)
+        log_exist, _ = self.check_event_log(log_name, echo=True)
         if not log_exist:
             print_bad(f"Event log '{log_name}' does not exist or is not accessible.")
             return
-        
-        
+
         filter_desc = f" with filters: {', '.join(filters)}" if filters else ""
-        print_info(f"Querying '{log_name}' event log for {count} events{filter_desc}...")
+        print_info(f"Querying '{log_name}' event log for {limit} events{filter_desc}...")
 
         try:
             # Setup transport and connect
@@ -193,12 +180,12 @@ class EventLog:
                 bytes_to_read = 65536  # 64KB chunks
                 read_flags = even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ
                 max_read_events = (
-                    count * 10
+                    limit * 10
                     if any([event_id, level, source, since, last_minutes, find_string])
-                    else count
+                    else limit
                 )
 
-                while len(all_events) < max_read_events and len(filtered_events) < count:
+                while len(all_events) < max_read_events and len(filtered_events) < limit:
                     try:
                         resp = self.dce_transport._eventlog_read_events(
                             log_handle,
@@ -236,7 +223,7 @@ class EventLog:
                                 event, event_id, level, source, since, last_minutes, find_string
                             ):
                                 filtered_events.append(event)
-                                if len(filtered_events) >= count:
+                                if len(filtered_events) >= limit:
                                     break
 
                         all_events.extend(parsed_events)
@@ -255,13 +242,13 @@ class EventLog:
                 events = (
                     filtered_events
                     if any([event_id, level, source, since, last_minutes, find_string])
-                    else all_events[:count]
+                    else all_events[:limit]
                 )
 
                 # Display results
                 if events:
-                    self._display_events(events[:count], verbose)
-                    print_good(f"Retrieved {len(events[:count])} events from '{log_name}'")
+                    self._display_events(events[:limit], verbose)
+                    print_good(f"Retrieved {len(events[:limit])} events from '{log_name}'")
                 else:
                     print_warning(f"No events found in '{log_name}'")
 
@@ -273,7 +260,10 @@ class EventLog:
             if "ERROR_ACCESS_DENIED" in str(e) or "rpc_s_access_denied" in str(e):
                 print_bad(f"Access denied to '{log_name}' - insufficient privileges")
             else:
-                print_bad(f"RPC error querying '{log_name}': {e}")
+                if "STATUS_END_OF_FILE" in str(e):
+                    print_warning(f"End of file reached for '{log_name}' - no more events")
+                else:
+                    print_bad(f"RPC error querying '{log_name}': {e}")
         except Exception as e:
             print_bad(f"Error querying '{log_name}': {e}")
             print_debug(f"Traceback: {traceback.format_exc()}")
@@ -729,8 +719,6 @@ class EventLog:
                 for j, string in enumerate(event["Strings"]):
                     print(f"  [{j}] {string}")
 
-    
-
     def check_event_log(self, log_name, echo=True):
         """Check if a specific Windows Event Log exists and is accessible"""
         self.setup_dce_transport()
@@ -740,8 +728,8 @@ class EventLog:
         if log_exist:
             if echo:
                 print_good(f"Event log '{log_name}' exists and is accessible ({count} records).")
-                return True, count
+            return True, count
         else:
             if echo:
                 print_bad(f"Event log '{log_name}' does not exist or is not accessible.")
-                return False, 0
+            return False, 0

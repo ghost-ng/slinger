@@ -89,7 +89,7 @@ def print_info(msg):
 
 
 def print_verbose(msg):
-    if get_config_value("Verbose"):
+    if get_config_value("Verbose") or get_config_value("Debug"):
         print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
 

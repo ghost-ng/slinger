@@ -13,6 +13,7 @@ import os
 import sys
 import json
 import zlib
+import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple, BinaryIO
 import argparse
@@ -104,10 +105,7 @@ class EVTXFileHeader:
         self.file_flags = fields[10]
         self.checksum = fields[11]
 
-        # Verify header integrity
-        calculated_checksum = self._calculate_checksum(header_data[:-4])
-        if calculated_checksum != self.checksum:
-            print(f"[!] Header checksum mismatch: {calculated_checksum:08x} != {self.checksum:08x}")
+        # Note: Header checksum verification is handled in the file loading process
 
     def pack(self) -> bytes:
         """Pack header back to binary format"""
@@ -360,19 +358,19 @@ class EVTXEventRecord:
         return datetime.fromtimestamp(timestamp, timezone.utc)
 
     def extract_strings(self) -> List[str]:
-        """Extract readable strings from binary XML data"""
-        strings = []
+        """Extract meaningful readable strings from binary XML data"""
+        meaningful_strings = []
+
         try:
             # Look for UTF-16 encoded strings in the binary data
             i = 0
-            while i < len(self.binary_xml_data) - 3:
+            while i < len(self.binary_xml_data) - 6:  # Need at least 6 bytes for meaningful UTF-16
                 # Look for potential UTF-16 strings (even-length, null-terminated)
                 if (
                     self.binary_xml_data[i] != 0
                     and self.binary_xml_data[i + 1] == 0
                     and i + 2 < len(self.binary_xml_data)
                 ):
-
                     # Find end of string
                     start = i
                     end = start
@@ -381,11 +379,12 @@ class EVTXEventRecord:
                             break
                         end += 2
 
-                    if end > start:
+                    if end > start + 6:  # At least 3 characters
                         try:
                             text = self.binary_xml_data[start:end].decode("utf-16le")
-                            if len(text) > 2 and all(ord(c) < 127 or c.isprintable() for c in text):
-                                strings.append(text)
+                            # Filter for meaningful strings
+                            if self._is_meaningful_string(text):
+                                meaningful_strings.append(text)
                         except UnicodeDecodeError:
                             pass
 
@@ -393,22 +392,22 @@ class EVTXEventRecord:
                 else:
                     i += 1
 
-            # Also look for ASCII strings
+            # Look for ASCII strings (longer minimum length for quality)
             i = 0
-            while i < len(self.binary_xml_data) - 3:
+            while i < len(self.binary_xml_data) - 6:
                 if (
                     32 <= self.binary_xml_data[i] <= 126  # Printable ASCII
-                    and self.binary_xml_data[i + 1] != 0
-                ):  # Not UTF-16
-
+                    and self.binary_xml_data[i + 1] != 0  # Not UTF-16
+                ):
                     start = i
                     while i < len(self.binary_xml_data) and 32 <= self.binary_xml_data[i] <= 126:
                         i += 1
 
-                    if i - start > 3:  # Minimum string length
+                    if i - start >= 6:  # Minimum 6 character strings
                         try:
                             text = self.binary_xml_data[start:i].decode("ascii")
-                            strings.append(text)
+                            if self._is_meaningful_string(text):
+                                meaningful_strings.append(text)
                         except UnicodeDecodeError:
                             pass
                 else:
@@ -416,18 +415,161 @@ class EVTXEventRecord:
 
         except Exception:
             # If string extraction fails, return basic info
-            strings = [f"<Binary XML: {len(self.binary_xml_data)} bytes>"]
+            meaningful_strings = [f"<Binary XML: {len(self.binary_xml_data)} bytes>"]
 
-        return strings[:10]  # Return first 10 strings found
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_strings = []
+        for s in meaningful_strings:
+            if s not in seen:
+                seen.add(s)
+                unique_strings.append(s)
+
+        return unique_strings[:5]  # Return top 5 meaningful strings
+
+    def _is_meaningful_string(self, text: str) -> bool:
+        """Determine if a string is meaningful (not just binary noise)"""
+        if len(text) < 3:
+            return False
+
+        # Filter out strings that are just control characters or single repeated chars
+        if (
+            len(set(text)) < 2
+            and text[0] in "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        ):
+            return False
+
+        # Skip strings with excessive non-ASCII characters (garbled Unicode)
+        non_ascii_count = sum(1 for c in text if ord(c) > 127)
+        if non_ascii_count > len(text) * 0.1:  # More than 10% non-ASCII likely garbled
+            return False
+
+        # Skip strings that contain obvious garbled Unicode patterns
+        if any(ord(c) > 255 for c in text):  # Extended Unicode characters
+            return False
+
+        # Filter out strings with too many non-printable characters
+        printable_ratio = sum(1 for c in text if c.isprintable() and ord(c) >= 32) / len(text)
+        if printable_ratio < 0.8:  # Raised threshold for cleaner output
+            return False
+
+        # Skip obvious binary patterns and garbled Unicode
+        bad_patterns = [
+            "\x00",
+            "\\u00",
+            "\\x",
+            "阥",
+            "咄",
+            "呸",
+            "䦔",
+            "몥",
+            "㬾",
+            "⠃",
+            "ස",
+            "Č",
+            "矙",
+            "䈢",
+            "℣",
+            "洀",
+            "椀",
+            "最",
+            "甀",
+            "攀",
+            "氀",
+        ]
+        if any(pattern in text for pattern in bad_patterns):
+            return False
+
+        # Skip strings that look like corrupted provider names
+        if "Microsoft-Windows" in text and any(ord(c) > 127 for c in text):
+            return False
+
+        # Prefer strings with common EventLog keywords
+        keywords = [
+            "Event",
+            "System",
+            "Application",
+            "Security",
+            "Provider",
+            "EventID",
+            "Level",
+            "Task",
+            "Keywords",
+            "TimeCreated",
+            "EventRecordID",
+            "Computer",
+            "Channel",
+            "Message",
+            "Data",
+            "UserID",
+            "ProcessID",
+            "ThreadID",
+            "ActivityID",
+            "RelatedActivityID",
+            "Correlation",
+            "Execution",
+            "Version",
+            "Qualifiers",
+            "Opcode",
+            "Microsoft",
+            "Windows",
+            "Auditing",
+            "DESKTOP",
+            "WORKGROUP",
+            "Administrator",
+            "Guest",
+            "Users",
+            "Logon",
+            "Logoff",
+            "Account",
+            "Domain",
+        ]
+
+        # Check for EventLog-related terms
+        text_lower = text.lower()
+        has_eventlog_terms = any(keyword.lower() in text_lower for keyword in keywords)
+
+        # Accept if it has EventLog terms
+        if has_eventlog_terms:
+            return True
+
+        # For non-EventLog terms, be extremely selective
+        # Must be 100% clean ASCII
+        if not all(32 <= ord(c) <= 126 for c in text):
+            return False
+
+        # Must contain letters (not just numbers/symbols)
+        has_letters = any(c.isalpha() for c in text)
+        if not has_letters:
+            return False
+
+        # Must look like real words/identifiers
+        if len(text) < 4:
+            return False
+
+        # Skip if it looks like hex or other encoded data
+        if all(c in "0123456789ABCDEFabcdef" for c in text):
+            return False
+
+        return True
 
     def get_summary(self) -> str:
         """Get a summary representation of the record"""
         strings = self.extract_strings()
         timestamp = self.get_timestamp()
+
+        # Create a more informative summary
+        if strings and any(strings):
+            # If we have meaningful strings, use them
+            content = " | ".join(strings[:3])
+        else:
+            # Fallback to basic info
+            content = f"Binary Event Data ({self.size} bytes)"
+
         return (
             f"Record {self.record_identifier} "
             f"[{timestamp.strftime('%Y-%m-%d %H:%M:%S')}]: "
-            f"{' | '.join(strings[:3])}"
+            f"{content}"
         )
 
     def __repr__(self):
@@ -451,11 +593,12 @@ class EVTXFile:
 
     CHUNK_SIZE = 65536  # 64KB chunks (Microsoft specification)
 
-    def __init__(self, filepath: str = None):
+    def __init__(self, filepath: str = None, verbose: bool = False):
         self.filepath = filepath
         self.file_header: Optional[EVTXFileHeader] = None
         self.chunks: List[Tuple[EVTXChunkHeader, List[EVTXEventRecord]]] = []
         self.total_records = 0
+        self.verbose = verbose
 
         if filepath:
             self.load()
@@ -465,12 +608,28 @@ class EVTXFile:
         if not os.path.exists(self.filepath):
             raise EVTXError(f"File not found: {self.filepath}")
 
-        print(f"[*] Loading EVTX file: {self.filepath}")
+        if self.verbose:
+            print(f"[*] Loading EVTX file: {self.filepath}")
 
         with open(self.filepath, "rb") as f:
             self._parse_file(f)
 
-        print(f"[+] Loaded {len(self.chunks)} chunks with {self.total_records} total records")
+        if self.verbose:
+            print(f"[+] Loaded {len(self.chunks)} chunks with {self.total_records} total records")
+
+    def _validate_and_fix_header_checksum(self, file_header_data: bytes):
+        """Validate and fix header checksum if needed"""
+        # Calculate expected checksum for header data (excluding the checksum field)
+        header_without_checksum = file_header_data[: EVTXFileHeader.HEADER_SIZE - 4]
+        calculated_checksum = self.file_header._calculate_checksum(header_without_checksum)
+
+        if calculated_checksum != self.file_header.checksum:
+            if self.verbose:
+                print(
+                    f"[*] Fixed header checksum: {self.file_header.checksum:08x} -> {calculated_checksum:08x}"
+                )
+            # Update the header object with correct checksum
+            self.file_header.checksum = calculated_checksum
 
     def _parse_file(self, f: BinaryIO):
         """Parse complete EVTX file structure per Microsoft specification"""
@@ -478,7 +637,11 @@ class EVTXFile:
         file_header_data = f.read(EVTXFileHeader.TOTAL_SIZE)
         self.file_header = EVTXFileHeader(file_header_data)
 
-        print(f"[*] {self.file_header}")
+        # Check and fix header checksum if needed
+        self._validate_and_fix_header_checksum(file_header_data)
+
+        if self.verbose:
+            print(f"[*] {self.file_header}")
 
         # Parse chunks starting at offset 4096
         # Each chunk is exactly 65536 bytes
@@ -486,7 +649,8 @@ class EVTXFile:
         file_size = os.path.getsize(self.filepath)
         expected_chunks = (file_size - 4096) // self.CHUNK_SIZE
 
-        print(f"[*] Expected {expected_chunks} chunks based on file size")
+        if self.verbose:
+            print(f"[*] Expected {expected_chunks} chunks based on file size")
 
         current_offset = 4096  # First chunk starts after file header
 
@@ -522,11 +686,13 @@ class EVTXFile:
                 records = self._parse_chunk_records(chunk_data, chunk_header)
 
                 if records:
-                    print(f"[*] Chunk {chunk_number}: {len(records)} records")
+                    if self.verbose:
+                        print(f"[*] Chunk {chunk_number}: {len(records)} records")
                     self.chunks.append((chunk_header, records))
                     self.total_records += len(records)
                 else:
-                    print(f"[*] Chunk {chunk_number}: empty or no valid records")
+                    if self.verbose:
+                        print(f"[*] Chunk {chunk_number}: empty or no valid records")
 
                 chunk_number += 1
                 current_offset += self.CHUNK_SIZE
@@ -608,17 +774,6 @@ class EVTXFile:
         min_id = min(record_ids)
         max_id = max(record_ids)
 
-        # Content analysis
-        content_samples = []
-        for record in all_records[:10]:  # Sample first 10 records
-            content_samples.append(
-                {
-                    "record_id": record.record_identifier,
-                    "timestamp": record.get_timestamp().isoformat(),
-                    "summary": record.get_summary(),
-                }
-            )
-
         return {
             "file_info": {
                 "path": self.filepath,
@@ -642,7 +797,6 @@ class EVTXFile:
                 "total_records": len(record_ids),
                 "id_gaps": self._find_id_gaps(record_ids),
             },
-            "content_samples": content_samples,
         }
 
     def _find_id_gaps(self, record_ids: List[int]) -> List[Tuple[int, int]]:
@@ -656,7 +810,7 @@ class EVTXFile:
 
         return gaps[:10]  # Return first 10 gaps
 
-    def remove_records_by_ids(self, record_ids: List[int]) -> int:
+    def remove_records_by_ids(self, record_ids: List[int], test_mode: bool = False) -> int:
         """Remove records with specific IDs"""
         removed_count = 0
         record_ids_set = set(record_ids)
@@ -668,17 +822,27 @@ class EVTXFile:
                     new_records.append(record)
                 else:
                     removed_count += 1
-                    print(f"[*] Removing record {record.record_identifier}")
+                    if test_mode:
+                        print(
+                            f"[TEST] Would remove record {record.record_identifier}: {record.get_summary()}"
+                        )
+                    else:
+                        print(f"[*] Removing record {record.record_identifier}")
 
-            self.chunks[i] = (chunk_header, new_records)
+            if not test_mode:
+                self.chunks[i] = (chunk_header, new_records)
 
-        self.total_records -= removed_count
-        self._update_headers()
+        if not test_mode:
+            self.total_records -= removed_count
+            self._update_headers()
 
-        print(f"[+] Removed {removed_count} records")
+        action = "Would remove" if test_mode else "Removed"
+        print(f"[+] {action} {removed_count} records")
         return removed_count
 
-    def remove_records_by_time_range(self, start_time: datetime, end_time: datetime) -> int:
+    def remove_records_by_time_range(
+        self, start_time: datetime, end_time: datetime, test_mode: bool = False
+    ) -> int:
         """Remove records within a specific time range"""
         removed_count = 0
 
@@ -690,41 +854,146 @@ class EVTXFile:
                     new_records.append(record)
                 else:
                     removed_count += 1
-                    print(f"[*] Removing record {record.record_identifier} from {record_time}")
+                    if test_mode:
+                        print(
+                            f"[TEST] Would remove record {record.record_identifier} from {record_time}: {record.get_summary()}"
+                        )
+                    else:
+                        print(f"[*] Removing record {record.record_identifier} from {record_time}")
 
-            self.chunks[i] = (chunk_header, new_records)
+            if not test_mode:
+                self.chunks[i] = (chunk_header, new_records)
 
-        self.total_records -= removed_count
-        self._update_headers()
+        if not test_mode:
+            self.total_records -= removed_count
+            self._update_headers()
 
-        print(f"[+] Removed {removed_count} records in time range")
+        action = "Would remove" if test_mode else "Removed"
+        print(f"[+] {action} {removed_count} records in time range")
         return removed_count
 
-    def remove_records_by_content(self, search_string: str) -> int:
-        """Remove records containing specific content"""
+    def remove_records_by_content(
+        self, pattern: str, test_mode: bool = False, use_regex: bool = False
+    ) -> int:
+        """Remove records matching specific content pattern (supports regex)"""
         removed_count = 0
-        search_string_lower = search_string.lower()
+
+        # Compile regex pattern if requested
+        if use_regex:
+            try:
+                regex_pattern = re.compile(pattern, re.IGNORECASE)
+            except re.error as e:
+                raise EVTXError(f"Invalid regex pattern '{pattern}': {e}")
+        else:
+            pattern_lower = pattern.lower()
 
         for i, (chunk_header, records) in enumerate(self.chunks):
             new_records = []
             for record in records:
-                content = " ".join(record.extract_strings()).lower()
-                if search_string_lower not in content:
+                content = " ".join(record.extract_strings())
+
+                # Check if content matches pattern
+                if use_regex:
+                    matches = bool(regex_pattern.search(content))
+                else:
+                    matches = pattern_lower in content.lower()
+
+                if not matches:
                     new_records.append(record)
                 else:
                     removed_count += 1
-                    print(
-                        f"[*] Removing record {record.record_identifier} "
-                        f"(contains '{search_string}')"
-                    )
+                    if test_mode:
+                        match_type = "regex" if use_regex else "contains"
+                        print(
+                            f"[TEST] Would remove record {record.record_identifier} "
+                            f"({match_type} '{pattern}'): {record.get_summary()}"
+                        )
+                    else:
+                        print(
+                            f"[*] Removing record {record.record_identifier} "
+                            f"(matches '{pattern}')"
+                        )
 
-            self.chunks[i] = (chunk_header, new_records)
+            if not test_mode:
+                self.chunks[i] = (chunk_header, new_records)
 
-        self.total_records -= removed_count
-        self._update_headers()
+        if not test_mode:
+            self.total_records -= removed_count
+            self._update_headers()
 
-        print(f"[+] Removed {removed_count} records containing '{search_string}'")
+        match_type = "regex" if use_regex else "containing"
+        action = "Would remove" if test_mode else "Removed"
+        print(f"[+] {action} {removed_count} records {match_type} '{pattern}'")
         return removed_count
+
+    def count_matching_records(
+        self,
+        pattern: str = None,
+        record_ids: List[int] = None,
+        time_range: Tuple[datetime, datetime] = None,
+        use_regex: bool = False,
+    ) -> Dict[str, Any]:
+        """Count records matching specified criteria"""
+        matching_records = []
+        total_count = 0
+
+        # Get all records
+        all_records = self.get_all_records()
+
+        for record in all_records:
+            matches = True
+
+            # Check pattern match
+            if pattern:
+                content = " ".join(record.extract_strings())
+                if use_regex:
+                    try:
+                        regex_pattern = re.compile(pattern, re.IGNORECASE)
+                        matches = bool(regex_pattern.search(content))
+                    except re.error as e:
+                        raise EVTXError(f"Invalid regex pattern '{pattern}': {e}")
+                else:
+                    matches = pattern.lower() in content.lower()
+
+            # Check record ID match
+            if record_ids and matches:
+                matches = record.record_identifier in record_ids
+
+            # Check time range match
+            if time_range and matches:
+                start_time, end_time = time_range
+                record_time = record.get_timestamp()
+                # Ensure timezone consistency
+                if record_time.tzinfo is None:
+                    record_time = record_time.replace(tzinfo=timezone.utc)
+                matches = start_time <= record_time <= end_time
+
+            if matches:
+                matching_records.append(
+                    {
+                        "record_id": record.record_identifier,
+                        "timestamp": record.get_timestamp().isoformat(),
+                        "summary": record.get_summary(),
+                    }
+                )
+                total_count += 1
+
+        return {
+            "total_matching": total_count,
+            "total_records": len(all_records),
+            "match_percentage": (
+                round((total_count / len(all_records)) * 100, 2) if all_records else 0
+            ),
+            "criteria": {
+                "pattern": pattern,
+                "use_regex": use_regex,
+                "record_ids": record_ids,
+                "time_range": (
+                    [time_range[0].isoformat(), time_range[1].isoformat()] if time_range else None
+                ),
+            },
+            "matching_records": matching_records[:50],  # Show first 50 matches
+        }
 
     def _update_headers(self):
         """Update file and chunk headers after modifications"""
@@ -836,21 +1105,63 @@ class EVTXFile:
 def main():
     """Main function with comprehensive EVTX manipulation capabilities"""
     parser = argparse.ArgumentParser(
-        description="EVTX Expert v2 - Microsoft Specification Compliant Tool"
+        description="EVTX Expert v2 - Microsoft Specification Compliant Tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Count records containing "DESKTOP"
+  python evtx_expert_v2.py -i Security.evtx --count --match "DESKTOP"
+
+  # Test removal with regex pattern (verbose output)
+  python evtx_expert_v2.py -i Security.evtx --test --match "user=.*@outlook\\.com" --regex -v
+
+  # Remove records in time range
+  python evtx_expert_v2.py -i Security.evtx --match-time-range "2025-07-15T00:00:00" "2025-07-15T23:59:59" --output cleaned.evtx
+
+  # Count records in specific time window
+  python evtx_expert_v2.py -i Security.evtx --count --match-time-range "2025-07-15T18:49:00" "2025-07-15T19:00:00"
+        """,
     )
-    parser.add_argument("input_file", help="Input EVTX file path")
-    parser.add_argument("--analyze", action="store_true", help="Analyze EVTX file structure")
-    parser.add_argument("--dump-json", help="Dump records to JSON file")
-    parser.add_argument("--remove-ids", help="Remove records by IDs (comma-separated)")
-    parser.add_argument("--remove-content", help="Remove records containing string")
+
+    # Input/Output
     parser.add_argument(
-        "--remove-time-range",
-        nargs=2,
-        metavar=("START", "END"),
-        help="Remove records in time range (ISO format)",
+        "-i", "--input", dest="input_file", required=True, help="Input EVTX file path"
     )
     parser.add_argument("--output", help="Output file path for modified EVTX")
+
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose output (show chunk loading details)",
+    )
+    parser.add_argument(
+        "--count", action="store_true", help="Count records matching specified criteria"
+    )
+    parser.add_argument("--dump-json", help="Dump records to JSON file")
+
+    # Matching/Filtering
+    parser.add_argument(
+        "--match", help="Match records by content pattern (supports regex with --regex)"
+    )
+    parser.add_argument(
+        "--regex", action="store_true", help="Treat --match pattern as regular expression"
+    )
+    parser.add_argument("--remove-ids", help="Remove records by IDs (comma-separated)")
+    parser.add_argument(
+        "--match-time-range",
+        nargs=2,
+        metavar=("START", "END"),
+        help="Match records in time range (ISO format: 2025-07-15T18:49:55.015663+00:00)",
+    )
+
+    # Options
     parser.add_argument("--max-records", type=int, help="Limit number of records to process")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Preview mode - show what would be changed without making changes",
+    )
 
     args = parser.parse_args()
 
@@ -860,13 +1171,35 @@ def main():
         print("EVTX EXPERT v2 - Microsoft Specification Compliant Tool")
         print("=" * 70)
 
-        evtx = EVTXFile(args.input_file)
+        evtx = EVTXFile(args.input_file, verbose=args.verbose)
 
-        # Analysis
-        if args.analyze:
-            print("\n[*] Performing comprehensive analysis...")
-            analysis = evtx.analyze()
-            print(json.dumps(analysis, indent=2))
+        # Count matching records
+        if args.count:
+            print("\n[*] Counting matching records...")
+
+            # Prepare criteria
+            time_range = None
+            if args.match_time_range:
+                start_time = datetime.fromisoformat(args.match_time_range[0])
+                end_time = datetime.fromisoformat(args.match_time_range[1])
+                # Ensure timezone awareness for comparison
+                if start_time.tzinfo is None:
+                    start_time = start_time.replace(tzinfo=timezone.utc)
+                if end_time.tzinfo is None:
+                    end_time = end_time.replace(tzinfo=timezone.utc)
+                time_range = (start_time, end_time)
+
+            record_ids = None
+            if args.remove_ids:
+                record_ids = [int(x.strip()) for x in args.remove_ids.split(",")]
+
+            count_result = evtx.count_matching_records(
+                pattern=args.match,
+                record_ids=record_ids,
+                time_range=time_range,
+                use_regex=args.regex,
+            )
+            print(json.dumps(count_result, indent=2))
 
         # JSON dump
         if args.dump_json:
@@ -875,27 +1208,45 @@ def main():
 
         # Record removal operations
         modified = False
+        test_mode = args.test
+
+        if test_mode:
+            print("\n[TEST MODE] - Showing what would be removed without making changes")
 
         if args.remove_ids:
-            print("\n[*] Removing records by IDs...")
+            action = "Testing removal" if test_mode else "Removing records"
+            print(f"\n[*] {action} by IDs...")
             ids = [int(x.strip()) for x in args.remove_ids.split(",")]
-            evtx.remove_records_by_ids(ids)
-            modified = True
+            evtx.remove_records_by_ids(ids, test_mode=test_mode)
+            if not test_mode:
+                modified = True
 
-        if args.remove_content:
-            print(f"\n[*] Removing records containing '{args.remove_content}'...")
-            evtx.remove_records_by_content(args.remove_content)
-            modified = True
+        if args.match:
+            action = "Testing removal" if test_mode else "Removing records"
+            match_type = "regex" if args.regex else "pattern"
+            print(f"\n[*] {action} matching {match_type} '{args.match}'...")
+            evtx.remove_records_by_content(args.match, test_mode=test_mode, use_regex=args.regex)
+            if not test_mode:
+                modified = True
 
-        if args.remove_time_range:
-            print("\n[*] Removing records in time range...")
-            start_time = datetime.fromisoformat(args.remove_time_range[0])
-            end_time = datetime.fromisoformat(args.remove_time_range[1])
-            evtx.remove_records_by_time_range(start_time, end_time)
-            modified = True
+        if args.match_time_range:
+            action = "Testing removal" if test_mode else "Removing records"
+            print(f"\n[*] {action} in time range...")
+            start_time = datetime.fromisoformat(args.match_time_range[0])
+            end_time = datetime.fromisoformat(args.match_time_range[1])
+            # Ensure timezone awareness for comparison
+            if start_time.tzinfo is None:
+                start_time = start_time.replace(tzinfo=timezone.utc)
+            if end_time.tzinfo is None:
+                end_time = end_time.replace(tzinfo=timezone.utc)
+            evtx.remove_records_by_time_range(start_time, end_time, test_mode=test_mode)
+            if not test_mode:
+                modified = True
 
         # Save modified file
-        if modified and args.output:
+        if test_mode:
+            print("\n[TEST] No changes made - test mode active")
+        elif modified and args.output:
             print("\n[*] Saving modified EVTX file...")
             evtx.save(args.output)
         elif modified and not args.output:
@@ -911,6 +1262,213 @@ def main():
         return 1
 
     return 0
+
+
+# =============================================================================
+# Callable API Functions for Integration
+# =============================================================================
+
+
+def analyze_evtx_file(filepath: str, verbose: bool = False) -> Dict[str, Any]:
+    """
+    Analyze an EVTX file and return comprehensive metadata.
+
+    Args:
+        filepath: Path to the EVTX file
+        verbose: Enable verbose output
+
+    Returns:
+        Dictionary with file analysis including record counts, time ranges, etc.
+    """
+    try:
+        evtx = EVTXFile(filepath, verbose=verbose)
+        return evtx.analyze()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def list_evtx_records(filepath: str, max_records: int = None) -> List[Dict[str, Any]]:
+    """
+    List records from an EVTX file with detailed information.
+
+    Args:
+        filepath: Path to the EVTX file
+        max_records: Maximum number of records to return
+
+    Returns:
+        List of record dictionaries with metadata
+    """
+    try:
+        evtx = EVTXFile(filepath)
+        all_records = evtx.get_all_records()
+
+        if max_records:
+            all_records = all_records[:max_records]
+
+        return [
+            {
+                "record_id": record.record_identifier,
+                "timestamp": record.get_timestamp().isoformat(),
+                "size": record.size,
+                "strings": record.extract_strings(),
+                "summary": record.get_summary(),
+            }
+            for record in all_records
+        ]
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+def test_evtx_removal(
+    filepath: str,
+    record_ids: List[int] = None,
+    content_filter: str = None,
+    time_range: Tuple[str, str] = None,
+    use_regex: bool = False,
+) -> Dict[str, Any]:
+    """
+    Test what records would be removed without actually removing them.
+
+    Args:
+        filepath: Path to the EVTX file
+        record_ids: List of record IDs to remove
+        content_filter: Pattern to match in record content (supports regex)
+        time_range: Tuple of (start_time, end_time) in ISO format
+        use_regex: Whether to treat content_filter as regex pattern
+
+    Returns:
+        Dictionary with removal statistics and affected records
+    """
+    try:
+        evtx = EVTXFile(filepath, verbose=False)  # Silent for API calls
+        results = {
+            "original_record_count": evtx.total_records,
+            "removal_operations": [],
+            "total_would_remove": 0,
+        }
+
+        if record_ids:
+            count = evtx.remove_records_by_ids(record_ids, test_mode=True)
+            results["removal_operations"].append(
+                {"type": "by_ids", "criteria": record_ids, "would_remove": count}
+            )
+            results["total_would_remove"] += count
+
+        if content_filter:
+            count = evtx.remove_records_by_content(
+                content_filter, test_mode=True, use_regex=use_regex
+            )
+            results["removal_operations"].append(
+                {
+                    "type": "by_content",
+                    "criteria": content_filter,
+                    "use_regex": use_regex,
+                    "would_remove": count,
+                }
+            )
+            results["total_would_remove"] += count
+
+        if time_range:
+            start_time = datetime.fromisoformat(time_range[0])
+            end_time = datetime.fromisoformat(time_range[1])
+            count = evtx.remove_records_by_time_range(start_time, end_time, test_mode=True)
+            results["removal_operations"].append(
+                {"type": "by_time_range", "criteria": time_range, "would_remove": count}
+            )
+            results["total_would_remove"] += count
+
+        results["final_record_count"] = evtx.total_records - results["total_would_remove"]
+        return results
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def clean_evtx_file(
+    filepath: str,
+    output_path: str,
+    record_ids: List[int] = None,
+    content_filter: str = None,
+    time_range: Tuple[str, str] = None,
+) -> Dict[str, Any]:
+    """
+    Clean an EVTX file by removing specified records and save to new file.
+
+    Args:
+        filepath: Path to the source EVTX file
+        output_path: Path for the cleaned EVTX file
+        record_ids: List of record IDs to remove
+        content_filter: String to search for in record content
+        time_range: Tuple of (start_time, end_time) in ISO format
+
+    Returns:
+        Dictionary with operation results and statistics
+    """
+    try:
+        evtx = EVTXFile(filepath)
+        original_count = evtx.total_records
+        total_removed = 0
+
+        operations = []
+
+        if record_ids:
+            removed = evtx.remove_records_by_ids(record_ids)
+            total_removed += removed
+            operations.append({"type": "by_ids", "removed": removed})
+
+        if content_filter:
+            removed = evtx.remove_records_by_content(content_filter)
+            total_removed += removed
+            operations.append({"type": "by_content", "removed": removed})
+
+        if time_range:
+            start_time = datetime.fromisoformat(time_range[0])
+            end_time = datetime.fromisoformat(time_range[1])
+            removed = evtx.remove_records_by_time_range(start_time, end_time)
+            total_removed += removed
+            operations.append({"type": "by_time_range", "removed": removed})
+
+        # Save cleaned file
+        evtx.save(output_path)
+
+        return {
+            "success": True,
+            "original_records": original_count,
+            "final_records": evtx.total_records,
+            "total_removed": total_removed,
+            "operations": operations,
+            "output_file": output_path,
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def export_evtx_to_json(filepath: str, output_path: str, max_records: int = None) -> Dict[str, Any]:
+    """
+    Export EVTX records to JSON format.
+
+    Args:
+        filepath: Path to the EVTX file
+        output_path: Path for the JSON output file
+        max_records: Maximum number of records to export
+
+    Returns:
+        Dictionary with export results
+    """
+    try:
+        evtx = EVTXFile(filepath)
+        evtx.dump_records_json(output_path, max_records)
+
+        return {
+            "success": True,
+            "total_records": evtx.total_records,
+            "exported_records": min(max_records or evtx.total_records, evtx.total_records),
+            "output_file": output_path,
+        }
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":
