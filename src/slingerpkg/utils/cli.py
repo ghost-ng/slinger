@@ -139,6 +139,7 @@ def print_all_commands_verbose(parser):
         ],
         "🔍 System Enumeration": [
             "shares",
+            "enumpipes",
             "who",
             "enumdisk",
             "enumlogons",
@@ -163,7 +164,7 @@ def print_all_commands_verbose(parser):
             "serviceadd",
         ],
         "📅 Task Management": ["enumtasks", "taskshow", "taskcreate", "taskrun", "taskdelete"],
-        "🗂️ Registry Operations": [
+        "🗂️  Registry Operations": [
             "reguse",
             "regstop",
             "regquery",
@@ -175,7 +176,7 @@ def print_all_commands_verbose(parser):
         "📊 Event Log Operations": ["eventlog"],
         "🔒 Security Operations": ["hashdump", "secretsdump", "atexec", "portfwd"],
         "💾 Download Management": ["downloads"],
-        "🖥️ Session Management": [
+        "🖥️  Session Management": [
             "info",
             "set",
             "config",
@@ -184,8 +185,8 @@ def print_all_commands_verbose(parser):
             "exit",
             "clear",
             "reload",
-            "plugins",
         ],
+        "🧩 Plugin System": ["plugins"],
         "🔧 Local System": ["#shell", "!"],
         "🐛 Debug Operations": ["debug-availcounters", "debug-counter"],
     }
@@ -226,6 +227,12 @@ def print_all_commands_verbose(parser):
             print("    Subcommands: list, query")
         elif category == "💾 Download Management":
             print("    Subcommands: list, cleanup")
+        elif category == "🧩 Plugin System":
+            print("    • Use 'plugins' to list loaded plugins and their information")
+            print("    • Use 'reload' to reload all plugins from configured directories")
+            print(
+                "    • Plugin commands are dynamically loaded and appear in their respective categories"
+            )
 
     print("\n" + "=" * 70)
     print("💡 Usage:")
@@ -432,6 +439,33 @@ def setup_cli_parser(slingerClient):
     )
     parser_shares.set_defaults(func=slingerClient.list_shares)
 
+    # Subparser for 'enumpipes' command
+    parser_enumpipes = subparsers.add_parser(
+        "enumpipes",
+        help="Enumerate named pipes",
+        description="Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.",
+        epilog="Example Usage: enumpipes --detailed --output pipes.txt",
+    )
+    parser_enumpipes.add_argument(
+        "--detailed",
+        action="store_true",
+        help="Show detailed information about each pipe including descriptions",
+        default=False,
+    )
+    parser_enumpipes.add_argument(
+        "--method",
+        choices=["smb", "rpc", "hybrid"],
+        default="hybrid",
+        help="Enumeration method to use (default: %(default)s)",
+    )
+    parser_enumpipes.add_argument(
+        "--output",
+        metavar="filename",
+        help="Save output to specified file",
+        default=None,
+    )
+    parser_enumpipes.set_defaults(func=slingerClient.enumerate_named_pipes)
+
     # Subparser for 'cat' command
     parser_cat = subparsers.add_parser(
         "cat",
@@ -500,6 +534,7 @@ def setup_cli_parser(slingerClient):
         epilog="Use this command when you encounter '[Errno 32] Broken pipe' errors",
     )
     parser_reconnect.set_defaults(func=slingerClient.reconnect_handler)
+
 
     # Subparser for 'who' command
     parser_who = subparsers.add_parser(
