@@ -39,6 +39,9 @@ class WMINamedPipeExec:
         if hasattr(args, 'endpoint_info') and args.endpoint_info:
             self._show_endpoint_info()
             return
+        
+        # Check for memory capture mode
+        memory_capture = hasattr(args, 'memory_capture') and args.memory_capture
 
         # Validate command argument
         if not args.interactive and (not hasattr(args, 'command') or not args.command):
@@ -53,20 +56,49 @@ class WMINamedPipeExec:
                 print_info("WMI service may be unavailable or access denied")
                 return
 
-            # Execute the command via WMI named pipe
-            result = self.execute_wmi_command_namedpipe(
-                command=args.command,
-                capture_output=not args.no_output,
-                timeout=args.timeout,
-                interactive=args.interactive,
-                output_file=getattr(args, 'output', None)
-            )
+            # Execute the command via WMI 
+            if memory_capture:
+                print_info("Using memory-based output capture (no disk files)")
+                result = self._execute_wmi_command_memory_capture(
+                    command=args.command,
+                    timeout=args.timeout,
+                    output_file=getattr(args, 'output', None)
+                )
+            else:
+                result = self.execute_wmi_command_namedpipe(
+                    command=args.command,
+                    capture_output=not args.no_output,
+                    timeout=args.timeout,
+                    interactive=args.interactive,
+                    output_file=getattr(args, 'output', None)
+                )
 
             if result['success']:
                 if args.interactive:
-                    print_good("WMI named pipe interactive shell session completed")
+                    print_good("WMI interactive shell session completed")
+                elif memory_capture:
+                    print_good("WMI memory capture execution completed")
+                    
+                    # Display stdout if available
+                    if result.get('stdout'):
+                        print_info("Command output:")
+                        print(result['stdout'])
+                    
+                    # Display stderr if available
+                    if result.get('stderr'):
+                        print_warning("Error output:")
+                        print(result['stderr'])
+                    
+                    # Show execution metadata
+                    if result.get('return_code') is not None:
+                        print_info(f"Return code: {result['return_code']}")
+                    if result.get('execution_time'):
+                        print_info(f"Execution time: {result['execution_time']} seconds")
+                        
+                    if getattr(args, 'output', None):
+                        print_good(f"Output saved to: {args.output}")
                 else:
-                    print_good(f"Command executed via WMI named pipe. Process ID: {result.get('process_id', 'Unknown')}")
+                    print_good(f"Command executed via WMI. Process ID: {result.get('process_id', 'Unknown')}")
                     
                     if result.get('output'):
                         print_info("Command output:")
@@ -75,7 +107,10 @@ class WMINamedPipeExec:
                     if getattr(args, 'output', None):
                         print_good(f"Output saved to: {args.output}")
             else:
-                print_bad(f"WMI named pipe execution failed: {result.get('error', 'Unknown error')}")
+                if memory_capture:
+                    print_bad(f"WMI memory capture execution failed: {result.get('error', 'Unknown error')}")
+                else:
+                    print_bad(f"WMI execution failed: {result.get('error', 'Unknown error')}")
 
         except Exception as e:
             print_debug(str(e), sys.exc_info())
@@ -342,6 +377,248 @@ class WMINamedPipeExec:
             except:
                 pass
             return None
+
+    def _create_wmi_process_memory_capture(self, command):
+        """
+        Create process via WMI with memory-based output capture using custom WMI classes
+        
+        This approach uses PowerShell to create temporary WMI classes for storing
+        stdout/stderr without creating files on disk.
+        """
+        print_debug("WMI process creation with memory-based output capture")
+        
+        try:
+            import random
+            import time
+            
+            # Generate unique class name for this execution
+            class_name = f"SlingerOutput_{int(time.time())}_{random.randint(1000, 9999)}"
+            
+            # PowerShell script for memory capture
+            ps_script = f'''
+            try {{
+                # Create temporary WMI class for output storage
+                $className = "{class_name}"
+                $newClass = New-Object System.Management.ManagementClass("root\\cimv2", [String]::Empty, $null)
+                $newClass["__CLASS"] = $className
+                $newClass.Qualifiers.Add("Static", $true)
+                $newClass.Properties.Add("CommandOutput", [System.Management.CimType]::String, $false)
+                $newClass.Properties.Add("ErrorOutput", [System.Management.CimType]::String, $false)
+                $newClass.Properties.Add("ReturnCode", [System.Management.CimType]::UInt32, $false)
+                $newClass.Properties.Add("ExecutionTime", [System.Management.CimType]::String, $false)
+                $newClass.Put()
+                
+                # Execute command and capture output in memory
+                $stdout = ""
+                $stderr = ""
+                $exitCode = 0
+                $startTime = Get-Date
+                
+                try {{
+                    # Use PowerShell to capture output without disk files
+                    $pinfo = New-Object System.Diagnostics.ProcessStartInfo
+                    $pinfo.FileName = "cmd.exe"
+                    $pinfo.Arguments = "/c {command}"
+                    $pinfo.UseShellExecute = $false
+                    $pinfo.RedirectStandardOutput = $true
+                    $pinfo.RedirectStandardError = $true
+                    $pinfo.CreateNoWindow = $true
+                    
+                    $process = New-Object System.Diagnostics.Process
+                    $process.StartInfo = $pinfo
+                    $process.Start() | Out-Null
+                    
+                    $stdout = $process.StandardOutput.ReadToEnd()
+                    $stderr = $process.StandardError.ReadToEnd()
+                    $process.WaitForExit()
+                    $exitCode = $process.ExitCode
+                }} catch {{
+                    $stderr = $_.Exception.Message
+                    $exitCode = 1
+                }}
+                
+                $endTime = Get-Date
+                $executionTime = ($endTime - $startTime).TotalSeconds
+                
+                # Store output in WMI class instance
+                $instance = $newClass.CreateInstance()
+                $instance["CommandOutput"] = $stdout
+                $instance["ErrorOutput"] = $stderr  
+                $instance["ReturnCode"] = $exitCode
+                $instance["ExecutionTime"] = $executionTime.ToString()
+                $instance.Put()
+                
+                # Output class name for retrieval
+                Write-Host "WMI_CLASS_CREATED:$className"
+            }} catch {{
+                Write-Error "Memory capture failed: $($_.Exception.Message)"
+            }}
+            '''
+            
+            # Execute PowerShell script via DCOM
+            ps_command = f'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{ps_script}"'
+            result = self._create_wmi_process_dcom(ps_command)
+            
+            if result:
+                print_verbose(f"Memory capture PowerShell executed with PID: {result}")
+                
+                # Wait for PowerShell to complete and create WMI class
+                time.sleep(3)
+                
+                # Query WMI class for output
+                output_data = self._query_wmi_output_class(class_name)
+                
+                if output_data:
+                    # Cleanup WMI class
+                    self._cleanup_wmi_output_class(class_name)
+                    return output_data
+                else:
+                    print_debug("Failed to retrieve output from WMI class")
+                    return None
+            
+            return None
+            
+        except Exception as e:
+            print_debug(f"WMI memory capture failed: {e}")
+            return None
+
+    def _query_wmi_output_class(self, class_name):
+        """
+        Query custom WMI class to retrieve stored command output
+        """
+        try:
+            print_debug(f"Querying WMI class: {class_name}")
+            
+            # Create WMI connection for querying
+            dcom = DCOMConnection(
+                self.host,
+                self.username, 
+                getattr(self, 'password', ''),
+                getattr(self, 'domain', ''),
+                lmhash='',
+                nthash=self._get_nt_hash(),
+                aesKey='',
+                oxidResolver=True,
+                doKerberos=getattr(self, 'use_kerberos', False)
+            )
+            
+            # Create WMI interface  
+            iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
+            iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+            iWbemServices = iWbemLevel1Login.NTLMLogin('//./root/cimv2', NULL, NULL)
+            
+            # Query the custom class
+            query = f"SELECT * FROM {class_name}"
+            results = iWbemServices.ExecQuery(query)
+            
+            output_data = None
+            for result in results:
+                output_data = {
+                    'stdout': result.CommandOutput,
+                    'stderr': result.ErrorOutput,
+                    'return_code': result.ReturnCode,
+                    'execution_time': result.ExecutionTime
+                }
+                break  # Only need first (and should be only) result
+            
+            dcom.disconnect()
+            return output_data
+            
+        except Exception as e:
+            print_debug(f"Failed to query WMI output class: {e}")
+            try:
+                dcom.disconnect()
+            except:
+                pass
+            return None
+            
+    def _cleanup_wmi_output_class(self, class_name):
+        """
+        Delete the temporary WMI class to clean up memory
+        """
+        try:
+            print_debug(f"Cleaning up WMI class: {class_name}")
+            
+            # Create cleanup PowerShell script
+            cleanup_script = f'''
+            try {{
+                $class = Get-WmiObject -Class {class_name} -List
+                if ($class) {{
+                    $class.Delete()
+                }}
+                Get-WmiObject -Class {class_name} | Remove-WmiObject -Force
+            }} catch {{
+                # Cleanup may fail if class doesn't exist, which is OK
+            }}
+            '''
+            
+            # Execute cleanup via DCOM
+            ps_command = f'powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -Command "{cleanup_script}"'
+            self._create_wmi_process_dcom(ps_command)
+            
+            print_debug("WMI class cleanup completed")
+            
+        except Exception as e:
+            print_debug(f"WMI class cleanup failed (non-critical): {e}")
+            
+    def _get_nt_hash(self):
+        """Helper method to extract NT hash from NTLM hash"""
+        if hasattr(self, 'ntlm_hash') and self.ntlm_hash:
+            try:
+                return self.ntlm_hash.split(":")[1] if ':' in self.ntlm_hash else self.ntlm_hash
+            except:
+                return ''
+        return ''
+
+    def _execute_wmi_command_memory_capture(self, command, timeout=30, output_file=None):
+        """
+        Execute WMI command using memory-based output capture
+        
+        Returns dict with 'success', 'stdout', 'stderr', 'return_code' keys
+        """
+        try:
+            print_verbose(f"Executing WMI command with memory capture: {command}")
+            
+            # Use memory capture method
+            output_data = self._create_wmi_process_memory_capture(command)
+            
+            if output_data:
+                stdout = output_data.get('stdout', '')
+                stderr = output_data.get('stderr', '')
+                return_code = output_data.get('return_code', 0)
+                execution_time = output_data.get('execution_time', '0')
+                
+                print_verbose(f"Memory capture completed in {execution_time} seconds")
+                
+                # Save output to file if requested
+                if output_file:
+                    self._save_output_to_file(stdout, output_file)
+                
+                return {
+                    'success': True,
+                    'stdout': stdout,
+                    'stderr': stderr,
+                    'return_code': return_code,
+                    'execution_time': execution_time
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Memory capture failed',
+                    'stdout': None,
+                    'stderr': None,
+                    'return_code': None
+                }
+                
+        except Exception as e:
+            print_debug(f"WMI memory capture execution failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'stdout': None,
+                'stderr': None,
+                'return_code': None
+            }
 
     def _connect_wmi_service_namedpipe(self):
         """

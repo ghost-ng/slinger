@@ -1567,6 +1567,12 @@ def setup_cli_parser(slingerClient):
         help="Show WMI named pipe endpoint discovery information",
         default=False,
     )
+    parser_wmiexec.add_argument(
+        "--memory-capture",
+        action="store_true",
+        help="Use memory-based output capture via custom WMI classes (no disk files)",
+        default=False,
+    )
     parser_wmiexec.set_defaults(func=slingerClient.wmiexec_handler)
 
     return parser
