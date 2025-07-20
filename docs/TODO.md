@@ -27,18 +27,13 @@
    - Fix error: "[!] Local path /tmp/test.zip does not exist."
    - Should create the file at specified location with custom name
 
-3. **Fix put relative path uploads issue**
-   - Current issue: `put strap.sh ../` fails with parsing error
-   - Need to handle relative paths properly in upload operations
-   - Ensure proper path resolution and validation
+3. ✅ **Fix put relative path uploads issue** (COMPLETED)
+   - ✅ Fixed double path joining bug in _resolve_remote_path method
+   - ✅ Added proper handling for `../` and `../../` parent directory references  
+   - ✅ Enhanced path resolution for `.`, empty paths, and simple filenames
+   - ✅ Tested with debug scripts and pexpect integration test
+   - Location: `src/slingerpkg/lib/smblib.py` lines 1697-1748
 
-4. ✅ **Add ls --type {f|d} option to list only files or directories**
-   - ✅ Implement `--type f` to list only files
-   - ✅ Implement `--type d` to list only directories
-   - ✅ Implement `--type a` to list all (default behavior)
-   - ✅ Ensure compatibility with existing ls command functionality
-   - ✅ Support for both regular and recursive listings
-   - ✅ Updated CLI documentation and help text
 
 ### Medium Priority
 4. **Fix navigation above root to default to root location**
@@ -50,30 +45,8 @@
    - Add --show option to display previously saved file contents
    - Integrate with existing tee_output functionality
 
-## New Features
-
-### File Search System
-6. **Comprehensive file search functionality (find command)**
-   - ✅ **Pattern matching**: Wildcard and regex support for file/directory search
-   - ✅ **Advanced filtering**: File type (-type f/d), size filters, date filters
-   - ✅ **Depth control**: --maxdepth and --mindepth for search boundaries
-   - ✅ **Configurable timeout**: -timeout flag with 120-second default
-   - ✅ **Progress reporting**: -progress flag shows directory-by-directory traversal
-   - ✅ **Multiple output formats**: table, json, list, paths
-   - ✅ **HTB integration tested**: Successfully validated against Windows SMB shares
-
-### Completed Enhancements
-- ✅ **Verbose flag implementation** - Added -verbose CLI flag that enables verbose output for remote path transformations and other operations
-- ✅ **Custom filename downloads** - Fixed download functionality to support custom filenames (e.g., `get KeePass-2.58.zip /tmp/test.zip`)
-- ✅ **Relative path uploads** - Fixed put command to properly handle relative paths like `put strap.sh ../`
-- ✅ **Root navigation protection** - Navigation above share root automatically defaults to root with warning message
-- ✅ **File output for ls -r** - ls command already supports `-o` flag for saving output and `--show` flag for viewing saved files
-- ✅ **Find command implementation** - Comprehensive file search with timeout protection, verbose progress, and HTB validation
-- ✅ **ls --type filtering** - Added `--type {f|d|a}` option to list only files, directories, or all items with support for both regular and recursive listings
-
-### Completed Research
-- ✅ Codebase structure analysis
-- ✅ Current verbose system understanding
-- ✅ Path validation mechanisms
-- ✅ File transfer implementations
-- ✅ CLI argument system architecture
+6. **wmi exec**
+   - Implement WMI exec functionality for remote command execution
+   - Support for both interactive and non-interactive modes
+   - Integrate with existing authentication and session management
+   - Ensure proper error handling and output formatting
