@@ -65,3 +65,8 @@
    - ✅ Based on comprehensive research in docs/WMI_NAMED_PIPE_EXECUTION_RESEARCH.md
    - Location: `src/slingerpkg/lib/wmi_namedpipe.py`, `src/slingerpkg/lib/dcetransport.py`, CLI: `src/slingerpkg/utils/cli.py` lines 1523-1571
    - **Status**: Framework integrated with DCE transport - ready for production use with Impacket RPC calls
+   - ✅ **NEW**: Memory capture research and implementation completed
+   - ✅ **NEW**: Added --memory-capture flag for stdout/stderr capture without disk files
+   - ✅ **NEW**: PowerShell-based WMI class creation for temporary output storage
+   - ✅ **NEW**: Automatic cleanup of temporary WMI classes
+   - Research documented in: `docs/WMI_STDOUT_CAPTURE_RESEARCH.md`
