@@ -803,6 +803,14 @@ class smblib:
                 ).replace(microsecond=0)
                 filesize = self.sizeof_fmt(f.get_filesize())
                 file_type = "D" if f.is_directory() else "F"
+                
+                # Apply type filtering if specified
+                if hasattr(args, 'type') and args.type != 'a':
+                    if args.type == 'f' and file_type == 'D':
+                        continue  # Skip directories when filtering for files only
+                    elif args.type == 'd' and file_type == 'F':
+                        continue  # Skip files when filtering for directories only
+                
                 attributes = ""
                 if f.is_readonly():
                     attributes += "R"
@@ -941,6 +949,16 @@ class smblib:
                 if f.get_longname() in [".", ".."]:
                     continue
 
+                # Apply type filtering if specified
+                if hasattr(args, 'type') and args.type != 'a':
+                    is_directory = hasattr(f, "get_attributes") and f.get_attributes() & 0x10
+                    if args.type == 'f' and is_directory:
+                        # Skip directories when filtering for files only, but still collect for recursion
+                        subdirs.append(f.get_longname())
+                        continue
+                    elif args.type == 'd' and not is_directory:
+                        continue  # Skip files when filtering for directories only
+
                 # Add to current listing
                 if args.long:
                     try:
@@ -960,9 +978,10 @@ class smblib:
                 else:
                     dirList.append([self._get_file_attributes(f), f.get_longname()])
 
-                # Collect directories for later
+                # Collect directories for later (only if not already added during filtering)
                 if hasattr(f, "get_attributes") and f.get_attributes() & 0x10:
-                    subdirs.append(f.get_longname())
+                    if f.get_longname() not in subdirs:
+                        subdirs.append(f.get_longname())
 
             # 3. Print current directory contents
             if dirList:

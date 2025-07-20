@@ -323,7 +323,10 @@ def setup_cli_parser(slingerClient):
         help="List directory contents",
         description="List contents of a directory at a specified path. "
         "File paths with spaces must be entirely in quotes.",
-        epilog="Example Usage: ls /path/to/directory",
+        epilog="Example Usage: ls /path/to/directory\n"
+        "ls --type f -l          # List only files in long format\n"
+        "ls --type d             # List only directories\n"
+        "ls --type f -r 2        # Recursively list only files to depth 2",
     )
     parser_ls.add_argument(
         "path",
@@ -360,6 +363,12 @@ def setup_cli_parser(slingerClient):
         action="store_true",
         help="Show the saved recursive output file (requires -r and -o flags)",
         default=False,
+    )
+    parser_ls.add_argument(
+        "--type",
+        choices=["f", "d", "a"],
+        default="a",
+        help="Filter by type: f=files only, d=directories only, a=all (default: %(default)s)",
     )
     parser_ls.set_defaults(func=slingerClient.ls)
 

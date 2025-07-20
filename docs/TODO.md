@@ -32,10 +32,13 @@
    - Need to handle relative paths properly in upload operations
    - Ensure proper path resolution and validation
 
-4. **Add ls --type {f|d} option to list only files or directories**
-   - Implement `--type f` to list only files
-   - Implement `--type d` to list only directories
-   - Ensure compatibility with existing ls command functionality
+4. ✅ **Add ls --type {f|d} option to list only files or directories**
+   - ✅ Implement `--type f` to list only files
+   - ✅ Implement `--type d` to list only directories
+   - ✅ Implement `--type a` to list all (default behavior)
+   - ✅ Ensure compatibility with existing ls command functionality
+   - ✅ Support for both regular and recursive listings
+   - ✅ Updated CLI documentation and help text
 
 ### Medium Priority
 4. **Fix navigation above root to default to root location**
@@ -66,6 +69,7 @@
 - ✅ **Root navigation protection** - Navigation above share root automatically defaults to root with warning message
 - ✅ **File output for ls -r** - ls command already supports `-o` flag for saving output and `--show` flag for viewing saved files
 - ✅ **Find command implementation** - Comprehensive file search with timeout protection, verbose progress, and HTB validation
+- ✅ **ls --type filtering** - Added `--type {f|d|a}` option to list only files, directories, or all items with support for both regular and recursive listings
 
 ### Completed Research
 - ✅ Codebase structure analysis
