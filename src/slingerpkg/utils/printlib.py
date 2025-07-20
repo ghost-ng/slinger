@@ -89,7 +89,7 @@ def print_info(msg):
 
 
 def print_verbose(msg):
-    if get_config_value("Verbose"):
+    if get_config_value("Verbose") or get_config_value("Debug"):
         print_log(f"{colors.HEADER}[*] {msg}{colors.ENDC}")
 
 
@@ -105,7 +105,8 @@ def print_debug(msg, e=None, force_debug=False):
 
     line_number = current_frame.f_lineno
 
-    module_name = inspect.getmodule(current_frame).__name__
+    module = inspect.getmodule(current_frame)
+    module_name = module.__name__ if module else "unknown"
     debug_msg = f"""
 *********************************************
 [DEBUG][{module_name}][Line {line_number}]:{colors.HEADER}{msg}{colors.ENDC}

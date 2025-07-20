@@ -92,16 +92,23 @@ def main():
     if "-v" in sys.argv or "--version" in sys.argv:
         print(f"Version Information: {parser.prog} {version}")
         sys.exit(0)
-    if "-gen-ntlm-hash" in sys.argv:
+    if "--gen-ntlm-hash" in sys.argv:
         hash = create_ntlm_hash(sys.argv[2])
         if hash:
             print(f"NTLM hash: :{hash}")
         sys.exit(0)
 
     parser.add_argument("--host", required=True, help="Host to connect to")
-    parser.add_argument("--user", "--username", required=True, help="Username for authentication", dest="username")
-    parser.add_argument("--domain", default="", help="Domain for authentication")
-    parser.add_argument("--port", type=int, default=445, help="Port to connect to")
+    parser.add_argument(
+        "-u",
+        "--user",
+        "--username",
+        required=True,
+        help="Username for authentication",
+        dest="username",
+    )
+    parser.add_argument("-d", "--domain", default="", help="Domain for authentication")
+    parser.add_argument("-p", "--port", type=int, default=445, help="Port to connect to")
     parser.add_argument("--nojoy", action="store_true", help="Turn off emojis")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
@@ -244,13 +251,8 @@ def main():
                 if "Invalid command entered" in str(e):
                     pass
                 elif "STATUS_PIPE_NOT_AVAILABLE" in str(e):
-                    print_warning(f"Named pipe connection lost. Attempting to reconnect...")
                     try:
-                        # Reset DCE transport to force reconnection
-                        if hasattr(client, "dce_transport") and client.dce_transport:
-                            client.dce_transport.is_connected = False
-                            client.dce_transport = None
-                        print_good("Reconnection successful. Please retry your command.")
+                        print_warning("Broken pipe error. Try to reconnect...")
                     except Exception as reconnect_error:
                         print_bad(f"Reconnection failed: {reconnect_error}")
                 else:
@@ -381,7 +383,7 @@ def main():
                         force_help(slinger_parser, args.cmd)
                 else:
                     # Use verbose flag if present
-                    verbose = getattr(args, 'verbose', False)
+                    verbose = getattr(args, "verbose", False)
                     print_all_commands(slinger_parser, verbose=verbose)
             elif args.command == "clear":
                 os.system("clear")

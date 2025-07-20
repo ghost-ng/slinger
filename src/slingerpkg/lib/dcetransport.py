@@ -1,7 +1,7 @@
 import base64
 import string
 import time
-from impacket.dcerpc.v5 import transport, rrp, srvs, wkst, tsch, scmr, rpcrt
+from impacket.dcerpc.v5 import transport, rrp, srvs, wkst, tsch, scmr, rpcrt, even6, even
 from impacket.dcerpc.v5.dtypes import NULL
 from impacket.dcerpc.v5.rpcrt import (
     RPC_C_AUTHN_GSS_NEGOTIATE,
@@ -1258,3 +1258,160 @@ class DCETransport:
                 print_debug("Exiting Counter Definitions Loop")
 
         return True, pos, result
+
+    # EventLog RPC methods
+    def _eventlog_open_log(self, log_name, use_even6=True):
+        """Open an event log using EventLog or EventLog6"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        if use_even6:
+            # Use EventLog6 interface
+            if self.current_bind != even6.MSRPC_UUID_EVEN6:
+                self.bind_override = True
+                self._bind(even6.MSRPC_UUID_EVEN6)
+        else:
+            # Use legacy EventLog interface
+            if self.current_bind != even.MSRPC_UUID_EVEN:
+                self.bind_override = True
+                self._bind(even.MSRPC_UUID_EVEN)
+
+        print_debug(f"Opening {log_name} using {'Even6' if use_even6 else 'Even'}")
+
+        if use_even6:
+            # Even6 interface
+            channel = log_name
+            print_debug(f"Channel: {channel}")
+
+            flags = 0x00000001 | 0x00000200  # EvtQueryChannelName | EvtReadNewestToOldest
+
+            log_handle_resp = even6.hEvtRpcOpenLogHandle(self.dce, channel=channel, flags=flags)
+            handle = log_handle_resp["handle"]
+            print_debug(f"Got Even6 handle for {log_name}: {handle}")
+            print_debug(
+                f"Handle type: {type(handle)}, attrs: {dir(handle) if hasattr(handle, '__dict__') else 'N/A'}"
+            )
+        else:
+            # Legacy Even interface
+            # For remote EventLog access:
+            # - moduleName should be NULL (use default)
+            # - regModuleName should be the actual log name (System, Application, etc.)
+            from impacket.dcerpc.v5.ndr import NULL
+            log_handle_resp = even.hElfrOpenELW(
+                self.dce, moduleName=NULL, regModuleName=log_name
+            )
+            handle = log_handle_resp["LogHandle"]
+            print_debug(f"Got Even handle for {log_name}: {handle}")
+
+        return handle
+
+    def _eventlog_close_log(self, log_handle, use_even6=True):
+        """Close an event log handle"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        if use_even6:
+            # Should already be bound to EventLog6
+            # Check if log_handle is a dict/object with 'Data' attribute
+            if hasattr(log_handle, "Data"):
+                even6.hEvtRpcClose(self.dce, handle=log_handle["Data"])
+            else:
+                even6.hEvtRpcClose(self.dce, handle=log_handle)
+        else:
+            # Legacy Even
+            if hasattr(log_handle, "Data"):
+                even.hElfrCloseEL(self.dce, logHandle=log_handle["Data"])
+            else:
+                even.hElfrCloseEL(self.dce, logHandle=log_handle)
+
+    def _does_eventlog_exist(self, log_name, use_even6=True):
+        """Check if an event log exists using EventLog or EventLog6"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        if use_even6:
+            # Use EventLog6 interface
+            if self.current_bind != even6.MSRPC_UUID_EVEN6:
+                self.bind_override = True
+                self._bind(even6.MSRPC_UUID_EVEN6)
+            try:
+                even6.hEvtRpcOpenLogHandle(self.dce, channel=log_name, flags=0x00000001)
+                return True
+            except Exception as e:
+                print_debug(f"Error checking log existence: {e}")
+                return False
+        else:
+            # Legacy Even interface
+            try:
+                resp_handle = even.hElfrOpenELW(self.dce, moduleName=log_name)['LogHandle']
+                log_resp = even.hElfrNumberOfRecords(self.dce, resp_handle)
+                log_count = int(log_resp['NumberOfRecords'])
+                app_handle = even.hElfrOpenELW(self.dce, moduleName='Application')['LogHandle']
+                app_resp = even.hElfrNumberOfRecords(self.dce, app_handle)
+                #enum_struct(app_resp)
+                app_count = int(app_resp['NumberOfRecords'])
+
+                if log_name != 'Application' and log_count == app_count:
+                    return False, 0
+                else:
+                    return True, log_count
+            except Exception as e:
+                print_debug(f"Error checking log existence: {e}", e=sys.exc_info())
+                return False, 0
+
+    def _eventlog_get_record_count(self, log_handle):
+        """Get the number of records in an event log"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        try:
+            resp = even.hElfrNumberOfRecords(self.dce, log_handle)
+            return resp["NumberOfRecords"]
+        except Exception as e:
+            print_debug(f"Error getting record count: {e}")
+            return 0
+
+    def _eventlog_get_oldest_record(self, log_handle):
+        """Get the oldest record number in an event log"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        try:
+            resp = even.hElfrOldestRecordNumber(self.dce, log_handle)
+            return resp["OldestRecordNumber"]
+        except Exception as e:
+            print_debug(f"Error getting oldest record: {e}")
+            return 0
+
+    def _eventlog_read_events(
+        self, log_handle, read_flags=None, record_offset=0, bytes_to_read=65536
+    ):
+        """Read events from an event log using legacy Even interface"""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        # Default read flags
+        if read_flags is None:
+            read_flags = even.EVENTLOG_SEQUENTIAL_READ | even.EVENTLOG_BACKWARDS_READ
+
+        try:
+            resp = even.hElfrReadELW(self.dce, log_handle, read_flags, record_offset, bytes_to_read)
+            return resp
+        except Exception as e:
+            print_debug(f"Error reading events: {e}")
+            raise
+
+    def _connect_eventlog(self, use_even6=False):
+        """Connect to EventLog service via \\pipe\\eventlog"""
+        if use_even6:
+            print_debug("Connecting to EventLog6 service via \\\\pipe\\\\eventlog")
+            self._connect("eventlog")
+            self.bind_override = True
+            self._bind(even6.MSRPC_UUID_EVEN6)
+            print_debug("✓ Connected and bound to EventLog6 RPC service")
+        else:
+            print_debug("Connecting to EventLog service via \\\\pipe\\\\eventlog")
+            self._connect("eventlog")
+            self.bind_override = True
+            self._bind(even.MSRPC_UUID_EVEN)
+            print_debug("✓ Connected and bound to EventLog RPC service")
