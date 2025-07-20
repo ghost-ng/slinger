@@ -6,6 +6,7 @@ from slingerpkg.lib.smblib import smblib
 from slingerpkg.lib.secrets import secrets
 from slingerpkg.lib.eventlog import EventLog
 from slingerpkg.lib.named_pipes import NamedPipeEnumerator
+from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from slingerpkg.lib.dcetransport import *
@@ -25,7 +26,7 @@ dialect_mapping = {
 }
 
 
-class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
+class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog, WMINamedPipeExec):
     def __init__(
         self, host, username, password, domain, port=445, ntlm_hash=None, use_kerberos=False
     ):
@@ -36,6 +37,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog):
         secrets.__init__(self)
         atexec.__init__(self)
         EventLog.__init__(self)
+        WMINamedPipeExec.__init__(self)
         self.host = host
         self.username = username
         self.password = password

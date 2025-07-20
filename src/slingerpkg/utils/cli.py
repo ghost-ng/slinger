@@ -1520,6 +1520,55 @@ def setup_cli_parser(slingerClient):
 
     # Only list, query, sources, and check commands are implemented
 
+    # Subparser for 'wmiexec' command (Named Pipe Implementation)
+    parser_wmiexec = subparsers.add_parser(
+        "wmiexec",
+        help="Execute commands via WMI using named pipes",
+        description="Execute commands on the remote system using WMI Win32_Process.Create "
+        "via SMB named pipes. This approach bypasses DCOM firewall restrictions by "
+        "leveraging existing SMB connections. Requires administrative privileges.",
+        epilog="Example Usage: wmiexec 'whoami'\n"
+        "wmiexec 'dir C:\\' --output results.txt\n"
+        "wmiexec --interactive  # Start interactive shell\n"
+        "wmiexec 'systeminfo' --timeout 60  # Extended timeout",
+    )
+    parser_wmiexec.add_argument(
+        "command",
+        nargs="?",
+        help="Command to execute (not required for --interactive mode)",
+    )
+    parser_wmiexec.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Start interactive WMI shell session via named pipes",
+        default=False,
+    )
+    parser_wmiexec.add_argument(
+        "--no-output",
+        action="store_true",
+        help="Don't capture command output (faster execution)",
+        default=False,
+    )
+    parser_wmiexec.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Command execution timeout in seconds (default: %(default)s)",
+    )
+    parser_wmiexec.add_argument(
+        "--output",
+        metavar="filename",
+        help="Save command output to specified file",
+        default=None,
+    )
+    parser_wmiexec.add_argument(
+        "--endpoint-info",
+        action="store_true",
+        help="Show WMI named pipe endpoint discovery information",
+        default=False,
+    )
+    parser_wmiexec.set_defaults(func=slingerClient.wmiexec_handler)
+
     return parser
 
 
