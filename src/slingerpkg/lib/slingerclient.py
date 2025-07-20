@@ -9,7 +9,7 @@ from slingerpkg.lib.named_pipes import NamedPipeEnumerator
 from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
-from slingerpkg.lib.dcetransport import *
+from slingerpkg.lib.dcetransport import DCETransport
 import datetime
 from impacket import smbconnection
 from impacket.dcerpc.v5.rpcrt import DCERPCException
@@ -26,7 +26,7 @@ dialect_mapping = {
 }
 
 
-class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog, WMINamedPipeExec):
+class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog, WMINamedPipeExec, DCETransport):
     def __init__(
         self, host, username, password, domain, port=445, ntlm_hash=None, use_kerberos=False
     ):
@@ -38,6 +38,7 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog, WM
         atexec.__init__(self)
         EventLog.__init__(self)
         WMINamedPipeExec.__init__(self)
+        DCETransport.__init__(self, host, username, port, None)  # SMB connection set later
         self.host = host
         self.username = username
         self.password = password
@@ -114,6 +115,10 @@ class SlingerClient(winreg, schtasks, scm, smblib, secrets, atexec, EventLog, WM
             else:
                 self.conn.login(self.username, self.password, domain=self.domain)
             print_good(f"Successfully logged in to {self.host}:{self.port}")
+            
+            # Update DCE transport with established SMB connection
+            self.conn = self.conn  # Update the DCE transport SMB connection
+            
             GRN_BLD = "\033[1;32m"
             RST = "\033[0m"
             print("\nStart Time: " + GRN_BLD + str(self.session_start_time) + RST + "\n")

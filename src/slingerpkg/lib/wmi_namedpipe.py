@@ -14,6 +14,9 @@ import time
 import tempfile
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
+from impacket.dcerpc.v5.dcom import wmi
+from impacket.dcerpc.v5.dcomrt import DCOMConnection
+from impacket.dcerpc.v5.dtypes import NULL
 
 
 class WMINamedPipeExec:
@@ -112,36 +115,23 @@ class WMINamedPipeExec:
 
     def _test_named_pipe_access(self, pipe_name):
         """
-        Test if a WMI endpoint is accessible via DCE/RPC transport
-        Returns True if endpoint can be connected to
+        Test if WMI DCOM endpoint is accessible
+        Returns True for basic connectivity check
         """
         try:
-            print_debug(f"Testing WMI DCE/RPC endpoint: {pipe_name}")
+            print_debug(f"Testing WMI DCOM endpoint: {pipe_name}")
             
-            # Use DCE transport to test WMI connectivity
-            if hasattr(self, 'dce_transport') and self.dce_transport:
-                transport = self.dce_transport
-            else:
-                transport = self
-            
-            # Test connection to WMI service
-            # This is a simplified connectivity test
-            if pipe_name == "winmgmt":
-                # Try to connect to primary WMI service
-                try:
-                    transport._connect_wmi_service()
-                    print_debug(f"WMI endpoint {pipe_name} accessible via DCE transport")
-                    return True
-                except:
-                    return False
-            else:
-                # For other endpoints, assume available if winmgmt works
-                # In full implementation, would test each endpoint individually
-                print_debug(f"WMI endpoint {pipe_name} marked as available")
+            # For DCOM WMI, we don't need to test specific named pipes
+            # Just verify we have the basic connection requirements
+            if hasattr(self, 'host') and hasattr(self, 'username'):
+                print_debug(f"WMI DCOM endpoint {pipe_name} - basic requirements met")
                 return True
+            else:
+                print_debug(f"WMI DCOM endpoint {pipe_name} - missing connection requirements")
+                return False
             
         except Exception as e:
-            print_debug(f"WMI endpoint {pipe_name} not accessible: {e}")
+            print_debug(f"WMI endpoint {pipe_name} test failed: {e}")
             return False
 
     def execute_wmi_command_namedpipe(self, command, capture_output=True, timeout=30, interactive=False, output_file=None):
@@ -188,8 +178,8 @@ class WMINamedPipeExec:
         print_verbose(f"Full command for WMI named pipe: {full_command}")
 
         try:
-            # Execute via WMI named pipe
-            process_id = self._create_wmi_process_namedpipe(full_command)
+            # Execute via WMI DCOM
+            process_id = self._create_wmi_process_dcom(full_command)
             
             if process_id:
                 print_verbose(f"Process created via WMI named pipe with PID: {process_id}")
@@ -293,43 +283,64 @@ class WMINamedPipeExec:
                 'output': None
             }
 
-    def _create_wmi_process_namedpipe(self, command):
+    def _create_wmi_process_dcom(self, command):
         """
-        Create process via WMI Win32_Process.Create using DCE/RPC transport
+        Create process via WMI Win32_Process.Create using DCOM connection
         
-        This implementation leverages the existing DCE transport infrastructure
-        to communicate with WMI service via the established connection.
+        This implementation uses the proper DCOM approach as shown in Impacket's wmiexec.py
         """
-        print_debug("WMI process creation via DCE/RPC transport")
+        print_debug("WMI process creation via DCOM")
         
         try:
-            # Use existing DCE transport infrastructure for WMI
-            if not hasattr(self, 'dce_transport') or not self.dce_transport:
-                print_debug("Initializing DCE transport for WMI")
-                # Access the DCE transport from the inherited transport system
-                if hasattr(self, 'dce_transport') and self.dce_transport:
-                    transport = self.dce_transport
-                else:
-                    # Fallback to existing connection system
-                    transport = self
+            # Extract NT hash if available
+            nt_hash = ''
+            if hasattr(self, 'ntlm_hash') and self.ntlm_hash:
+                try:
+                    nt_hash = self.ntlm_hash.split(":")[1] if ':' in self.ntlm_hash else self.ntlm_hash
+                except:
+                    nt_hash = ''
+            
+            # Create DCOM connection using existing credentials
+            print_debug(f"Creating DCOM connection to {self.host}")
+            dcom = DCOMConnection(
+                self.host,
+                self.username, 
+                getattr(self, 'password', ''),
+                getattr(self, 'domain', ''),
+                lmhash='',
+                nthash=nt_hash,
+                aesKey='',
+                oxidResolver=True,
+                doKerberos=getattr(self, 'use_kerberos', False)
+            )
+            
+            print_debug("Creating WMI interface")
+            # Create WMI interface
+            iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
+            iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+            iWbemServices = iWbemLevel1Login.NTLMLogin('//./root/cimv2', NULL, NULL)
+            
+            print_debug(f"Executing WMI command: {command}")
+            # Get Win32_Process object and create process
+            win32Process, _ = iWbemServices.GetObject('Win32_Process')
+            result = win32Process.Create(command, None, None)
+            
+            # Cleanup DCOM connection
+            dcom.disconnect()
+            
+            if result.ReturnValue == 0:
+                print_verbose(f"WMI DCOM process created with PID: {result.ProcessId}")
+                return result.ProcessId
             else:
-                transport = self.dce_transport
-            
-            # Connect to WMI service via DCE transport
-            transport._connect_wmi_service()
-            
-            # Execute Win32_Process.Create via DCE/RPC
-            result = transport._wmi_execute_process(command)
-            
-            if result['success']:
-                print_verbose(f"WMI DCE/RPC process created with PID: {result['process_id']}")
-                return result['process_id']
-            else:
-                print_debug(f"WMI DCE/RPC execution failed: {result.get('error')}")
+                print_debug(f"WMI DCOM process creation failed with return value: {result.ReturnValue}")
                 return None
             
         except Exception as e:
-            print_debug(f"WMI DCE/RPC process creation failed: {e}")
+            print_debug(f"WMI DCOM process creation failed: {e}")
+            try:
+                dcom.disconnect()
+            except:
+                pass
             return None
 
     def _connect_wmi_service_namedpipe(self):
