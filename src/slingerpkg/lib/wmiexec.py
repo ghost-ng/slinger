@@ -32,7 +32,7 @@ class wmiexec:
         if wmi_method == "dcom":
             # Traditional DCOM method using this module
             return self._handle_wmiexec_dcom(args)
-        elif wmi_method in ["task", "ps", "event"]:
+        elif wmi_method in ["task", "event"]:
             # Route to the WMI Named Pipe module for other methods
             if hasattr(self, "execute_wmi_command_namedpipe"):
                 # Call the WMI Named Pipe execution directly
@@ -46,7 +46,7 @@ class wmiexec:
                 return
         else:
             print_bad(f"Unknown WMI method: {wmi_method}")
-            print_info("Available methods: dcom, task, ps, event")
+            print_info("Available methods: dcom, task, event")
             return
 
     def _handle_wmiexec_dcom(self, args):

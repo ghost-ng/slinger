@@ -1531,13 +1531,11 @@ def setup_cli_parser(slingerClient):
         "Each method has different capabilities, stealth levels, and requirements.",
         epilog="Available Methods:\n"
         "  task     - Task Scheduler backend (default, most reliable)\n"
-        "  ps       - PowerShell + Custom WMI classes (memory-based)\n"
         "  dcom     - Traditional Win32_Process.Create via DCOM\n"
         "  event    - WMI Event Consumer (stealthy)\n\n"
         "Example Usage:\n"
         "  wmiexec task 'whoami'                    # Task Scheduler method\n"
         "  wmiexec task 'whoami' --tn MyTask        # Custom task name\n"
-        "  wmiexec ps 'ipconfig' --no-cleanup       # PowerShell method\n"
         "  wmiexec dcom 'systeminfo'                # Traditional DCOM\n"
         "  wmiexec event 'net user' --trigger-delay 5  # Event consumer",
     )
@@ -1613,50 +1611,6 @@ def setup_cli_parser(slingerClient):
         "--output", metavar="filename", help="Save command output to local file", default=None
     )
 
-    # PowerShell + Custom WMI Classes method
-    parser_wmi_ps = wmiexec_subparsers.add_parser(
-        "ps",
-        help="Execute via PowerShell + Custom WMI classes",
-        description="Execute commands using PowerShell WMI via SMB. Hybrid approach that "
-        "uses PowerShell's Invoke-WmiMethod within SMB transport - unique from task scheduler.",
-        epilog='Example Usage: wmiexec ps "whoami"\n'
-        'wmiexec ps "Get-Process" --class-prefix MyWMI\n'
-        'wmiexec ps "ipconfig" --no-cleanup --output network.txt',
-    )
-    parser_wmi_ps.add_argument("command", help="Command to execute")
-    parser_wmi_ps.add_argument(
-        "--class-prefix",
-        help="Prefix for temporary WMI class names (default: auto-generated)",
-        default=None,
-    )
-    parser_wmi_ps.add_argument(
-        "--no-cleanup",
-        action="store_true",
-        help="Don't automatically delete temporary WMI classes",
-        default=False,
-    )
-    parser_wmi_ps.add_argument(
-        "--timeout",
-        type=int,
-        default=45,
-        help="Command execution timeout in seconds (default: %(default)s)",
-    )
-    parser_wmi_ps.add_argument(
-        "--output", metavar="filename", help="Save command output to local file", default=None
-    )
-    parser_wmi_ps.add_argument(
-        "--no-output",
-        action="store_true",
-        help="Don't capture command output (faster execution)",
-        default=False,
-    )
-    parser_wmi_ps.add_argument(
-        "--interactive",
-        "-i",
-        action="store_true",
-        help="Interactive mode (not yet implemented for PS method)",
-        default=False,
-    )
 
     # Traditional DCOM method
     parser_wmi_dcom = wmiexec_subparsers.add_parser(
