@@ -307,8 +307,8 @@ def main():
                     print_log(f"Credits: {plugin.author_block['credits']}")
 
             elif args.command == "set":
-                if args.varname and args.value:
-                    set_config_value(args.varname, args.value)
+                if args.varname:
+                    set_config_value(args.varname, args.value if args.value is not None else "")
                     if args.varname.lower() == "debug":
                         if get_config_value("debug"):
                             print_info("Debug mode enabled")

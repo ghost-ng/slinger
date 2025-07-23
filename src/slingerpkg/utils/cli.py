@@ -4,6 +4,7 @@ from itertools import zip_longest
 from prompt_toolkit.completion import Completer, Completion
 
 from slingerpkg.var.config import version, program_name
+from slingerpkg.utils.common import get_config_value
 from .printlib import print_info, print_log, colors
 
 
@@ -1188,7 +1189,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: set varname value",
     )
     parser_setvar.add_argument("varname", help="Set the debug variable to True or False")
-    parser_setvar.add_argument("value", help="Set the mode variable to True or False")
+    parser_setvar.add_argument(
+        "value", help="Set the mode variable to True or False", nargs="?", default=""
+    )
 
     parser_setvar = subparsers.add_parser(
         "config",
@@ -1652,7 +1655,9 @@ def setup_cli_parser(slingerClient):
         'wmiexec dcom "systeminfo" --output sysinfo.txt\n'
         'wmiexec dcom "net user" --working-dir "C:\\Users"',
     )
-    parser_wmi_dcom.add_argument("command", help="Command to execute")
+    parser_wmi_dcom.add_argument(
+        "command", nargs="?", help="Command to execute (not required for --interactive mode)"
+    )
     parser_wmi_dcom.add_argument(
         "--working-dir",
         help="Working directory for command execution (default: %(default)s)",
@@ -1697,6 +1702,13 @@ def setup_cli_parser(slingerClient):
         choices=["cmd", "powershell"],
         default="cmd",
         help="Shell to use for command execution (default: %(default)s)",
+    )
+    parser_wmi_dcom.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Start interactive WMI DCOM shell session",
+        default=False,
     )
 
     # WMI Event Consumer method
@@ -1830,8 +1842,8 @@ def get_prompt(client, nojoy):
     else:
         preamble = slinger_emoji + " "
         emoji = preamble if not nojoy else "[sl] "
-
-    prompt = f"{emoji}{colors.OKGREEN}({client.host}):\\\\{client.current_path}>{colors.ENDC} "
+    extra_prompt = get_config_value("Extra_Prompt")
+    prompt = f"{emoji}{colors.OKGREEN}({client.host}):{extra_prompt}\\\\{client.current_path}>{colors.ENDC} "
     return prompt
 
 
