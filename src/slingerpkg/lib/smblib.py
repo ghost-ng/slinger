@@ -803,6 +803,14 @@ class smblib:
                 ).replace(microsecond=0)
                 filesize = self.sizeof_fmt(f.get_filesize())
                 file_type = "D" if f.is_directory() else "F"
+
+                # Apply type filtering if specified
+                if hasattr(args, "type") and args.type != "a":
+                    if args.type == "f" and file_type == "D":
+                        continue  # Skip directories when filtering for files only
+                    elif args.type == "d" and file_type == "F":
+                        continue  # Skip files when filtering for directories only
+
                 attributes = ""
                 if f.is_readonly():
                     attributes += "R"
@@ -941,6 +949,16 @@ class smblib:
                 if f.get_longname() in [".", ".."]:
                     continue
 
+                # Apply type filtering if specified
+                if hasattr(args, "type") and args.type != "a":
+                    is_directory = hasattr(f, "get_attributes") and f.get_attributes() & 0x10
+                    if args.type == "f" and is_directory:
+                        # Skip directories when filtering for files only, but still collect for recursion
+                        subdirs.append(f.get_longname())
+                        continue
+                    elif args.type == "d" and not is_directory:
+                        continue  # Skip files when filtering for directories only
+
                 # Add to current listing
                 if args.long:
                     try:
@@ -960,9 +978,10 @@ class smblib:
                 else:
                     dirList.append([self._get_file_attributes(f), f.get_longname()])
 
-                # Collect directories for later
+                # Collect directories for later (only if not already added during filtering)
                 if hasattr(f, "get_attributes") and f.get_attributes() & 0x10:
-                    subdirs.append(f.get_longname())
+                    if f.get_longname() not in subdirs:
+                        subdirs.append(f.get_longname())
 
             # 3. Print current directory contents
             if dirList:
@@ -1657,6 +1676,14 @@ class smblib:
                 else:
                     final_path = normalized
 
+            # Check for navigation above share root and redirect to root
+            if final_path == ".." or final_path.startswith("..\\") or final_path.startswith("../"):
+                print_warning("Cannot navigate above share root. Redirecting to root directory.")
+                final_path = ""
+            elif final_path == ".":
+                # Current directory resolves to root
+                final_path = ""
+
             return True, final_path, ""
 
         except Exception as e:
@@ -1677,7 +1704,14 @@ class smblib:
         # Handle default/current directory cases
         if user_path in [".", "", None]:
             if default_name:
-                user_path = default_name
+                # Place file in current directory
+                resolved_path = (
+                    ntpath.join(self.relative_path, default_name)
+                    if self.relative_path
+                    else default_name
+                )
+                is_valid, final_path, error = self._normalize_path_for_smb("", resolved_path)
+                return is_valid, final_path, error
             else:
                 user_path = ""
 
@@ -1687,16 +1721,53 @@ class smblib:
             if default_name:
                 # Get parent directory path and add filename
                 parent_path = ntpath.dirname(self.relative_path) if self.relative_path else ""
-                user_path = ntpath.join(parent_path, default_name) if parent_path else default_name
+                resolved_path = (
+                    ntpath.join(parent_path, default_name) if parent_path else default_name
+                )
+                # Already resolved - normalize without joining with base path
+                is_valid, final_path, error = self._normalize_path_for_smb("", resolved_path)
+                return is_valid, final_path, error
             else:
                 # Just the parent directory
                 user_path = ntpath.dirname(self.relative_path) if self.relative_path else ""
+        elif user_path.startswith("../"):
+            # Handle multiple parent directory references like ../../
+            path_parts = user_path.split("/")
+            current_path = self.relative_path
+
+            # Count how many levels up we need to go
+            parent_levels = len([part for part in path_parts if part == ".."])
+
+            # Go up the specified number of levels
+            for _ in range(parent_levels):
+                current_path = ntpath.dirname(current_path) if current_path else ""
+
+            # If there are additional path components after the ../ parts
+            remaining_parts = [part for part in path_parts if part not in ["", ".."]]
+            if remaining_parts:
+                if default_name:
+                    remaining_parts.append(default_name)
+                resolved_path = (
+                    ntpath.join(current_path, *remaining_parts)
+                    if current_path
+                    else ntpath.join(*remaining_parts)
+                )
+            else:
+                resolved_path = (
+                    ntpath.join(current_path, default_name)
+                    if (current_path and default_name)
+                    else (current_path or default_name or "")
+                )
+
+            # Already resolved - normalize without joining with base path
+            is_valid, final_path, error = self._normalize_path_for_smb("", resolved_path)
+            return is_valid, final_path, error
         elif "\\" not in user_path and "/" not in user_path and user_path not in [".", "..", ""]:
             # Simple filename, place in current directory
             if self.relative_path:
                 user_path = ntpath.join(self.relative_path, user_path)
 
-        # Normalize the path
+        # Normalize the path (for non-parent directory cases)
         is_valid, resolved_path, error = self._normalize_path_for_smb(self.relative_path, user_path)
 
         return is_valid, resolved_path, error

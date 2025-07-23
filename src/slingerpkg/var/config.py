@@ -48,6 +48,12 @@ config_vars = [
         "Description": "Enable verbose output for operations",
         "Type": "bool",
     },
+    {
+        "Name": "Extra_Prompt",
+        "Value": "",
+        "Description": "Extra prompt to display in CLI",
+        "Type": "str",
+    },
 ]
 
 logwriter = None

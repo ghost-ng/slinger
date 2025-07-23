@@ -27,49 +27,46 @@
    - Fix error: "[!] Local path /tmp/test.zip does not exist."
    - Should create the file at specified location with custom name
 
-3. **Fix put relative path uploads issue**
-   - Current issue: `put strap.sh ../` fails with parsing error
-   - Need to handle relative paths properly in upload operations
-   - Ensure proper path resolution and validation
+3. ✅ **Fix put relative path uploads issue** (COMPLETED)
+   - ✅ Fixed double path joining bug in _resolve_remote_path method
+   - ✅ Added proper handling for `../` and `../../` parent directory references
+   - ✅ Enhanced path resolution for `.`, empty paths, and simple filenames
+   - ✅ Tested with debug scripts and pexpect integration test
+   - Location: `src/slingerpkg/lib/smblib.py` lines 1697-1748
 
-4. **Add ls --type {f|d} option to list only files or directories**
-   - Implement `--type f` to list only files
-   - Implement `--type d` to list only directories
-   - Ensure compatibility with existing ls command functionality
 
 ### Medium Priority
-4. **Fix navigation above root to default to root location**
-   - When user tries to navigate above share root, default to root instead of error
-   - Provide user-friendly feedback about the limitation
+4. ✅ **Fix navigation above root to default to root location** (COMPLETED)
+   - ✅ Added protection in _normalize_path_for_smb method to detect above-root navigation
+   - ✅ Automatically redirects users to root when attempting to navigate above share root
+   - ✅ Shows user-friendly warning message: "Cannot navigate above share root. Redirecting to root directory."
+   - ✅ Tested with pexpect integration test - confirmed working on HTB instance
+   - Location: `src/slingerpkg/lib/smblib.py` lines 1679-1685
 
-5. **Add option to save ls -r output to a file**
-   - Add CLI argument for output file specification
-   - Add --show option to display previously saved file contents
-   - Integrate with existing tee_output functionality
+5. ✅ **Add option to save ls -r output to a file** (COMPLETED)
+   - ✅ CLI argument `-o/--output` already implemented for output file specification
+   - ✅ `--show` option already implemented to display saved file contents
+   - ✅ Integrated with existing tee_output functionality
+   - ✅ Tested and confirmed working: `ls -o filename.txt` saves output
+   - ✅ Recursive support: `ls -r depth -o filename.txt` saves recursive listing
+   - Location: `src/slingerpkg/utils/cli.py` lines 359-366, `src/slingerpkg/lib/smblib.py` lines 763-922
 
-## New Features
-
-### File Search System
-6. **Comprehensive file search functionality (find command)**
-   - ✅ **Pattern matching**: Wildcard and regex support for file/directory search
-   - ✅ **Advanced filtering**: File type (-type f/d), size filters, date filters
-   - ✅ **Depth control**: --maxdepth and --mindepth for search boundaries
-   - ✅ **Configurable timeout**: -timeout flag with 120-second default
-   - ✅ **Progress reporting**: -progress flag shows directory-by-directory traversal
-   - ✅ **Multiple output formats**: table, json, list, paths
-   - ✅ **HTB integration tested**: Successfully validated against Windows SMB shares
-
-### Completed Enhancements
-- ✅ **Verbose flag implementation** - Added -verbose CLI flag that enables verbose output for remote path transformations and other operations
-- ✅ **Custom filename downloads** - Fixed download functionality to support custom filenames (e.g., `get KeePass-2.58.zip /tmp/test.zip`)
-- ✅ **Relative path uploads** - Fixed put command to properly handle relative paths like `put strap.sh ../`
-- ✅ **Root navigation protection** - Navigation above share root automatically defaults to root with warning message
-- ✅ **File output for ls -r** - ls command already supports `-o` flag for saving output and `--show` flag for viewing saved files
-- ✅ **Find command implementation** - Comprehensive file search with timeout protection, verbose progress, and HTB validation
-
-### Completed Research
-- ✅ Codebase structure analysis
-- ✅ Current verbose system understanding
-- ✅ Path validation mechanisms
-- ✅ File transfer implementations
-- ✅ CLI argument system architecture
+6. ✅ **wmi exec** (COMPLETED - DCE Transport Integration)
+   - ✅ Created comprehensive WMI named pipe execution framework
+   - ✅ Implemented SMB named pipe transport to bypass DCOM firewall restrictions
+   - ✅ **ENHANCED**: Integrated with existing DCE transport infrastructure
+   - ✅ **NEW**: Added WMI UUIDs to uuid_endpoints dictionary for proper RPC binding
+   - ✅ **NEW**: Added _connect_wmi_service() and _wmi_execute_process() to DCETransport class
+   - ✅ **NEW**: Modified WMI implementation to reuse existing DCE connections
+   - ✅ Added WMI endpoint discovery and testing capabilities
+   - ✅ Full CLI integration with extensive argument parsing
+   - ✅ Interactive and non-interactive modes with output capture
+   - ✅ Enhanced security through existing SMB authentication reuse
+   - ✅ Based on comprehensive research in docs/WMI_NAMED_PIPE_EXECUTION_RESEARCH.md
+   - Location: `src/slingerpkg/lib/wmi_namedpipe.py`, `src/slingerpkg/lib/dcetransport.py`, CLI: `src/slingerpkg/utils/cli.py` lines 1523-1571
+   - **Status**: Framework integrated with DCE transport - ready for production use with Impacket RPC calls
+   - ✅ **NEW**: Memory capture research and implementation completed
+   - ✅ **NEW**: Added --memory-capture flag for stdout/stderr capture without disk files
+   - ✅ **NEW**: PowerShell-based WMI class creation for temporary output storage
+   - ✅ **NEW**: Automatic cleanup of temporary WMI classes
+   - Research documented in: `docs/WMI_STDOUT_CAPTURE_RESEARCH.md`

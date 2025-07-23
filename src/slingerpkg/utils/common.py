@@ -5,6 +5,7 @@ import datetime
 import xml.etree.ElementTree as ET
 import re
 from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr, even, even6
+from impacket.dcerpc.v5.dcom import wmi
 from slingerpkg.utils.printlib import *
 from slingerpkg.var.config import config_vars
 from tabulate import tabulate
@@ -20,6 +21,11 @@ uuid_endpoints = {
     rrp.MSRPC_UUID_RRP: "rrp",
     even.MSRPC_UUID_EVEN: "even",
     even6.MSRPC_UUID_EVEN6: "even6",
+    # WMI named pipe endpoints
+    "8BC3F05E-D86B-11D0-A075-00C04FB68820": "wmi_level1",
+    "44ACA674-E8FC-11D0-A07C-00C04FB68820": "wmi_level2",
+    "027947E1-D731-11CE-A357-000000000001": "wmi_enumwbem",
+    "423EC01E-2E35-11D2-B604-00104B703EFD": "wmi_services",
 }
 
 

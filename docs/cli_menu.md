@@ -28,13 +28,16 @@ Example Usage: use <sharename> | use C$
 
 **Help:**
 ```
-ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [-sr] [-l] [-r depth] [path]
+ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [-sr] [-l] [-r depth] [--type {f,d,a}] [path]
 List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
 ```
 Example Usage: ls /path/to/directory
+ls --type f -l          # List only files in long format
+ls --type d             # List only directories
+ls --type f -r 2        # Recursively list only files to depth 2
 ```
 
 ### Arguments
@@ -49,6 +52,11 @@ Example Usage: ls /path/to/directory
   - Required: No
 
 - **`recursive`**: Recursively list directory contents with X depth
+  - Required: No
+
+- **`type`**: Filter by type
+  - Choices: f (files only), d (directories only), a (all)
+  - Default: `a`
   - Required: No
 
 ---
