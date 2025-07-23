@@ -68,13 +68,13 @@ class WMINamedPipeExec:
             if memory_capture:
                 print_info("Using memory-based output capture (no disk files)")
                 result = self._execute_wmi_command_memory_capture(
-                    command=args.command,
-                    timeout=args.timeout,
+                    command=getattr(args, 'command'),
+                    timeout=getattr(args, 'timeout', 30),
                     output_file=getattr(args, 'output', None)
                 )
             else:
                 result = self.execute_wmi_command_namedpipe(
-                    command=args.command,
+                    command=getattr(args, 'command'),
                     capture_output=not getattr(args, 'no_output', False),
                     timeout=getattr(args, 'timeout', 30),
                     interactive=interactive_mode,
@@ -104,7 +104,7 @@ class WMINamedPipeExec:
                         print_info(f"Execution time: {result['execution_time']} seconds")
                         
                     if getattr(args, 'output', None):
-                        print_good(f"Output saved to: {args.output}")
+                        print_good(f"Output saved to: {getattr(args, 'output')}")
                 else:
                     print_good(f"Command executed via WMI. Process ID: {result.get('process_id', 'Unknown')}")
                     
@@ -113,7 +113,7 @@ class WMINamedPipeExec:
                         print(result['output'])
                     
                     if getattr(args, 'output', None):
-                        print_good(f"Output saved to: {args.output}")
+                        print_good(f"Output saved to: {getattr(args, 'output')}")
             else:
                 if memory_capture:
                     print_bad(f"WMI memory capture execution failed: {result.get('error', 'Unknown error')}")
