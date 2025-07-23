@@ -1644,6 +1644,19 @@ def setup_cli_parser(slingerClient):
     parser_wmi_ps.add_argument(
         "--output", metavar="filename", help="Save command output to local file", default=None
     )
+    parser_wmi_ps.add_argument(
+        "--no-output",
+        action="store_true",
+        help="Don't capture command output (faster execution)",
+        default=False,
+    )
+    parser_wmi_ps.add_argument(
+        "--interactive",
+        "-i",
+        action="store_true",
+        help="Interactive mode (not yet implemented for PS method)",
+        default=False,
+    )
 
     # Traditional DCOM method
     parser_wmi_dcom = wmiexec_subparsers.add_parser(

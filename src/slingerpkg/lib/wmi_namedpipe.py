@@ -48,8 +48,11 @@ class WMINamedPipeExec:
             print_warning("Memory capture temporarily disabled for debugging - using basic WMI")
             memory_capture = False
 
+        # Check for interactive mode (with safe fallback)
+        interactive_mode = getattr(args, 'interactive', False)
+        
         # Validate command argument
-        if not args.interactive and (not hasattr(args, 'command') or not args.command):
+        if not interactive_mode and (not hasattr(args, 'command') or not args.command):
             print_warning("Command is required unless using --interactive mode")
             print_info("Use 'help wmiexec' for usage information")
             return
@@ -72,14 +75,14 @@ class WMINamedPipeExec:
             else:
                 result = self.execute_wmi_command_namedpipe(
                     command=args.command,
-                    capture_output=not args.no_output,
-                    timeout=args.timeout,
-                    interactive=args.interactive,
+                    capture_output=not getattr(args, 'no_output', False),
+                    timeout=getattr(args, 'timeout', 30),
+                    interactive=interactive_mode,
                     output_file=getattr(args, 'output', None)
                 )
 
             if result['success']:
-                if args.interactive:
+                if interactive_mode:
                     print_good("WMI interactive shell session completed")
                 elif memory_capture:
                     print_good("WMI memory capture execution completed")
