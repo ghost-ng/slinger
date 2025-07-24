@@ -32,8 +32,11 @@ class wmiexec:
         if wmi_method == "dcom":
             # Traditional DCOM method using this module
             return self._handle_wmiexec_dcom(args)
-        elif wmi_method in ["task", "event"]:
-            # Route to the WMI Named Pipe module for other methods
+        elif wmi_method == "event":
+            # WMI Event Consumer method using this module
+            return self._handle_wmiexec_event(args)
+        elif wmi_method == "task":
+            # Route to the WMI Named Pipe module for task method
             if hasattr(self, "execute_wmi_command_namedpipe"):
                 # Call the WMI Named Pipe execution directly
                 from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
@@ -92,6 +95,47 @@ class wmiexec:
         except Exception as e:
             print_debug(str(e), sys.exc_info())
             print_bad(f"WMI execution error: {e}")
+
+    def _handle_wmiexec_event(self, args):
+        """Handle WMI Event Consumer execution (stealthiest method)"""
+        print_verbose("Using WMI Event Consumer execution (stealth mode)")
+        
+        # Validate command argument
+        if not args.command:
+            print_warning("Command is required for WMI Event Consumer execution")
+            print_info("Use 'wmiexec event --help' for usage information")
+            return
+        
+        try:
+            # Execute command via WMI Event Consumer with parameters
+            result = self.execute_wmi_event_consumer(
+                command=args.command,
+                consumer_name=getattr(args, 'consumer_name', None),
+                filter_name=getattr(args, 'filter_name', None),
+                trigger_delay=getattr(args, 'trigger_delay', 5),
+                cleanup=not getattr(args, 'no_cleanup', False),
+                timeout=getattr(args, 'timeout', 30),
+                output_file=getattr(args, 'output', None)
+            )
+            
+            if result["success"]:
+                print_good("WMI Event Consumer execution completed")
+                if result.get("output"):
+                    print(result["output"])
+                if result.get("filter_name"):
+                    print_info(f"Event Filter: {result['filter_name']}")
+                if result.get("consumer_name"):
+                    print_info(f"Event Consumer: {result['consumer_name']}")
+                if args.output:
+                    print_good(f"Output saved to: {args.output}")
+            else:
+                print_bad("WMI Event Consumer execution failed")
+                print_info(f"Error: {result.get('error')}")
+                print_info("WMI Event Consumer may require administrative privileges")
+                
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            print_bad(f"WMI Event Consumer error: {e}")
 
     def execute_wmi_command(
         self,
@@ -327,6 +371,126 @@ class wmiexec:
         except Exception as e:
             print_debug(f"WMI execution failed: {e}")
             return {"success": False, "output": None, "process_id": None, "error": str(e)}
+
+    def execute_wmi_event_consumer(
+        self,
+        command,
+        consumer_name=None,
+        filter_name=None,
+        trigger_delay=5,
+        cleanup=True,
+        timeout=30,
+        output_file=None
+    ):
+        """
+        Execute command via WMI Event Consumer (highest stealth method)
+        
+        Args:
+            command: Command to execute
+            consumer_name: Name for CommandLineEventConsumer (None = auto-generate)
+            filter_name: Name for __EventFilter (None = auto-generate)
+            trigger_delay: Seconds to wait before triggering event
+            cleanup: Whether to automatically cleanup WMI objects
+            timeout: Total execution timeout in seconds
+            output_file: Optional file to save output to
+            
+        Returns:
+            dict with 'success', 'output', 'filter_name', 'consumer_name', 'error' keys
+        """
+        print_verbose(f"Executing WMI Event Consumer command: {command}")
+        
+        # Generate random names if not provided (for stealth)
+        filter_name = filter_name or f"WinSysFilter_{generate_random_string()}"
+        consumer_name = consumer_name or f"WinSysConsumer_{generate_random_string()}"
+        output_path = None
+        
+        print_verbose(f"Event Filter: {filter_name}")
+        print_verbose(f"Event Consumer: {consumer_name}")
+        
+        dcom = None
+        iWbemServices = None
+        
+        try:
+            # 1. Setup DCOM connection (reuse existing pattern)
+            print_debug("Creating DCOM connection for WMI Event Consumer")
+            dcom, iWbemServices = self._create_wmi_connection()
+            
+            # 2. Prepare command with output redirection if needed
+            if output_file:
+                output_path = f"C:\\Windows\\Temp\\{generate_random_string()}.tmp"
+                full_command = f'cmd.exe /c "{command}" > "{output_path}" 2>&1'
+                print_verbose(f"Command with output redirection: {full_command}")
+            else:
+                full_command = f'cmd.exe /c "{command}"'
+                print_verbose(f"Command without output capture: {full_command}")
+            
+            # 3. Create Event Filter
+            print_verbose("Creating WMI Event Filter...")
+            self._create_event_filter(iWbemServices, filter_name)
+            
+            # 4. Create CommandLineEventConsumer 
+            print_verbose("Creating CommandLineEventConsumer...")
+            self._create_command_consumer(iWbemServices, consumer_name, full_command)
+            
+            # 5. Create FilterToConsumerBinding
+            print_verbose("Creating FilterToConsumerBinding...")
+            self._create_consumer_binding(iWbemServices, filter_name, consumer_name)
+            
+            # 6. Trigger the event after delay
+            print_verbose(f"Triggering event consumer in {trigger_delay} seconds...")
+            time.sleep(trigger_delay)
+            self._trigger_event_consumer(dcom)
+            
+            # 7. Wait for execution and capture output
+            print_verbose("Waiting for event consumer execution...")
+            output_text = self._wait_for_event_execution(output_path, timeout)
+            
+            # 8. Cleanup WMI objects (unless disabled)
+            if cleanup:
+                print_verbose("Cleaning up WMI Event Consumer objects...")
+                self._cleanup_event_consumer_objects(iWbemServices, filter_name, consumer_name)
+            
+            # 9. Save to local file if requested
+            if output_file and output_text and output_text != "Event consumer executed (no output captured)":
+                self._save_output_to_file(output_text, output_file)
+            
+            # 10. Cleanup DCOM connection
+            dcom.disconnect()
+            
+            return {
+                "success": True,
+                "output": output_text,
+                "filter_name": filter_name,
+                "consumer_name": consumer_name,
+                "error": None
+            }
+            
+        except Exception as e:
+            print_debug(f"WMI Event Consumer execution failed: {e}")
+            import traceback
+            print_debug(f"Full traceback: {traceback.format_exc()}")
+            
+            # Attempt cleanup on failure
+            if cleanup and iWbemServices:
+                try:
+                    self._cleanup_event_consumer_objects(iWbemServices, filter_name, consumer_name)
+                except Exception as cleanup_error:
+                    print_warning(f"Failed to cleanup WMI objects after error: {cleanup_error}")
+            
+            # Cleanup DCOM connection
+            try:
+                if dcom:
+                    dcom.disconnect()
+            except:
+                pass
+                
+            return {
+                "success": False,
+                "output": None,
+                "filter_name": filter_name,
+                "consumer_name": consumer_name,
+                "error": str(e)
+            }
 
     def _save_output_to_file(self, output, output_file):
         """Save output to local file"""
@@ -635,3 +799,304 @@ class wmiexec:
         except Exception as e:
             print_debug(f"Error normalizing path: {e}")
             return path
+
+    # WMI Event Consumer Helper Methods
+    
+    def _create_wmi_connection(self):
+        """Create DCOM connection and WMI services interface"""
+        
+        # Extract credentials properly (reuse DCOM pattern)
+        lm_hash = ""
+        nt_hash = ""
+        if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+            if ":" in self.ntlm_hash:
+                lm_hash = self.ntlm_hash.split(":")[0]
+                nt_hash = self.ntlm_hash.split(":")[1]
+            else:
+                nt_hash = self.ntlm_hash
+
+        print_debug("Creating DCOM connection for WMI Event Consumer")
+
+        # Create DCOM connection exactly like existing DCOM implementation
+        dcom = DCOMConnection(
+            self.host,
+            self.username,
+            getattr(self, "password", ""),
+            getattr(self, "domain", ""),
+            lm_hash,
+            nt_hash,
+            aesKey="",
+            oxidResolver=True,
+            doKerberos=getattr(self, "use_kerberos", False),
+        )
+
+        print_debug("DCOM connection established")
+
+        # Create WMI interface
+        iInterface = dcom.CoCreateInstanceEx(
+            wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+        )
+        iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+        iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/cimv2", NULL, NULL)
+        iWbemLevel1Login.RemRelease()
+
+        print_debug("WMI namespace connection successful")
+        
+        return dcom, iWbemServices
+
+    def _create_event_filter(self, iWbemServices, filter_name):
+        """Create WMI Event Filter for triggering"""
+        
+        # Use legitimate system event as trigger (process creation)
+        # This triggers when cmd.exe is started, which is common and legitimate
+        filter_wql = """
+        SELECT * FROM __InstanceCreationEvent WITHIN 10 
+        WHERE TargetInstance ISA 'Win32_Process' 
+        AND TargetInstance.Name = 'cmd.exe'
+        """
+        
+        print_debug(f"Creating Event Filter: {filter_name}")
+        print_debug(f"Filter WQL: {filter_wql.strip()}")
+        
+        # Get the __EventFilter class
+        filter_class, _ = iWbemServices.GetObject('__EventFilter')
+        filter_instance = filter_class.SpawnInstance()
+        
+        # Set properties
+        filter_instance.Name = filter_name
+        filter_instance.Query = filter_wql.strip()
+        filter_instance.QueryLanguage = 'WQL'
+        filter_instance.EventNamespace = 'root\\cimv2'
+        
+        # Create the object
+        result = iWbemServices.PutInstance(filter_instance)
+        print_verbose(f"Event Filter created successfully: {filter_name}")
+        
+        return result
+
+    def _create_command_consumer(self, iWbemServices, consumer_name, command):
+        """Create CommandLineEventConsumer for command execution"""
+        
+        print_debug(f"Creating CommandLineEventConsumer: {consumer_name}")
+        print_debug(f"Consumer command: {command}")
+        
+        # Get the CommandLineEventConsumer class
+        consumer_class, _ = iWbemServices.GetObject('CommandLineEventConsumer')
+        consumer_instance = consumer_class.SpawnInstance()
+        
+        # Set properties for stealthy execution
+        consumer_instance.Name = consumer_name
+        consumer_instance.CommandLineTemplate = command
+        consumer_instance.RunInteractively = False  # Hidden execution
+        consumer_instance.ShowWindowCommand = 0     # SW_HIDE
+        
+        # Create the object
+        result = iWbemServices.PutInstance(consumer_instance)
+        print_verbose(f"CommandLineEventConsumer created successfully: {consumer_name}")
+        
+        return result
+
+    def _create_consumer_binding(self, iWbemServices, filter_name, consumer_name):
+        """Create FilterToConsumerBinding to link filter and consumer"""
+        
+        print_debug(f"Creating FilterToConsumerBinding: {filter_name} -> {consumer_name}")
+        
+        # Get the __FilterToConsumerBinding class
+        binding_class, _ = iWbemServices.GetObject('__FilterToConsumerBinding')
+        binding_instance = binding_class.SpawnInstance()
+        
+        # Create proper WMI object references
+        # Get actual object references instead of strings
+        filter_obj, _ = iWbemServices.GetObject(f'__EventFilter.Name="{filter_name}"')
+        consumer_obj, _ = iWbemServices.GetObject(f'CommandLineEventConsumer.Name="{consumer_name}"')
+        
+        # Set properties with object references
+        binding_instance.Filter = filter_obj
+        binding_instance.Consumer = consumer_obj
+        binding_instance.DeliverSynchronously = True  # Immediate execution
+        
+        # Create the object
+        result = iWbemServices.PutInstance(binding_instance)
+        print_verbose(f"FilterToConsumerBinding created successfully")
+        
+        return result
+
+    def _trigger_event_consumer(self, dcom):
+        """Trigger the event filter by spawning target process"""
+        
+        print_debug("Triggering event consumer by spawning cmd.exe")
+        
+        # Create a new WMI interface for triggering
+        iInterface = dcom.CoCreateInstanceEx(
+            wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+        )
+        iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+        iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/cimv2", NULL, NULL)
+        iWbemLevel1Login.RemRelease()
+        
+        # Get Win32_Process class and spawn cmd.exe to trigger the filter
+        win32Process, _ = iWbemServices.GetObject('Win32_Process')
+        
+        # Spawn innocuous cmd.exe process to trigger our event filter
+        # This will activate our CommandLineEventConsumer
+        trigger_command = "cmd.exe /c echo Event triggered && timeout /t 1 /nobreak"
+        result = win32Process.Create(trigger_command, "C:\\", None)
+        
+        if hasattr(result, 'ReturnValue') and result.ReturnValue == 0:
+            print_verbose(f"Event trigger process spawned successfully (PID: {getattr(result, 'ProcessId', 'Unknown')})")
+        else:
+            print_warning(f"Event trigger may have failed (Return code: {getattr(result, 'ReturnValue', 'Unknown')})")
+        
+        return result
+
+    def _wait_for_event_execution(self, output_path, timeout):
+        """Wait for event consumer execution and capture output"""
+        
+        if not output_path:
+            print_verbose("No output capture configured - event consumer executed")
+            return "Event consumer executed (no output captured)"
+        
+        print_debug(f"Waiting for output file: {output_path}")
+        
+        # Wait for output file to be created and populated
+        start_time = time.time()
+        output_text = None
+        
+        while time.time() - start_time < timeout:
+            try:
+                # Try to read output file using existing SMB methods
+                output_text = self._read_output_file_smb(output_path)
+                if output_text and output_text.strip():
+                    print_verbose("Event consumer output captured successfully")
+                    # Clean up remote output file
+                    self._delete_output_file_smb(output_path)
+                    return output_text.strip()
+            except Exception as e:
+                print_debug(f"Output capture attempt failed: {e}")
+            
+            time.sleep(1)
+        
+        print_warning(f"Timeout waiting for event consumer output ({timeout}s)")
+        return "Event consumer executed (timeout waiting for output)"
+
+    def _read_output_file_smb(self, file_path):
+        """Read output file from remote system using SMB"""
+        
+        try:
+            # Use existing SMB download mechanism
+            import tempfile
+            temp_local = tempfile.NamedTemporaryFile(delete=False).name
+            
+            # Extract filename from path
+            filename = file_path.split("\\")[-1]
+            
+            # Try to download from current share first, then C$
+            current_share = getattr(self, "current_share", "C$")
+            
+            if current_share == "C$":
+                # Download directly
+                self.download(filename, temp_local, echo=False)
+            else:
+                # Use cross-share download
+                output_text = self._read_file_from_share(filename, "C$")
+                return output_text
+            
+            # Read the content
+            with open(temp_local, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            
+            # Clean up local temp file
+            os.unlink(temp_local)
+            
+            return content
+            
+        except Exception as e:
+            print_debug(f"Error reading output file via SMB: {e}")
+            return None
+
+    def _delete_output_file_smb(self, file_path):
+        """Delete output file from remote system using SMB"""
+        
+        try:
+            # Extract filename from path
+            filename = file_path.split("\\")[-1]
+            
+            # Try to delete from current share first, then C$
+            current_share = getattr(self, "current_share", "C$")
+            
+            if current_share == "C$":
+                # Delete directly
+                self.delete(filename)
+            else:
+                # Use cross-share delete
+                self._delete_file_from_share(filename, "C$")
+                
+            print_debug(f"Output file deleted: {file_path}")
+            
+        except Exception as e:
+            print_debug(f"Error deleting output file: {e}")
+
+    def _cleanup_event_consumer_objects(self, iWbemServices, filter_name, consumer_name):
+        """Clean up WMI Event Consumer objects to avoid persistence"""
+        
+        print_debug("Starting WMI Event Consumer cleanup")
+        
+        try:
+            # 1. Remove FilterToConsumerBinding first
+            print_debug("Removing FilterToConsumerBinding...")
+            binding_query = f'SELECT * FROM __FilterToConsumerBinding WHERE Filter="__EventFilter.Name=\\"{filter_name}\\""'
+            try:
+                bindings = iWbemServices.ExecQuery(binding_query)
+                binding_count = 0
+                for binding in bindings:
+                    iWbemServices.DeleteInstance(binding.getObjectText())
+                    binding_count += 1
+                print_verbose(f"FilterToConsumerBinding removed ({binding_count} objects)")
+            except Exception as e:
+                print_debug(f"Binding cleanup failed: {e}")
+                # Try alternative cleanup approach
+                try:
+                    binding_query_alt = f'SELECT * FROM __FilterToConsumerBinding'
+                    all_bindings = iWbemServices.ExecQuery(binding_query_alt)
+                    for binding in all_bindings:
+                        filter_prop = getattr(binding, 'Filter', None)
+                        if filter_prop and filter_name in str(filter_prop):
+                            iWbemServices.DeleteInstance(binding.getObjectText())
+                            print_verbose("FilterToConsumerBinding removed (alternative method)")
+                except Exception as e2:
+                    print_debug(f"Alternative binding cleanup also failed: {e2}")
+            
+            # 2. Remove CommandLineEventConsumer
+            print_debug("Removing CommandLineEventConsumer...")
+            consumer_query = f'SELECT * FROM CommandLineEventConsumer WHERE Name="{consumer_name}"'
+            try:
+                consumers = iWbemServices.ExecQuery(consumer_query)
+                consumer_count = 0
+                for consumer in consumers:
+                    iWbemServices.DeleteInstance(consumer.getObjectText())
+                    consumer_count += 1
+                print_verbose(f"CommandLineEventConsumer removed: {consumer_name} ({consumer_count} objects)")
+            except Exception as e:
+                print_debug(f"Consumer cleanup failed: {e}")
+            
+            # 3. Remove __EventFilter
+            print_debug("Removing __EventFilter...")
+            filter_query = f'SELECT * FROM __EventFilter WHERE Name="{filter_name}"'
+            try:
+                filters = iWbemServices.ExecQuery(filter_query)
+                filter_count = 0
+                for filter_obj in filters:
+                    iWbemServices.DeleteInstance(filter_obj.getObjectText())
+                    filter_count += 1
+                print_verbose(f"__EventFilter removed: {filter_name} ({filter_count} objects)")
+            except Exception as e:
+                print_debug(f"Filter cleanup failed: {e}")
+            
+            print_good("WMI Event Consumer objects cleaned up successfully")
+            
+        except Exception as e:
+            print_warning(f"WMI cleanup failed: {e}")
+            print_info("Manual cleanup may be required:")
+            print_info(f"  Filter: {filter_name}")
+            print_info(f"  Consumer: {consumer_name}")
+            # Don't raise - just warn about manual cleanup needed
