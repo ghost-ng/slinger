@@ -29,7 +29,9 @@ def extract_commands_and_args(parser):
 # This is for "help <command>"
 def force_help(parser, command):
     subparsers_action = [
-        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
     ][0]
     command_parser = subparsers_action.choices.get(command)
 
@@ -58,7 +60,9 @@ def print_all_help(parser):
     their respective help messages. It assumes that the parser contains subparsers.
     """
     subparsers_action = [
-        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
     ][0]
     command_parser = subparsers_action.choices
     for command, parser in command_parser.items():
@@ -70,7 +74,9 @@ def print_all_commands_simple(parser):
     """Print available commands in simple 4-column format"""
     # Get commands from parser
     subparsers_action = [
-        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
     ][0]
     commands = subparsers_action.choices
 
@@ -81,7 +87,9 @@ def print_all_commands_simple(parser):
     rows = -(-len(sorted_commands) // 4)  # Ceiling division
 
     # Split into columns
-    columns = [sorted_commands[i : i + rows] for i in range(0, len(sorted_commands), rows)]
+    columns = [
+        sorted_commands[i : i + rows] for i in range(0, len(sorted_commands), rows)
+    ]
 
     # Print header
     print("\nAvailable commands:")
@@ -93,7 +101,9 @@ def print_all_commands_simple(parser):
         print("  ".join(formatted_row))
 
     # Print footer
-    print("\nType help <command> or <command> -h for more information on a specific command")
+    print(
+        "\nType help <command> or <command> -h for more information on a specific command"
+    )
     print("Type help --verbose for detailed categorized help\n")
 
 
@@ -101,7 +111,9 @@ def print_all_commands_verbose(parser):
     """Print available commands grouped by function with aliases"""
     # Get commands from parser
     subparsers_action = [
-        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
     ][0]
     commands = subparsers_action.choices
 
@@ -167,7 +179,13 @@ def print_all_commands_verbose(parser):
             "servicedel",
             "serviceadd",
         ],
-        "📅 Task Management": ["enumtasks", "taskshow", "taskcreate", "taskrun", "taskdelete"],
+        "📅 Task Management": [
+            "enumtasks",
+            "taskshow",
+            "taskcreate",
+            "taskrun",
+            "taskdelete",
+        ],
         "🗂️  Registry Operations": [
             "reguse",
             "regstop",
@@ -178,7 +196,13 @@ def print_all_commands_verbose(parser):
             "regcheck",
         ],
         "📊 Event Log Operations": ["eventlog"],
-        "🔒 Security Operations": ["hashdump", "secretsdump", "atexec", "wmiexec", "portfwd"],
+        "🔒 Security Operations": [
+            "hashdump",
+            "secretsdump",
+            "atexec",
+            "wmiexec",
+            "portfwd",
+        ],
         "💾 Download Management": ["downloads"],
         "🖥️  Session Management": [
             "info",
@@ -234,7 +258,9 @@ def print_all_commands_verbose(parser):
             print("    Subcommands: list, cleanup")
         elif category == "🧩 Plugin System":
             print("    • Use 'plugins' to list loaded plugins and their information")
-            print("    • Use 'reload' to reload all plugins from configured directories")
+            print(
+                "    • Use 'reload' to reload all plugins from configured directories"
+            )
             print(
                 "    • Plugin commands are dynamically loaded and appear in their "
                 "respective categories"
@@ -275,7 +301,9 @@ class CustomArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if "invalid choice" in message:
             print_log("Invalid command entered. Type help for a list of commands.")
-            raise InvalidParsing("Invalid command entered. Type help for a list of commands.")
+            raise InvalidParsing(
+                "Invalid command entered. Type help for a list of commands."
+            )
 
 
 def show_command_help(parser, command):
@@ -343,10 +371,17 @@ def setup_cli_parser(slingerClient):
         help="Sort the directory contents by name, size, or date",
     )
     parser_ls.add_argument(
-        "--sort-reverse", action="store_true", help="Reverse the sort order", default=False
+        "--sort-reverse",
+        action="store_true",
+        help="Reverse the sort order",
+        default=False,
     )
     parser_ls.add_argument(
-        "-l", "--long", action="store_true", help="Display long format listing", default=False
+        "-l",
+        "--long",
+        action="store_true",
+        help="Display long format listing",
+        default=False,
     )
     parser_ls.add_argument(
         "-r",
@@ -382,7 +417,8 @@ def setup_cli_parser(slingerClient):
         epilog='Example Usage: find "*.txt" -path /Users -type f -size +1MB',
     )
     parser_find.add_argument(
-        "pattern", help="Search pattern (supports wildcards like *.txt or regex with -regex flag)"
+        "pattern",
+        help="Search pattern (supports wildcards like *.txt or regex with -regex flag)",
     )
     parser_find.add_argument(
         "--path", default=".", help="Starting search path (default: current directory)"
@@ -394,31 +430,50 @@ def setup_cli_parser(slingerClient):
         help="Search type: f=files only, d=directories only, a=all (default: %(default)s)",
     )
     parser_find.add_argument(
-        "--size", help="File size filter: +1MB (larger than), -100KB (smaller than), =5GB (exactly)"
+        "--size",
+        help="File size filter: +1MB (larger than), -100KB (smaller than), =5GB (exactly)",
     )
-    parser_find.add_argument("--mtime", type=int, help="Modified within N days (positive number)")
-    parser_find.add_argument("--ctime", type=int, help="Created within N days (positive number)")
-    parser_find.add_argument("--atime", type=int, help="Accessed within N days (positive number)")
+    parser_find.add_argument(
+        "--mtime", type=int, help="Modified within N days (positive number)"
+    )
+    parser_find.add_argument(
+        "--ctime", type=int, help="Created within N days (positive number)"
+    )
+    parser_find.add_argument(
+        "--atime", type=int, help="Accessed within N days (positive number)"
+    )
     parser_find.add_argument(
         "--regex",
         action="store_true",
         help="Use regular expression pattern matching instead of wildcards",
     )
-    parser_find.add_argument("--iname", action="store_true", help="Case insensitive name matching")
     parser_find.add_argument(
-        "--maxdepth", type=int, default=2, help="Maximum search depth (default: %(default)s)"
+        "--iname", action="store_true", help="Case insensitive name matching"
     )
     parser_find.add_argument(
-        "--mindepth", type=int, default=0, help="Minimum search depth (default: %(default)s)"
+        "--maxdepth",
+        type=int,
+        default=2,
+        help="Maximum search depth (default: %(default)s)",
     )
-    parser_find.add_argument("--limit", type=int, help="Maximum number of results to return")
+    parser_find.add_argument(
+        "--mindepth",
+        type=int,
+        default=0,
+        help="Minimum search depth (default: %(default)s)",
+    )
+    parser_find.add_argument(
+        "--limit", type=int, help="Maximum number of results to return"
+    )
     parser_find.add_argument(
         "--sort",
         choices=["name", "size", "mtime", "ctime", "atime"],
         default="name",
         help="Sort results by field (default: %(default)s)",
     )
-    parser_find.add_argument("--reverse", action="store_true", help="Reverse sort order")
+    parser_find.add_argument(
+        "--reverse", action="store_true", help="Reverse sort order"
+    )
     parser_find.add_argument(
         "--format",
         choices=["table", "list", "paths", "json"],
@@ -427,16 +482,23 @@ def setup_cli_parser(slingerClient):
     )
     parser_find.add_argument("-o", "--output", help="Save results to file")
     parser_find.add_argument(
-        "--empty", action="store_true", help="Find empty files (size = 0) or empty directories"
+        "--empty",
+        action="store_true",
+        help="Find empty files (size = 0) or empty directories",
     )
     parser_find.add_argument(
         "--hidden", action="store_true", help="Include hidden files and directories"
     )
     parser_find.add_argument(
-        "--progress", action="store_true", help="Show search progress for large operations"
+        "--progress",
+        action="store_true",
+        help="Show search progress for large operations",
     )
     parser_find.add_argument(
-        "--timeout", type=int, default=120, help="Search timeout in seconds (default: %(default)s)"
+        "--timeout",
+        type=int,
+        default=120,
+        help="Search timeout in seconds (default: %(default)s)",
     )
     parser_find.set_defaults(func=slingerClient.find_handler)
 
@@ -492,7 +554,9 @@ def setup_cli_parser(slingerClient):
         "File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: cat /path/to/file",
     )
-    parser_cat.add_argument("remote_path", help="Specify the remote file path to display contents")
+    parser_cat.add_argument(
+        "remote_path", help="Specify the remote file path to display contents"
+    )
     parser_cat.set_defaults(func=slingerClient.cat)
 
     # Subparser for 'cd' command
@@ -541,7 +605,9 @@ def setup_cli_parser(slingerClient):
         description="Display help information for the application",
         epilog="Example Usage: help",
     )
-    parser_help.add_argument("cmd", nargs="?", help="Specify a command to show help for")
+    parser_help.add_argument(
+        "cmd", nargs="?", help="Specify a command to show help for"
+    )
     parser_help.add_argument(
         "--verbose", action="store_true", help="Show detailed categorized help"
     )
@@ -638,10 +704,16 @@ def setup_cli_parser(slingerClient):
     parser_svcshow.set_defaults(func=slingerClient.show_service_handler)
     svcshowgroup = parser_svcshow.add_mutually_exclusive_group(required=True)
     svcshowgroup.add_argument(
-        "-i", "--serviceid", type=int, help="Specify the ID of the service to show details for"
+        "-i",
+        "--serviceid",
+        type=int,
+        help="Specify the ID of the service to show details for",
     )
     svcshowgroup.add_argument(
-        "service_name", type=str, nargs="?", help="Specify the name of the service to show"
+        "service_name",
+        type=str,
+        nargs="?",
+        help="Specify the name of the service to show",
     )
 
     # Subparser for 'servicestart' command
@@ -658,7 +730,10 @@ def setup_cli_parser(slingerClient):
         "-i", "--serviceid", type=int, help="Specify the ID of the service to start"
     )
     svcstartgroup.add_argument(
-        "service_name", type=str, nargs="?", help="Specify the name of the service to start"
+        "service_name",
+        type=str,
+        nargs="?",
+        help="Specify the name of the service to start",
     )
 
     # Subparser for 'servicestop' command
@@ -675,7 +750,10 @@ def setup_cli_parser(slingerClient):
         "-i", "--serviceid", type=int, help="Specify the ID of the service to stop"
     )
     svcstopgroup.add_argument(
-        "service_name", type=str, nargs="?", help="Specify the name of the service to stop"
+        "service_name",
+        type=str,
+        nargs="?",
+        help="Specify the name of the service to stop",
     )
 
     # Subparser for 'serviceenable' command
@@ -692,7 +770,10 @@ def setup_cli_parser(slingerClient):
         "-i", "--serviceid", type=int, help="Specify the ID of the service to enable"
     )
     svcenablegroup.add_argument(
-        "service_name", type=str, nargs="?", help="Specify the name of the service to enable"
+        "service_name",
+        type=str,
+        nargs="?",
+        help="Specify the name of the service to enable",
     )
 
     # Subparser for 'servicedisable' command
@@ -709,7 +790,10 @@ def setup_cli_parser(slingerClient):
         "-i", "--serviceid", type=int, help="Specify the ID of the service to disable"
     )
     svcdisablegroup.add_argument(
-        "service_name", type=str, nargs="?", help="Specify the name of the service to disable"
+        "service_name",
+        type=str,
+        nargs="?",
+        help="Specify the name of the service to disable",
     )
 
     # Subparser for 'servicedel' command
@@ -725,7 +809,10 @@ def setup_cli_parser(slingerClient):
         "-i", "--serviceid", type=int, help="Specify the ID of the service to delete"
     )
     svcdeletegroup.add_argument(
-        "service_name", type=str, nargs="?", help="Specify the name of the service to delete"
+        "service_name",
+        type=str,
+        nargs="?",
+        help="Specify the name of the service to delete",
     )
     parser_svcdelete.set_defaults(func=slingerClient.service_del_handler)
 
@@ -742,10 +829,16 @@ def setup_cli_parser(slingerClient):
         "-n", "--name", required=True, help="Specify the name of the new service"
     )
     parser_svccreate.add_argument(
-        "-b", "--binary-path", required=True, help="Specify the binary path of the new service"
+        "-b",
+        "--binary-path",
+        required=True,
+        help="Specify the binary path of the new service",
     )
     parser_svccreate.add_argument(
-        "-d", "--display-name", required=True, help="Specify the display name of the new service"
+        "-d",
+        "--display-name",
+        required=True,
+        help="Specify the display name of the new service",
     )
     parser_svccreate.add_argument(
         "-s",
@@ -787,7 +880,10 @@ def setup_cli_parser(slingerClient):
         "-i", "--task-id", type=int, help="Specify the ID of the task to show"
     )
     taskshowgroup.add_argument(
-        "task_path", type=str, nargs="?", help="Specify the full path of the task to show"
+        "task_path",
+        type=str,
+        nargs="?",
+        help="Specify the full path of the task to show",
     )
     parser_taskshow.set_defaults(func=slingerClient.task_show_handler)
 
@@ -808,7 +904,10 @@ def setup_cli_parser(slingerClient):
         "-p", "--program", required=True, help="Specify the program to run (cmd.exe)"
     )
     parser_taskcreate.add_argument(
-        "-a", "--arguments", required=False, help="Specify the arguments to pass to the program"
+        "-a",
+        "--arguments",
+        required=False,
+        help="Specify the arguments to pass to the program",
     )
     parser_taskcreate.add_argument(
         "-f",
@@ -856,7 +955,10 @@ def setup_cli_parser(slingerClient):
     )
     taskdeletegroup = parser_taskdelete.add_mutually_exclusive_group(required=True)
     taskdeletegroup.add_argument(
-        "task_path", type=str, nargs="?", help="Specify the full path of the task to delete"
+        "task_path",
+        type=str,
+        nargs="?",
+        help="Specify the full path of the task to delete",
     )
     taskdeletegroup.add_argument(
         "-i", "--task-id", type=int, help="Specify the ID of the task to delete"
@@ -883,9 +985,13 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: upload /local/path /remote/path",
     )
     parser_upload.set_defaults(func=slingerClient.upload_handler)
-    parser_upload.add_argument("local_path", help="Specify the local file path to upload")
     parser_upload.add_argument(
-        "remote_path", nargs="?", help="Specify the remote file path to upload to, optional"
+        "local_path", help="Specify the local file path to upload"
+    )
+    parser_upload.add_argument(
+        "remote_path",
+        nargs="?",
+        help="Specify the remote file path to upload to, optional",
     )
 
     # Subparser for 'download' command
@@ -898,7 +1004,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt",
     )
     parser_download.set_defaults(func=slingerClient.download_handler)
-    parser_download.add_argument("remote_path", help="Specify the remote file path to download")
+    parser_download.add_argument(
+        "remote_path", help="Specify the remote file path to download"
+    )
     parser_download.add_argument(
         "local_path",
         nargs="?",
@@ -932,7 +1040,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: mget /remote/path /local/path",
     )
     parser_mget.add_argument(
-        "remote_path", nargs="?", help="Specify the remote directory path to download from"
+        "remote_path",
+        nargs="?",
+        help="Specify the remote directory path to download from",
     )
     parser_mget.add_argument(
         "local_path",
@@ -958,7 +1068,9 @@ def setup_cli_parser(slingerClient):
         description="Create a new directory on the remote server",
         epilog="Example Usage: mkdir /path/to/new/directory",
     )
-    parser_mkdir.add_argument("path", help="Specify the path of the directory to create")
+    parser_mkdir.add_argument(
+        "path", help="Specify the path of the directory to create"
+    )
     parser_mkdir.set_defaults(func=slingerClient.mkdir)
 
     # Subparser for 'rmdir' command
@@ -1054,7 +1166,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: regset -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
         'CurrentVersion\\\\Run\\\\ -v test -d "C:\\test.exe"',
     )
-    parser_regset.add_argument("-k", "--key", help="Specify the registry key to set", required=True)
+    parser_regset.add_argument(
+        "-k", "--key", help="Specify the registry key to set", required=True
+    )
     parser_regset.add_argument(
         "-v", "--value", help="Specify the registry value to set", required=True
     )
@@ -1135,7 +1249,9 @@ def setup_cli_parser(slingerClient):
         "-c", "--clear", help="Clear all port forwarding rules", action="store_true"
     )
     parser_portfwdgroup.add_argument(
-        "--load", help="Load all port forwarding rules from the registry", action="store_true"
+        "--load",
+        help="Load all port forwarding rules from the registry",
+        action="store_true",
     )
 
     parser_ifconfig = subparsers.add_parser(
@@ -1188,7 +1304,9 @@ def setup_cli_parser(slingerClient):
         description="Set a variable for use in the application",
         epilog="Example Usage: set varname value",
     )
-    parser_setvar.add_argument("varname", help="Set the debug variable to True or False")
+    parser_setvar.add_argument(
+        "varname", help="Set the debug variable to True or False"
+    )
     parser_setvar.add_argument(
         "value", help="Set the mode variable to True or False", nargs="?", default=""
     )
@@ -1207,7 +1325,9 @@ def setup_cli_parser(slingerClient):
         epilog='Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"',
     )
     parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
-    parser_rungroup.add_argument("-c", "--cmd-chain", help="Specify a command sequence to run")
+    parser_rungroup.add_argument(
+        "-c", "--cmd-chain", help="Specify a command sequence to run"
+    )
     parser_rungroup.add_argument("-f", "--file", help="Specify a script file to run")
 
     parser_hashdump = subparsers.add_parser(
@@ -1369,7 +1489,10 @@ def setup_cli_parser(slingerClient):
         default="C$",
     )
     parser_atexec.add_argument(
-        "--shell", help="Start a semi-interactive shell", action="store_true", default=False
+        "--shell",
+        help="Start a semi-interactive shell",
+        action="store_true",
+        default=False,
     )
     parser_atexec.add_argument(
         "-w",
@@ -1426,7 +1549,10 @@ def setup_cli_parser(slingerClient):
         help="Remove state files older than N days (default: %(default)s)",
     )
     parser_downloads_cleanup.add_argument(
-        "--force", action="store_true", help="Force cleanup without confirmation", default=False
+        "--force",
+        action="store_true",
+        help="Force cleanup without confirmation",
+        default=False,
     )
     parser_downloads_cleanup.set_defaults(func=slingerClient.downloads_cleanup_handler)
 
@@ -1460,9 +1586,13 @@ def setup_cli_parser(slingerClient):
         "  eventlog query --log Security --find 'failed logon' --count 20",
     )
     parser_eventlog_query.add_argument(
-        "--log", required=True, help="Event log name (System, Application, Security, etc.)"
+        "--log",
+        required=True,
+        help="Event log name (System, Application, Security, etc.)",
     )
-    parser_eventlog_query.add_argument("--id", type=int, help="Specific event ID to filter")
+    parser_eventlog_query.add_argument(
+        "--id", type=int, help="Specific event ID to filter"
+    )
     parser_eventlog_query.add_argument(
         "--type",
         "--level",
@@ -1480,7 +1610,9 @@ def setup_cli_parser(slingerClient):
         "--limit", type=int, default=1000, help="Maximum number of events to return"
     )
     parser_eventlog_query.add_argument("--source", help="Filter by event source name")
-    parser_eventlog_query.add_argument("--find", help="Search for string in event content")
+    parser_eventlog_query.add_argument(
+        "--find", help="Search for string in event content"
+    )
     parser_eventlog_query.add_argument(
         "--format",
         choices=["table", "json", "list", "csv"],
@@ -1517,7 +1649,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'",
     )
     parser_eventlog_check.add_argument(
-        "--log", required=True, help="Event log name to check (can include custom paths)"
+        "--log",
+        required=True,
+        help="Event log name to check (can include custom paths)",
     )
     parser_eventlog_check.set_defaults(func=slingerClient.eventlog_handler)
 
@@ -1529,15 +1663,17 @@ def setup_cli_parser(slingerClient):
         help="Execute commands via WMI using multiple methods",
         description="Execute commands on the remote system using various WMI execution methods. "
         "Each method has different capabilities, stealth levels, and requirements.",
-        epilog="Available Methods:\n"
-        "  task     - Task Scheduler backend (default, most reliable)\n"
-        "  dcom     - Traditional Win32_Process.Create via DCOM\n"
-        "  event    - WMI Event Consumer (stealthy)\n\n"
-        "Example Usage:\n"
-        "  wmiexec task 'whoami'                    # Task Scheduler method\n"
-        "  wmiexec task 'whoami' --tn MyTask        # Custom task name\n"
-        "  wmiexec dcom 'systeminfo'                # Traditional DCOM\n"
-        "  wmiexec event 'net user' --trigger-delay 5  # Event consumer",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Available Methods:
+  task     - Task Scheduler backend (default, most reliable)
+  dcom     - Traditional Win32_Process.Create via DCOM
+  event    - WMI Event Consumer (stealthy)
+
+Example Usage:
+  wmiexec task 'whoami'                    # Task Scheduler method
+  wmiexec task 'whoami' --tn MyTask        # Custom task name
+  wmiexec dcom 'systeminfo'                # Traditional DCOM
+  wmiexec event 'net user' --trigger-delay 5  # Event consumer""",
     )
 
     # Create subparsers for different WMI methods
@@ -1549,15 +1685,18 @@ def setup_cli_parser(slingerClient):
     parser_wmi_task = wmiexec_subparsers.add_parser(
         "task",
         help="Execute via Task Scheduler backend",
-        description="Execute commands using Task Scheduler as WMI backend. Most reliable method "
-        "that works through SMB named pipes and bypasses DCOM restrictions.",
+        description="Execute commands using Windows Task Scheduler via WMI. Creates, executes, "
+        "and cleans up scheduled tasks through the root\\Microsoft\\Windows\\"
+        "TaskScheduler namespace.",
         epilog='Example Usage: wmiexec task "whoami"\n'
         'wmiexec task "dir C:\\" --tn MyTask --cleanup-delay 5\n'
         "wmiexec task --interactive  # Interactive shell\n"
         'wmiexec task "ipconfig" --output network.txt',
     )
     parser_wmi_task.add_argument(
-        "command", nargs="?", help="Command to execute (not required for --interactive mode)"
+        "command",
+        nargs="?",
+        help="Command to execute (not required for --interactive mode)",
     )
     parser_wmi_task.add_argument(
         "--tn",
@@ -1590,6 +1729,7 @@ def setup_cli_parser(slingerClient):
         default=False,
     )
     parser_wmi_task.add_argument(
+        "-i",
         "--interactive",
         action="store_true",
         help="Start interactive WMI shell session",
@@ -1608,9 +1748,29 @@ def setup_cli_parser(slingerClient):
         help="Command execution timeout in seconds (default: %(default)s)",
     )
     parser_wmi_task.add_argument(
-        "--output", metavar="filename", help="Save command output to local file", default=None
+        "--output",
+        metavar="filename",
+        help="Save command output to local file",
+        default=None,
     )
-
+    parser_wmi_task.add_argument(
+        "--working-dir",
+        help="Working directory for command execution (default: %(default)s)",
+        default="C:\\",
+    )
+    parser_wmi_task.add_argument(
+        "--shell",
+        choices=["cmd", "powershell"],
+        default="cmd",
+        help="Shell to use for command execution (default: %(default)s)",
+    )
+    parser_wmi_task.add_argument(
+        "--raw-command",
+        action="store_true",
+        help="Execute command directly without cmd.exe wrapper. Use for launching "
+        "executables (calc.exe, notepad.exe) or custom command strings.",
+        default=False,
+    )
 
     # Traditional DCOM method
     parser_wmi_dcom = wmiexec_subparsers.add_parser(
@@ -1618,12 +1778,40 @@ def setup_cli_parser(slingerClient):
         help="Execute via traditional Win32_Process.Create",
         description="Execute commands using traditional WMI Win32_Process.Create method via DCOM. "
         "Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.",
-        epilog='Example Usage: wmiexec dcom "whoami"\n'
-        'wmiexec dcom "systeminfo" --output sysinfo.txt\n'
-        'wmiexec dcom "net user" --working-dir "C:\\Users"',
+        epilog="""Command Wrappers:
+  DEFAULT: cmd.exe /Q /c "command"     # Standard Windows command 
+  execution
+  --raw-command: command               # No wrapper, execute directly
+  --shell powershell: powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -NonInteractive -NoLogo -Command "command"
+
+Raw Command Usage:
+  Use --raw-command when you want to execute commands WITHOUT the cmd.exe wrapper:
+
+  Standard (with cmd.exe wrapper):
+    wmiexec dcom "whoami"              # Executes: cmd.exe /Q /c whoami
+    wmiexec dcom "dir C:\\"            # Executes: cmd.exe /Q /c dir C:\
+
+  Raw (no wrapper):
+    wmiexec dcom "whoami" --raw-command              # Executes: whoami (directly)
+    wmiexec dcom "calc.exe" --raw-command            # Executes: calc.exe (directly)
+    wmiexec dcom "powershell.exe -Command Get-Process" --raw-command  # Custom PowerShell
+
+Interactive Mode:
+  wmiexec dcom --interactive           # Start interactive DCOM shell
+  wmiexec dcom --interactive --save-name session.txt  # Save session to file""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser_wmi_dcom.add_argument(
+        "command",
+        nargs="?",
+        help="Command to execute (not required for --interactive mode)",
     )
     parser_wmi_dcom.add_argument(
-        "command", nargs="?", help="Command to execute (not required for --interactive mode)"
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Start interactive WMI DCOM shell session",
     )
     parser_wmi_dcom.add_argument(
         "--working-dir",
@@ -1637,21 +1825,22 @@ def setup_cli_parser(slingerClient):
         help="Command execution timeout in seconds (default: %(default)s)",
     )
     parser_wmi_dcom.add_argument(
-        "--output", metavar="filename", help="Save command output to local file", default=None
+        "--output",
+        metavar="filename",
+        help="Save command output to local file",
+        default=None,
     )
     parser_wmi_dcom.add_argument(
-        "--no-output", action="store_true", help="Don't capture command output", default=False
+        "--no-output",
+        action="store_true",
+        help="Don't capture command output",
+        default=False,
     )
     parser_wmi_dcom.add_argument(
         "--sleep-time",
         type=float,
         default=1.0,
         help="Sleep time before capturing output in seconds (default: %(default)s)",
-    )
-    parser_wmi_dcom.add_argument(
-        "--share",
-        help="Target share for output capture (default: current connected share)",
-        default=None,
     )
     parser_wmi_dcom.add_argument(
         "--save-name",
@@ -1661,7 +1850,7 @@ def setup_cli_parser(slingerClient):
     parser_wmi_dcom.add_argument(
         "--raw-command",
         action="store_true",
-        help="Execute raw command without cmd.exe wrapper",
+        help="Execute command directly without cmd.exe wrapper. Use for launching executables (calc.exe, notepad.exe) or custom command strings.",
         default=False,
     )
     parser_wmi_dcom.add_argument(
@@ -1670,32 +1859,48 @@ def setup_cli_parser(slingerClient):
         default="cmd",
         help="Shell to use for command execution (default: %(default)s)",
     )
-    parser_wmi_dcom.add_argument(
-        "-i",
-        "--interactive",
-        action="store_true",
-        help="Start interactive WMI DCOM shell session",
-        default=False,
-    )
 
     # WMI Event Consumer method
     parser_wmi_event = wmiexec_subparsers.add_parser(
         "event",
-        help="Execute via WMI Event Consumer (stealthy)",
-        description="Execute commands using WMI Event Consumers. Most stealthy method but "
-        "requires careful cleanup to avoid persistence. Uses event triggers for execution.",
-        epilog='Example Usage: wmiexec event "whoami"\n'
-        'wmiexec event "net user" --trigger-delay 10\n'
-        'wmiexec event "ipconfig" --consumer-name MyConsumer --no-cleanup',
+        help="Execute via WMI Event Consumer (highest stealth)",
+        description="""Execute commands using WMI Event Consumers (highest stealth method).
+
+Examples:
+  # Basic usage
+  wmiexec event "whoami"
+
+  # Raw command mode (direct CommandLineTemplate)
+  wmiexec event "calc.exe" --raw-command                         # ExecutablePath: cmd.exe
+  wmiexec event "whoami" --raw-exec ""                           # ExecutablePath: None (blank)
+  wmiexec event "Get-Process" --raw-exec "powershell.exe"        # ExecutablePath: powershell.exe
+
+  # Custom artifacts for stealth
+  wmiexec event "whoami" --exe pwsh --cname "UpdateConsumer" --fname "MaintenanceFilter" \\
+    --script-name "check_system" --upload-path "C:\\Windows\\System32\\check_system.ps1" \\
+    -o "C:\\Windows\\Logs\\system_check.log" --trigger-exe "svchost.exe"
+
+  # With local save
+  wmiexec event "systeminfo" -o "C:\\temp\\info.txt" --save "./sysinfo.txt"
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser_wmi_event.add_argument("command", help="Command to execute")
+    parser_wmi_event.add_argument(
+        "command",
+        nargs="?",
+        help="Command to execute (not required for --interactive mode)",
+    )
     parser_wmi_event.add_argument(
         "--consumer-name",
+        "--cname",
         help="Name for CommandLineEventConsumer (default: auto-generated)",
         default=None,
     )
     parser_wmi_event.add_argument(
-        "--filter-name", help="Name for __EventFilter (default: auto-generated)", default=None
+        "--filter-name",
+        "--fname",
+        help="Name for __EventFilter (default: auto-generated)",
+        default=None,
     )
     parser_wmi_event.add_argument(
         "--trigger-delay",
@@ -1712,11 +1917,97 @@ def setup_cli_parser(slingerClient):
     parser_wmi_event.add_argument(
         "--timeout",
         type=int,
-        default=60,
+        default=30,
         help="Total execution timeout in seconds (default: %(default)s)",
     )
     parser_wmi_event.add_argument(
-        "--output", metavar="filename", help="Save command output to local file", default=None
+        "--no-output",
+        action="store_true",
+        help="Don't capture command output",
+        default=False,
+    )
+    parser_wmi_event.add_argument(
+        "--save",
+        metavar="filename",
+        help="Save command output to local file",
+        default=None,
+    )
+    parser_wmi_event.add_argument(
+        "--working-dir",
+        help="Working directory for command execution (default: %(default)s)",
+        default="C:\\",
+    )
+    parser_wmi_event.add_argument(
+        "--shell",
+        choices=["cmd", "powershell"],
+        default="cmd",
+        help="Shell to use for command execution (default: %(default)s)",
+    )
+    parser_wmi_event.add_argument(
+        "--exe",
+        choices=["cmd", "pwsh"],
+        help="Execution type: 'cmd' (uploads .bat file) or 'pwsh' (uploads .ps1 file)",
+        default="cmd",
+    )
+    parser_wmi_event.add_argument(
+        "--trigger-exe",
+        help="Executable to trigger the Event Filter (default: notepad.exe). Will be automatically spawned after consumer creation.",
+        default="notepad.exe",
+    )
+    parser_wmi_event.add_argument(
+        "-t",
+        "--trigger",
+        help="Only trigger an existing Event Consumer (no creation). Specify executable to spawn.",
+        default=None,
+    )
+    parser_wmi_event.add_argument(
+        "-l",
+        "--list-persistent",
+        action="store_true",
+        help="List all persistent Event Consumer objects on the target system",
+        default=False,
+    )
+    parser_wmi_event.add_argument(
+        "-i",
+        "--interactive",
+        action="store_true",
+        help="Start interactive WMI Event Consumer shell session",
+        default=False,
+    )
+    parser_wmi_event.add_argument(
+        "--system",
+        action="store_true",
+        help="Run in system/service context (non-interactive). Default is interactive mode.",
+        default=False,
+    )
+    parser_wmi_event.add_argument(
+        "--upload-path",
+        help="Custom script upload path on target (default: C:\\Windows\\Temp\\RANDOM_NAME.ext where ext is .bat for cmd or .ps1 for pwsh)",
+        default=None,
+    )
+    parser_wmi_event.add_argument(
+        "--script-name",
+        "--sname",
+        help="Custom script filename (without extension, will be auto-appended based on --exe type). If not specified, completely random name is generated.",
+        default=None,
+    )
+    parser_wmi_event.add_argument(
+        "-o",
+        "--output",
+        help="Custom remote output file path for capturing command results (default: C:\\Windows\\Temp\\out_RANDOM.tmp). Supports CMS notation.",
+        default=None,
+    )
+    parser_wmi_event.add_argument(
+        "--raw-command",
+        action="store_true",
+        help="Put the entire command directly into CommandLineTemplate. ExecutablePath remains C:\\Windows\\System32\\cmd.exe.",
+        default=False,
+    )
+    parser_wmi_event.add_argument(
+        "--raw-exec",
+        type=str,
+        help="Put the entire command directly into CommandLineTemplate. ExecutablePath is set to the provided string value.",
+        default=None,
     )
 
     # Global WMI options
@@ -1800,8 +2091,8 @@ class CommandCompleter(Completer):
 
 
 def get_prompt(client, nojoy):
-    slinger_emoji = "\U0001F920"
-    fire_emoji = "\U0001F525"
+    slinger_emoji = "\U0001f920"
+    fire_emoji = "\U0001f525"
 
     if client.is_connected_to_remote_share():
         preamble = slinger_emoji + fire_emoji + " "
