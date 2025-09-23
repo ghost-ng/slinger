@@ -53,13 +53,30 @@ class WMIQuery:
         else:
             print_bad("No query specified. Use --help for usage information.")
 
-    def setup_wmi(self, namespace="root/cimv2"):
-        """Setup and reuse WMI connection for the session"""
+    def setup_wmi(self, namespace="root/cimv2", operation_type="query"):
+        """Setup and reuse WMI connection for the session
+        
+        Args:
+            namespace: WMI namespace to connect to
+            operation_type: Type of operation ('query', 'dcom', 'event') 
+                          - affects what objects are returned
+        
+        Returns:
+            For 'query': IWbemServices object
+            For 'dcom': tuple of (dcom_connection, IWbemServices)  
+            For 'event': tuple of (dcom_connection, IWbemServices)
+        """
         try:
             # Check if we already have a connection to this namespace
             if namespace in self._wmi_services:
                 print_debug(f"Reusing existing WMI connection for namespace: {namespace}")
-                return self._wmi_services[namespace]
+                iWbemServices = self._wmi_services[namespace]
+                
+                # Return appropriate objects based on operation type
+                if operation_type in ['dcom', 'event']:
+                    return (self._dcom_connection, iWbemServices)
+                else:  # query
+                    return iWbemServices
 
             # Import WMI components
             from impacket.dcerpc.v5.dcomrt import DCOMConnection
@@ -88,8 +105,18 @@ class WMIQuery:
                     else:
                         nt_hash = self.ntlm_hash
 
-                # Create DCOM connection (reused for all operations)
-                self._dcom_connection = DCOMConnection(host, username, password, domain, lm_hash, nt_hash)
+                # Create DCOM connection with full options (reused for all operations)
+                self._dcom_connection = DCOMConnection(
+                    host, 
+                    username, 
+                    password, 
+                    domain, 
+                    lm_hash, 
+                    nt_hash,
+                    aesKey="",
+                    oxidResolver=True,
+                    doKerberos=getattr(self, "use_kerberos", False)
+                )
                 print_debug("DCOM connection established for WMI session")
             else:
                 print_debug("Reusing existing DCOM connection")
@@ -120,7 +147,11 @@ class WMIQuery:
             self._wmi_services[namespace] = iWbemServices
             print_debug(f"WMI service cached for namespace: {namespace}")
 
-            return iWbemServices
+            # Return appropriate objects based on operation type
+            if operation_type in ['dcom', 'event']:
+                return (self._dcom_connection, iWbemServices)
+            else:  # query
+                return iWbemServices
 
         except Exception as e:
             print_debug(f"WMI setup error: {e}")
@@ -149,6 +180,18 @@ class WMIQuery:
 
         except Exception as e:
             print_debug(f"WMI cleanup error: {e}")
+
+    def get_wmi_dcom_connection(self, namespace="root/cimv2"):
+        """Get shared DCOM connection and WMI service for dcom operations"""
+        return self.setup_wmi(namespace, operation_type="dcom")
+
+    def get_wmi_event_connection(self, namespace="root/cimv2"):
+        """Get shared DCOM connection and WMI service for event operations"""  
+        return self.setup_wmi(namespace, operation_type="event")
+
+    def get_wmi_query_connection(self, namespace="root/cimv2"):
+        """Get shared WMI service for query operations"""
+        return self.setup_wmi(namespace, operation_type="query")
 
     def _execute_single_query(self, wql_query, args):
         """Execute a single WQL query"""
