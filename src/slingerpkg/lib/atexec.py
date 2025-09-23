@@ -43,7 +43,7 @@ class atexec:
 	<RegistrationInfo>
         <Author>{xml_escape(args.author)}</Author>
         <Description>{xml_escape(args.description)}</Description>
-        <URI>\\{xml_escape(args.name)}</URI>
+        <URI>\\{xml_escape(args.tn)}</URI>
 	</RegistrationInfo>
 	<Triggers>
         <CalendarTrigger>
@@ -86,13 +86,13 @@ class atexec:
 	</Actions>
 </Task>
 """
-        print_debug(f"Task '{args.name}' will save output to: {save_file_path}")
-        resp = self.dce_transport._create_task(args.name, args.folder, xml)
+        print_debug(f"Task '{args.tn}' will save output to: {save_file_path}")
+        resp = self.dce_transport._create_task(args.tn, args.folder, xml)
         return resp, random_save_name
 
     def atexec(self, args):
 
-        task_name = args.name
+        task_name = args.tn
         task_author = args.author
         task_description = args.description
         task_command = args.command
@@ -119,7 +119,7 @@ class atexec:
                 break
 
         if not share_exists:
-            print_bad(f"Share '{args.name}' does not exist")
+            print_bad(f"Share '{args.share}' does not exist")
             return
 
         # Connect to the pipe
@@ -131,14 +131,14 @@ class atexec:
         try:
             response, save_file_name = self._create_task(args)
             if response["ErrorCode"] == 0:
-                print_good(f"Task '{args.name}' created successfully")
+                print_good(f"Task '{args.tn}' created successfully")
             else:
-                print_bad(f"Failed to create task '{args.name}'")
+                print_bad(f"Failed to create task '{args.tn}'")
                 return
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
             if "ERROR_ALREADY_EXISTS" in str(e):
-                print_warning(f"Task file '{args.name}' already exists, please delete it first")
+                print_warning(f"Task file '{args.tn}' already exists, please delete it first")
             return
 
         # Reconnect to the pipe
@@ -164,9 +164,9 @@ class atexec:
         try:
             response = self.dce_transport._delete_task(full_task_path)
             if response["ErrorCode"] == 0:
-                print_good(f"Task '{args.name}' deleted successfully")
+                print_good(f"Task '{args.tn}' deleted successfully")
             else:
-                print_bad(f"Failed to delete task '{args.name}'")
+                print_bad(f"Failed to delete task '{args.tn}'")
                 return
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
@@ -202,10 +202,10 @@ class atexec:
             return
 
         # Generate default task name if not provided
-        if args.name is None:
+        if args.tn is None:
             from slingerpkg.utils.common import generate_random_string
 
-            args.name = f"SlingerTask_{generate_random_string(6, 8)}"
+            args.tn = f"SlingerTask_{generate_random_string(6, 8)}"
 
         # Update share to match currently connected share
         if hasattr(self, "share") and self.share:
@@ -234,7 +234,7 @@ class atexec:
                 elif cmd == "config":
                     # Display current atexec configuration
                     print_info("Current atexec configuration:")
-                    print_info(f"  Task Name (-tn): {args.name}")
+                    print_info(f"  Task Name (-tn): {args.tn}")
                     print_info(f"  Share (-sh): {args.share}")
                     print_info(f"  Path (-sp): {args.path}")
                     print_info(f"  Author (-ta): {args.author}")
@@ -255,12 +255,12 @@ class atexec:
                 # Generate a unique task name for each shell command
                 from slingerpkg.utils.common import generate_random_string
 
-                shell_args.name = f"SlingerTask_{generate_random_string(6, 8)}"
+                shell_args.tn = f"SlingerTask_{generate_random_string(6, 8)}"
 
                 # Display arguments for user reference
                 print_info(f"Executing with arguments:")
                 print_info(f"  Command: {shell_args.command}")
-                print_info(f"  Task Name: {shell_args.name}")
+                print_info(f"  Task Name: {shell_args.tn}")
                 print_info(f"  Share: {shell_args.share}")
                 print_info(f"  Path: {shell_args.path}")
                 print_info(f"  Author: {shell_args.author}")

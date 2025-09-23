@@ -8,7 +8,7 @@ import subprocess
 
 # Dynamically add the src directory to the Python path
 current_dir = Path(__file__).resolve().parent
-src_path = current_dir / "src"
+src_path = current_dir.parent / "src"
 sys.path.insert(0, str(src_path))
 
 from slingerpkg.utils.cli import setup_cli_parser
@@ -84,7 +84,7 @@ def generate_markdown(commands, output_file):
 
 def get_package_dir():
     """Locate the main package directory dynamically."""
-    src_path = Path(__file__).resolve().parent / "src"
+    src_path = Path(__file__).resolve().parent.parent / "src"
     for package_dir in src_path.iterdir():
         if package_dir.is_dir() and (package_dir / "__init__.py").exists():
             return package_dir
@@ -153,7 +153,7 @@ def update_dependencies():
         print("No dependencies found.")
 
     # Update dependencies in pyproject.toml
-    pyproject_file = current_dir / "pyproject.toml"
+    pyproject_file = current_dir.parent / "pyproject.toml"
     pyproject_data = toml.load(pyproject_file)
 
     # Update dependencies
@@ -166,7 +166,7 @@ def update_dependencies():
 def main():
     # Locate necessary files
     current_dir = Path(__file__).resolve().parent
-    pyproject_file = current_dir / "pyproject.toml"
+    pyproject_file = current_dir.parent / "pyproject.toml"
     package_dir = get_package_dir()
 
     # Get version from __init__.py

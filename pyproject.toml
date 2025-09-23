@@ -4,28 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinger"
-version = "1.6"
+version = "1.7"
 description = "An impacket swiss army knife (sort of)"
 readme = "README.md"
 dependencies = [ "impacket==0.11.0", "prompt_toolkit==3.0.41", "pycryptodome==3.20.0", "setuptools==70.0.0", "tabulate==0.8.9", "toml", "passlib", "dotenv", "openai", "pexpect",]
-
 requires-python = ">=3.10"
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.1",
-    "pytest-asyncio>=0.21.1",
-    "pytest-timeout>=2.1.0",
-    "black>=23.7.0",
-    "flake8>=6.1.0",
-    "mypy>=1.4.1",
-    "pre-commit>=3.3.3",
-]
 [[project.authors]]
 name = "ghost-ng"
 email = "ghost-ng@outlook.com"
+
+[project.optional-dependencies]
+dev = [ "pytest>=7.4.0", "pytest-cov>=4.1.0", "pytest-mock>=3.11.1", "pytest-asyncio>=0.21.1", "pytest-timeout>=2.1.0", "black>=23.7.0", "flake8>=6.1.0", "mypy>=1.4.1", "pre-commit>=3.3.3",]
 
 [project.license]
 file = "LICENSE"
