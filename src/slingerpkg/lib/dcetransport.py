@@ -190,11 +190,11 @@ class DCETransport:
         if self.rrpshouldStop:
             self._connect("svcctl")
             self._stop_service("RemoteRegistry")
-            print_info("Remote Registry state restored -> STOPPED")
+            print_info("Remote Registry state restored: RUNNING -> STOPPED")
         if self.rrpshouldDisable:
             self._connect("svcctl")
             self._disable_service("RemoteRegistry")
-            print_info("Remote Registry state restored -> DISABLED")
+            print_info("Remote Registry state restored: ENABLED -> DISABLED")
         self.dce.disconnect()
         self.is_connected = False
 
