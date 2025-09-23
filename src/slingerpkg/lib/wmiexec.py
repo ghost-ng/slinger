@@ -14,12 +14,14 @@ from impacket.dcerpc.v5.dcomrt import DCOMConnection
 from impacket.dcerpc.v5.dcom import wmi
 from impacket.dcerpc.v5.dtypes import NULL
 from slingerpkg.utils.common import set_config_value
+from slingerpkg.lib.wmiquery import WMIQuery
 
 
-class wmiexec:
+class wmiexec(WMIQuery):
     """WMI Command Execution Module - Traditional DCOM Implementation"""
 
     def __init__(self):
+        super().__init__()  # Initialize WMIQuery
         print_debug("WMIExec Module Loaded!")
 
     def wmiexec_handler(self, args):
@@ -70,11 +72,15 @@ class wmiexec:
                 print_bad(
                     f"WMI method '{wmi_method}' not available - WMI Named Pipe module not loaded"
                 )
-                print_info("Available methods: dcom, task, event")
+                print_info("Available methods: dcom, task, event, query")
                 return
+        elif wmi_method == "query":
+            # WMI Query method - execute WQL queries
+            print_verbose("Routing to WMI Query execution")
+            return self.wmi_query_handler(args)
         else:
             print_bad(f"Unknown WMI method: {wmi_method}")
-            print_info("Available methods: dcom, task, event")
+            print_info("Available methods: dcom, task, event, query")
             return
 
     def _handle_wmiexec_dcom(self, args):
