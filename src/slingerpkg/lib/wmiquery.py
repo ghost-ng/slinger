@@ -397,13 +397,61 @@ class WMIQuery:
             self._list_templates(args)
 
     def _list_templates(self, args):
-        """List available query templates"""
+        """List available query templates organized by category"""
         templates = self._get_query_templates()
-        print_good("Available query templates:")
-        for name, query in templates.items():
-            print(f"  {name:<12} - {query}")
+        
+        # Organize templates by category
+        categories = {
+            "🔍 Process & Execution": ["processes", "processes_fast", "processes_full", "suspicious_processes", "parent_child"],
+            "⚙️ Services": ["services", "services_fast", "running_services", "auto_services", "stopped_services"],
+            "👥 Users & Security": ["users", "local_users", "admin_users", "groups", "local_groups", "logon_sessions"],
+            "🌐 Network": ["network", "network_adapters", "ip_config", "network_connections", "dns_settings"],
+            "💻 System Information": ["system_info", "os_info", "bios_info", "timezone", "computer_info"],
+            "💾 Storage & Drives": ["drives", "disk_drives", "volumes", "usb_devices"],
+            "🔒 Security & Monitoring": ["antivirus", "firewall", "audit_policy", "shares", "printers"],
+            "📦 Software & Applications": ["software", "installed_programs", "startup", "startup_programs"],
+            "⏰ Scheduled Tasks": ["scheduled_tasks", "task_info"],
+            "🔄 Updates & Patches": ["hotfixes", "updates"],
+            "🖥️ Hardware": ["hardware", "cpu_info", "memory", "pci_devices"],
+            "🌍 Environment & Config": ["environment", "system_env", "registry_hives"],
+            "📊 Performance & Monitoring": ["event_logs", "perf_counters"],
+            "🎯 Quick Reconnaissance": ["recon_basic", "recon_os", "recon_users", "recon_shares", "recon_services"],
+            "🛡️ Security Focused": ["security_software", "admin_shares", "privileged_groups", "system_accounts"],
+        }
+        
+        print_good("Available WMI query templates:")
+        print()
+        
+        for category, template_names in categories.items():
+            print_info(f"{category}")
+            for name in template_names:
+                if name in templates:
+                    query = templates[name]
+                    # Show performance warnings
+                    warning = ""
+                    if "SLOW" in str(query) or "win32_product" in query.lower():
+                        warning = " ⚠️ "
+                    elif "Can be slow" in str(query):
+                        warning = " ⏳ "
+                    
+                    print(f"  {name:<20}{warning}")
+            print()
+        
+        # Show any templates not in categories
+        categorized = set()
+        for template_names in categories.values():
+            categorized.update(template_names)
+        
+        uncategorized = set(templates.keys()) - categorized
+        if uncategorized:
+            print_info("🔧 Other Templates")
+            for name in sorted(uncategorized):
+                print(f"  {name}")
+            print()
+        
         print_info(f"Total templates: {len(templates)}")
         print_info("Usage: wmiexec query --template <name>")
+        print_info("Legend: ⚠️  = Very slow, ⏳ = Can be slow")
 
     def _format_results(self, results, output_format):
         """Format query results in specified format"""
@@ -526,19 +574,96 @@ class WMIQuery:
     def _get_query_templates(self):
         """Return predefined query templates with performance notes"""
         return {
+            # === PROCESS & EXECUTION ===
             "processes": "SELECT Name, ProcessId, ParentProcessId, CommandLine FROM Win32_Process",
-            "services": "SELECT Name, State, StartMode, PathName FROM Win32_Service", 
-            "users": "SELECT Name, FullName, LocalAccount, Disabled FROM Win32_UserAccount",
-            "network": "SELECT Description, IPAddress, MACAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
-            "software": "SELECT Name, Version, Vendor, InstallDate FROM Win32_Product",  # SLOW!
-            "drives": "SELECT DeviceID, Size, FreeSpace, FileSystem FROM Win32_LogicalDisk",
-            "startup": "SELECT Name, Command, Location FROM Win32_StartupCommand", 
-            "shares": "SELECT Name, Path, Description FROM Win32_Share",
-            "hotfixes": "SELECT HotFixID, Description, InstalledOn FROM Win32_QuickFixEngineering",  # Can be slow
-            "environment": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = False",
-            # Fast alternatives
             "processes_fast": "SELECT Name, ProcessId FROM Win32_Process",
-            "services_fast": "SELECT Name, State FROM Win32_Service"
+            "processes_full": "SELECT * FROM Win32_Process",  # SLOW!
+            "suspicious_processes": "SELECT Name, ProcessId, CommandLine FROM Win32_Process WHERE CommandLine LIKE '%powershell%' OR CommandLine LIKE '%cmd%' OR CommandLine LIKE '%wscript%'",
+            "parent_child": "SELECT Name, ProcessId, ParentProcessId, CreationDate FROM Win32_Process",
+            
+            # === SERVICES ===
+            "services": "SELECT Name, State, StartMode, PathName FROM Win32_Service",
+            "services_fast": "SELECT Name, State FROM Win32_Service",
+            "running_services": "SELECT Name, PathName, StartName FROM Win32_Service WHERE State = 'Running'",
+            "auto_services": "SELECT Name, PathName, Description FROM Win32_Service WHERE StartMode = 'Auto'",
+            "stopped_services": "SELECT Name, StartMode, PathName FROM Win32_Service WHERE State = 'Stopped'",
+            
+            # === USERS & SECURITY ===
+            "users": "SELECT Name, FullName, LocalAccount, Disabled FROM Win32_UserAccount",
+            "local_users": "SELECT Name, FullName, Disabled, PasswordRequired FROM Win32_UserAccount WHERE LocalAccount = True",
+            "admin_users": "SELECT Name, FullName, Disabled FROM Win32_UserAccount WHERE Name = 'Administrator' OR Name LIKE '%admin%'",
+            "groups": "SELECT Name, Description, LocalAccount FROM Win32_Group",
+            "local_groups": "SELECT Name, Description, SID FROM Win32_Group WHERE LocalAccount = True",
+            "logon_sessions": "SELECT LogonId, LogonType, StartTime, AuthenticationPackage FROM Win32_LogonSession",
+            
+            # === NETWORK & CONNECTIVITY ===
+            "network": "SELECT Description, IPAddress, MACAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
+            "network_adapters": "SELECT Name, AdapterType, MACAddress, Speed FROM Win32_NetworkAdapter WHERE NetEnabled = True",
+            "ip_config": "SELECT Description, IPAddress, SubnetMask, DefaultIPGateway FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
+            "network_connections": "SELECT LocalAddress, LocalPort, RemoteAddress, RemotePort, State FROM Win32_PerfRawData_Tcpip_TCPv4",
+            "dns_settings": "SELECT Description, DNSServerSearchOrder, DNSDomain FROM Win32_NetworkAdapterConfiguration WHERE DNSServerSearchOrder IS NOT NULL",
+            
+            # === SYSTEM INFORMATION ===
+            "system_info": "SELECT Name, TotalPhysicalMemory, NumberOfProcessors, SystemType FROM Win32_ComputerSystem",
+            "os_info": "SELECT Caption, Version, OSArchitecture, InstallDate, LastBootUpTime FROM Win32_OperatingSystem",
+            "bios_info": "SELECT Manufacturer, SMBIOSBIOSVersion, ReleaseDate FROM Win32_BIOS",
+            "timezone": "SELECT Caption, StandardName, Bias FROM Win32_TimeZone",
+            "computer_info": "SELECT Name, Domain, Workgroup, TotalPhysicalMemory FROM Win32_ComputerSystem",
+            
+            # === STORAGE & DRIVES ===
+            "drives": "SELECT DeviceID, Size, FreeSpace, FileSystem FROM Win32_LogicalDisk",
+            "disk_drives": "SELECT Model, Size, MediaType, InterfaceType FROM Win32_DiskDrive",
+            "volumes": "SELECT DriveLetter, Label, FileSystem, Capacity FROM Win32_Volume WHERE DriveLetter IS NOT NULL",
+            "usb_devices": "SELECT DeviceID, Description, Manufacturer FROM Win32_USBControllerDevice",
+            
+            # === SECURITY & MONITORING ===
+            "antivirus": "SELECT displayName, pathToSignedProductExe FROM AntiVirusProduct",  # root/SecurityCenter2
+            "firewall": "SELECT DisplayName, Enabled, Direction, Action FROM MSFT_NetFirewallRule",  # root/StandardCimv2  
+            "audit_policy": "SELECT Category, SubCategory, AuditPolicyPerUser FROM Win32_SystemAudit",
+            "shares": "SELECT Name, Path, Description FROM Win32_Share",
+            "printers": "SELECT Name, DriverName, PortName, Shared FROM Win32_Printer",
+            
+            # === SOFTWARE & APPLICATIONS ===
+            "software": "SELECT Name, Version, Vendor, InstallDate FROM Win32_Product",  # VERY SLOW!
+            "installed_programs": "SELECT Name, Version, InstallLocation FROM Win32_Product WHERE Name IS NOT NULL",  # SLOW!
+            "startup": "SELECT Name, Command, Location FROM Win32_StartupCommand",
+            "startup_programs": "SELECT Name, Command, User, Location FROM Win32_StartupCommand",
+            
+            # === SCHEDULED TASKS ===
+            "scheduled_tasks": "SELECT TaskName, State, LastRunTime, NextRunTime FROM Win32_ScheduledJob",
+            "task_info": "SELECT Name, State, Enabled, Hidden FROM MSFT_ScheduledTask",  # root/Microsoft/Windows/TaskScheduler
+            
+            # === UPDATES & PATCHES ===
+            "hotfixes": "SELECT HotFixID, Description, InstalledOn FROM Win32_QuickFixEngineering",  # Can be slow
+            "updates": "SELECT HotFixID, Description, InstalledBy, InstalledOn FROM Win32_QuickFixEngineering",
+            
+            # === HARDWARE ===
+            "hardware": "SELECT Name, Manufacturer, Model FROM Win32_ComputerSystem",
+            "cpu_info": "SELECT Name, NumberOfCores, MaxClockSpeed, Manufacturer FROM Win32_Processor",
+            "memory": "SELECT TotalPhysicalMemory, TotalVirtualMemory, AvailablePhysicalMemory FROM Win32_OperatingSystem",
+            "pci_devices": "SELECT Name, Manufacturer, DeviceID FROM Win32_PnPEntity WHERE DeviceID LIKE 'PCI%'",
+            
+            # === ENVIRONMENT & CONFIG ===
+            "environment": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = False",
+            "system_env": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = True",
+            "registry_hives": "SELECT Name, MaximumSize FROM Win32_Registry",
+            
+            # === PERFORMANCE & MONITORING ===
+            "event_logs": "SELECT LogfileName, MaxFileSize, NumberOfRecords FROM Win32_NTEventlogFile",
+            "perf_counters": "SELECT Name, Description FROM Win32_PerfRawData",
+            
+            # === QUICK RECONNAISSANCE ===
+            "recon_basic": "SELECT Name, Domain, TotalPhysicalMemory FROM Win32_ComputerSystem",
+            "recon_os": "SELECT Caption, Version, OSArchitecture FROM Win32_OperatingSystem",
+            "recon_users": "SELECT Name, Disabled FROM Win32_UserAccount WHERE LocalAccount = True",
+            "recon_shares": "SELECT Name, Path FROM Win32_Share WHERE Type = 0",
+            "recon_services": "SELECT Name, State FROM Win32_Service WHERE State = 'Running' AND StartMode = 'Auto'",
+            
+            # === SECURITY FOCUSED ===
+            "security_software": "SELECT Name, PathName FROM Win32_Service WHERE Name LIKE '%antivirus%' OR Name LIKE '%defender%' OR Name LIKE '%security%'",
+            "admin_shares": "SELECT Name, Path, Description FROM Win32_Share WHERE Name LIKE '%$'",
+            "privileged_groups": "SELECT Name, Description FROM Win32_Group WHERE Name LIKE '%admin%' OR Name = 'Power Users'",
+            "system_accounts": "SELECT Name, Description, Disabled FROM Win32_UserAccount WHERE Name = 'SYSTEM' OR Name = 'LOCAL SERVICE' OR Name = 'NETWORK SERVICE'",
         }
 
 
