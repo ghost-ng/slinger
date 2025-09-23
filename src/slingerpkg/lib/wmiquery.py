@@ -133,21 +133,7 @@ class WMIQuery:
             iWbemServices = iWbemLevel1Login.NTLMLogin(namespace_path, NULL, NULL)
             iWbemLevel1Login.RemRelease()
 
-            # Set security context
-            username = getattr(self, "username", None)
-            password = getattr(self, "password", "")
-            domain = getattr(self, "domain", "")
-            
-            # Handle NTLM hash parsing
-            lm_hash = ""
-            nt_hash = ""
-            if hasattr(self, "ntlm_hash") and self.ntlm_hash:
-                if ":" in self.ntlm_hash:
-                    lm_hash, nt_hash = self.ntlm_hash.split(":")
-                else:
-                    nt_hash = self.ntlm_hash
-                    
-            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lm_hash, nt_hash)
+            # Note: Do NOT call set_credentials() after NTLMLogin() - it's already authenticated
 
             # Cache the service connection for this namespace
             self._wmi_services[namespace] = iWbemServices
