@@ -53,7 +53,7 @@ class smblib:
     # SYSTEM\CurrentControlSet\Services\LanmanServer\Shares
     def list_shares(self, args=None, echo=True, ret=False):
         shares = self.conn.listShares()
-        print_debug(f"Shares: {shares}")
+        #print_debug(f"Shares: {shares}")
 
         share_info_list = []
         for share in shares:

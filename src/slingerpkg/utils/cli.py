@@ -1489,6 +1489,7 @@ def setup_cli_parser(slingerClient):
         default="C$",
     )
     parser_atexec.add_argument(
+        "-i",
         "--shell",
         help="Start a semi-interactive shell",
         action="store_true",

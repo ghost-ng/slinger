@@ -24,12 +24,13 @@ Example Usage: use <sharename> | use C$
 
 ## `ls`
 
-**Description:** List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.
+**Description:** List contents of a directory at a specified path. File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
-ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [-sr] [-l] [-r depth] [--type {f,d,a}] [path]
-List contents of a directory at a specified path.  File paths with spaces must be entirely in quotes.
+ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [--sort-reverse] [-l] [-r depth] [-o filename] [--show] [--type {f,d,a}]
+                  [path]
+List contents of a directory at a specified path. File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -42,7 +43,7 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 ### Arguments
 
-- **`path`**: Path to list contents, defaults to current path
+- **`path`**: Path to list contents, defaults to current path 
   - Default: `.`
   - Required: No
 
@@ -54,9 +55,86 @@ ls --type f -r 2        # Recursively list only files to depth 2
 - **`recursive`**: Recursively list directory contents with X depth
   - Required: No
 
-- **`type`**: Filter by type
-  - Choices: f (files only), d (directories only), a (all)
+- **`output`**: Save output to file
+  - Required: No
+
+- **`type`**: Filter by type: f=files only, d=directories only, a=all 
+  - Choices: f, d, a
   - Default: `a`
+  - Required: No
+
+---
+
+## `find`
+
+**Description:** Search for files and directories across the remote share with advanced filtering options.
+
+**Help:**
+```
+find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE] [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex] [--iname]
+                    [--maxdepth MAXDEPTH] [--mindepth MINDEPTH] [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}] [--reverse]
+                    [--format {table,list,paths,json}] [-o OUTPUT] [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
+                    pattern
+Search for files and directories across the remote share with advanced filtering options.
+```
+
+**Example Usage:**
+```
+Example Usage: find "*.txt" -path /Users -type f -size +1MB
+```
+
+### Arguments
+
+- **`pattern`**: Search pattern (supports wildcards like *.txt or regex with -regex flag)
+  - Required: Yes
+
+- **`path`**: Starting search path (default: current directory)
+  - Default: `.`
+  - Required: No
+
+- **`type`**: Search type: f=files only, d=directories only, a=all 
+  - Choices: f, d, a
+  - Default: `a`
+  - Required: No
+
+- **`size`**: File size filter: +1MB (larger than), -100KB (smaller than), =5GB (exactly)
+  - Required: No
+
+- **`mtime`**: Modified within N days (positive number)
+  - Required: No
+
+- **`ctime`**: Created within N days (positive number)
+  - Required: No
+
+- **`atime`**: Accessed within N days (positive number)
+  - Required: No
+
+- **`maxdepth`**: Maximum search depth 
+  - Default: `2`
+  - Required: No
+
+- **`mindepth`**: Minimum search depth 
+  - Default: `0`
+  - Required: No
+
+- **`limit`**: Maximum number of results to return
+  - Required: No
+
+- **`sort`**: Sort results by field 
+  - Choices: name, size, mtime, ctime, atime
+  - Default: `name`
+  - Required: No
+
+- **`format`**: Output format 
+  - Choices: table, list, paths, json
+  - Default: `table`
+  - Required: No
+
+- **`output`**: Save results to file
+  - Required: No
+
+- **`timeout`**: Search timeout in seconds 
+  - Default: `120`
   - Required: No
 
 ---
@@ -78,62 +156,6 @@ Example Usage: shares
 
 ---
 
-## `find`
-
-**Description:** Search for files and directories matching specified criteria with advanced filtering options
-
-**Help:**
-```
-find [-h] [-type {f,d}] [-size SIZE] [-mtime DAYS] [-ctime DAYS] [-atime DAYS]
-     [-maxdepth DEPTH] [-mindepth DEPTH] [-regex] [-iname] [-empty] [-hidden]
-     [-progress] [-timeout SECONDS] [-o OUTPUT] [--limit LIMIT]
-     [--format {table,json,list,paths}] pattern [path]
-```
-
-**Example Usage:**
-```
-find "*.exe" -type f --limit 10                 # Find first 10 .exe files
-find "root*" -type f -timeout 30 -progress      # Find files starting with 'root' with 30s timeout
-find "*" -type d --maxdepth 2                   # Find directories up to 2 levels deep
-find "*.log" -size +1MB -mtime -30              # Find log files >1MB modified in last 30 days
-find "backup*" -o results.txt                   # Save search results to file
-```
-
-### Arguments
-
-- **`pattern`**: Search pattern (wildcards * and ? supported, or regex with -regex flag)
-  - Required: Yes
-
-- **`path`**: Starting directory for search (default: current directory)
-  - Required: No
-
-- **`-type`**: Filter by file type
-  - Choices: f (files), d (directories)
-  - Required: No
-
-- **`-size`**: Filter by file size (e.g., +100MB, -1KB, =500B)
-  - Required: No
-
-- **`-timeout`**: Search timeout in seconds
-  - Default: 120
-  - Required: No
-
-- **`-progress`**: Show verbose progress during search
-  - Required: No
-
-- **`--limit`**: Maximum number of results to return
-  - Required: No
-
-- **`--format`**: Output format for results
-  - Choices: table, json, list, paths
-  - Default: table
-  - Required: No
-
-- **`-o`**: Save results to specified file
-  - Required: No
-
----
-
 ## `enumshares`
 
 **Description:** List all shares available on the remote server
@@ -151,14 +173,41 @@ Example Usage: shares
 
 ---
 
+## `enumpipes`
+
+**Description:** Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
+
+**Help:**
+```
+enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}] [--output filename]
+Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
+```
+
+**Example Usage:**
+```
+Example Usage: enumpipes --detailed --output pipes.txt
+```
+
+### Arguments
+
+- **`method`**: Enumeration method to use 
+  - Choices: smb, rpc, hybrid
+  - Default: `hybrid`
+  - Required: No
+
+- **`output`**: Save output to specified file
+  - Required: No
+
+---
+
 ## `cat`
 
-**Description:** Display the contents of a specified file on the remote server.  File paths with spaces must be entirely in quotes.
+**Description:** Display the contents of a specified file on the remote server. File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 cat [-h] remote_path
-Display the contents of a specified file on the remote server.  File paths with spaces must be entirely in quotes.
+Display the contents of a specified file on the remote server. File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -175,12 +224,12 @@ Example Usage: cat /path/to/file
 
 ## `cd`
 
-**Description:** Change to a different directory on the remote server.  File paths with spaces must be entirely in quotes.
+**Description:** Change to a different directory on the remote server. File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 cd [-h] [path]
-Change to a different directory on the remote server.  File paths with spaces must be entirely in quotes.
+Change to a different directory on the remote server. File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -190,7 +239,7 @@ Example Usage: cd /path/to/directory
 
 ### Arguments
 
-- **`path`**: Directory path to change to, defaults to current directory
+- **`path`**: Directory path to change to, defaults to current directory 
   - Default: `.`
   - Required: No
 
@@ -304,7 +353,7 @@ Example Usage: clear
 
 **Help:**
 ```
-help [-h] [cmd]
+help [-h] [--verbose] [cmd]
 Display help information for the application
 ```
 
@@ -317,6 +366,23 @@ Example Usage: help
 
 - **`cmd`**: Specify a command to show help for
   - Required: No
+
+---
+
+## `reconnect`
+
+**Description:** Reconnect to the server to fix broken pipe or connection errors
+
+**Help:**
+```
+reconnect [-h]
+Reconnect to the server to fix broken pipe or connection errors
+```
+
+**Example Usage:**
+```
+Use this command when you encounter '[Errno 32] Broken pipe' errors
+```
 
 ---
 
@@ -418,61 +484,6 @@ Enumerate transport information of the remote host
 **Example Usage:**
 ```
 Example Usage: enumtransport
-```
-
----
-
-## `time`
-
-**Description:** Get server time, date, timezone, and uptime
-
-**Help:**
-```
-time [-h]
-Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
-```
-
-**Example Usage:**
-```
-Example Usage: time
-```
-
-### Aliases
-- `enumtime` - Get server time and uptime information
-- `servertime` - Display remote server time details
-
----
-
-## `enumtime`
-
-**Description:** Get server time, date, timezone, and uptime
-
-**Help:**
-```
-time [-h]
-Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
-```
-
-**Example Usage:**
-```
-Example Usage: enumtime
-```
-
----
-
-## `servertime`
-
-**Description:** Get server time, date, timezone, and uptime
-
-**Help:**
-```
-time [-h]
-Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
-```
-
-**Example Usage:**
-```
-Example Usage: servertime
 ```
 
 ---
@@ -1046,7 +1057,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1057,16 +1068,16 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 ### Arguments
 
-- **`servicename`**: Specify the name of the new service
+- **`name`**: Specify the name of the new service
   - Required: Yes
 
-- **`binarypath`**: Specify the binary path of the new service
+- **`binary_path`**: Specify the binary path of the new service
   - Required: Yes
 
-- **`displayname`**: Specify the display name of the new service
+- **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service
+- **`start_type`**: Specify the start type of the new service 
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1079,7 +1090,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1090,16 +1101,16 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 ### Arguments
 
-- **`servicename`**: Specify the name of the new service
+- **`name`**: Specify the name of the new service
   - Required: Yes
 
-- **`binarypath`**: Specify the binary path of the new service
+- **`binary_path`**: Specify the binary path of the new service
   - Required: Yes
 
-- **`displayname`**: Specify the display name of the new service
+- **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service
+- **`start_type`**: Specify the start type of the new service 
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1112,7 +1123,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1123,16 +1134,16 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 ### Arguments
 
-- **`servicename`**: Specify the name of the new service
+- **`name`**: Specify the name of the new service
   - Required: Yes
 
-- **`binarypath`**: Specify the binary path of the new service
+- **`binary_path`**: Specify the binary path of the new service
   - Required: Yes
 
-- **`displayname`**: Specify the display name of the new service
+- **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service
+- **`start_type`**: Specify the start type of the new service 
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1145,7 +1156,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n SERVICENAME -b BINARYPATH -d DISPLAYNAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1156,16 +1167,16 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 ### Arguments
 
-- **`servicename`**: Specify the name of the new service
+- **`name`**: Specify the name of the new service
   - Required: Yes
 
-- **`binarypath`**: Specify the binary path of the new service
+- **`binary_path`**: Specify the binary path of the new service
   - Required: Yes
 
-- **`displayname`**: Specify the display name of the new service
+- **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`starttype`**: Specify the start type of the new service
+- **`start_type`**: Specify the start type of the new service 
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1178,14 +1189,19 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-enumtasks [-h]
+enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
 **Example Usage:**
 ```
-Example Usage: enumtasks
+Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Windows OR enumtasks -n
 ```
+
+### Arguments
+
+- **`filter`**: Filter tasks by name or folder
+  - Required: No
 
 ---
 
@@ -1195,14 +1211,19 @@ Example Usage: enumtasks
 
 **Help:**
 ```
-enumtasks [-h]
+enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
 **Example Usage:**
 ```
-Example Usage: enumtasks
+Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Windows OR enumtasks -n
 ```
+
+### Arguments
+
+- **`filter`**: Filter tasks by name or folder
+  - Required: No
 
 ---
 
@@ -1212,14 +1233,19 @@ Example Usage: enumtasks
 
 **Help:**
 ```
-enumtasks [-h]
+enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
 **Example Usage:**
 ```
-Example Usage: enumtasks
+Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Windows OR enumtasks -n
 ```
+
+### Arguments
+
+- **`filter`**: Filter tasks by name or folder
+  - Required: No
 
 ---
 
@@ -1229,7 +1255,7 @@ Example Usage: enumtasks
 
 **Help:**
 ```
-taskshow [-h] (-i TASKID | task_path)
+taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1240,7 +1266,7 @@ Example Usage: tasksshow -i 123
 
 ### Arguments
 
-- **`taskid`**: Specify the ID of the task to show
+- **`task_id`**: Specify the ID of the task to show
   - Required: No
 
 - **`task_path`**: Specify the full path of the task to show
@@ -1254,7 +1280,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskshow [-h] (-i TASKID | task_path)
+taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1265,7 +1291,7 @@ Example Usage: tasksshow -i 123
 
 ### Arguments
 
-- **`taskid`**: Specify the ID of the task to show
+- **`task_id`**: Specify the ID of the task to show
   - Required: No
 
 - **`task_path`**: Specify the full path of the task to show
@@ -1279,7 +1305,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskshow [-h] (-i TASKID | task_path)
+taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1290,7 +1316,7 @@ Example Usage: tasksshow -i 123
 
 ### Arguments
 
-- **`taskid`**: Specify the ID of the task to show
+- **`task_id`**: Specify the ID of the task to show
   - Required: No
 
 - **`task_path`**: Specify the full path of the task to show
@@ -1424,7 +1450,7 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-taskdelete [-h] [-i TASKID] [task_path]
+taskdelete [-h] [-i TASK_ID] [task_path]
 Delete a specified task on the remote server
 ```
 
@@ -1438,7 +1464,7 @@ Example Usage: taskdelete -i 123
 - **`task_path`**: Specify the full path of the task to delete
   - Required: No
 
-- **`taskid`**: Specify the ID of the task to delete
+- **`task_id`**: Specify the ID of the task to delete
   - Required: No
 
 ---
@@ -1449,7 +1475,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-taskdelete [-h] [-i TASKID] [task_path]
+taskdelete [-h] [-i TASK_ID] [task_path]
 Delete a specified task on the remote server
 ```
 
@@ -1463,7 +1489,7 @@ Example Usage: taskdelete -i 123
 - **`task_path`**: Specify the full path of the task to delete
   - Required: No
 
-- **`taskid`**: Specify the ID of the task to delete
+- **`task_id`**: Specify the ID of the task to delete
   - Required: No
 
 ---
@@ -1474,7 +1500,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-taskdelete [-h] [-i TASKID] [task_path]
+taskdelete [-h] [-i TASK_ID] [task_path]
 Delete a specified task on the remote server
 ```
 
@@ -1488,8 +1514,59 @@ Example Usage: taskdelete -i 123
 - **`task_path`**: Specify the full path of the task to delete
   - Required: No
 
-- **`taskid`**: Specify the ID of the task to delete
+- **`task_id`**: Specify the ID of the task to delete
   - Required: No
+
+---
+
+## `time`
+
+**Description:** Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+
+**Help:**
+```
+time [-h]
+Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+```
+
+**Example Usage:**
+```
+Example Usage: time
+```
+
+---
+
+## `enumtime`
+
+**Description:** Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+
+**Help:**
+```
+time [-h]
+Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+```
+
+**Example Usage:**
+```
+Example Usage: time
+```
+
+---
+
+## `servertime`
+
+**Description:** Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+
+**Help:**
+```
+time [-h]
+Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
+```
+
+**Example Usage:**
+```
+Example Usage: time
+```
 
 ---
 
@@ -1545,12 +1622,12 @@ Example Usage: upload /local/path /remote/path
 
 ## `download`
 
-**Description:** Download a file from the remote server.  File paths with spaces must be entirely in quotes.
+**Description:** Download a file from the remote server. File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
-download [-h] remote_path [local_path]
-Download a file from the remote server.  File paths with spaces must be entirely in quotes.
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE] remote_path [local_path]
+Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -1564,18 +1641,22 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
   - Required: Yes
 
 - **`local_path`**: Specify the local file path to download to, optional
+  - Required: No
+
+- **`chunk_size`**: Chunk size for download (e.g., 64k, 1M, 512k) 
+  - Default: `64k`
   - Required: No
 
 ---
 
 ## `get`
 
-**Description:** Download a file from the remote server.  File paths with spaces must be entirely in quotes.
+**Description:** Download a file from the remote server. File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
-download [-h] remote_path [local_path]
-Download a file from the remote server.  File paths with spaces must be entirely in quotes.
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE] remote_path [local_path]
+Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -1591,16 +1672,20 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 - **`local_path`**: Specify the local file path to download to, optional
   - Required: No
 
+- **`chunk_size`**: Chunk size for download (e.g., 64k, 1M, 512k) 
+  - Default: `64k`
+  - Required: No
+
 ---
 
 ## `mget`
 
-**Description:** Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.
+**Description:** Download all files from a specified directory and its subdirectories. File paths with spaces must be entirely in quotes.
 
 **Help:**
 ```
 mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
-Download all files from a specified directory and its subdirectories.  File paths with spaces must be entirely in quotes.
+Download all files from a specified directory and its subdirectories. File paths with spaces must be entirely in quotes.
 ```
 
 **Example Usage:**
@@ -1619,7 +1704,7 @@ Example Usage: mget /remote/path /local/path
 - **`p`**: Specify a regex pattern to match filenames
   - Required: No
 
-- **`d`**: Specify folder depth count for recursion
+- **`d`**: Specify folder depth count for recursion 
   - Default: `2`
   - Required: No
 
@@ -1726,7 +1811,7 @@ Example Usage: ! ls -l
 ### Arguments
 
 - **`commands`**: Specify the local commands to run
-  - Required: Yes
+  - Required: No
 
 ---
 
@@ -1846,7 +1931,7 @@ Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 - **`data`**: Specify the registry data to set
   - Required: Yes
 
-- **`type`**: Specify the registry type to set
+- **`type`**: Specify the registry type to set 
   - Default: `REG_SZ`
   - Required: No
 
@@ -1901,12 +1986,12 @@ Example Usage: regcreate -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\
 
 ## `regcheck`
 
-**Description:** Check if a registry key exists on the remote server.  This is really just an exposed helper function.
+**Description:** Check if a registry key exists on the remote server. This is really just an exposed helper function.
 
 **Help:**
 ```
 regcheck [-h] key
-Check if a registry key exists on the remote server.  This is really just an exposed helper function.
+Check if a registry key exists on the remote server. This is really just an exposed helper function.
 ```
 
 **Example Usage:**
@@ -2088,7 +2173,7 @@ Example Usage: fwrules
 
 **Help:**
 ```
-set [-h] varname value
+set [-h] varname [value]
 Set a variable for use in the application
 ```
 
@@ -2103,7 +2188,8 @@ Example Usage: set varname value
   - Required: Yes
 
 - **`value`**: Set the mode variable to True or False
-  - Required: Yes
+  - Default: ``
+  - Required: No
 
 ---
 
@@ -2202,12 +2288,12 @@ Example Usage: env
 
 ## `debug-availcounters`
 
-**Description:** Display available performance counters on the remote server.  This is for debug use only, it doesn't really give you anything.
+**Description:** Display available performance counters on the remote server. This is for debug use only, it doesn't really give you anything.
 
 **Help:**
 ```
 debug-availcounters [-h] [-f FILTER] [-p] [-s filename]
-Display available performance counters on the remote server.  This is for debug use only, it doesn't really give you anything.
+Display available performance counters on the remote server. This is for debug use only, it doesn't really give you anything.
 ```
 
 **Example Usage:**
@@ -2227,12 +2313,12 @@ Example Usage: availcounters
 
 ## `debug-counter`
 
-**Description:** Display a performance counter on the remote server.  This is for debug use only, it doesn't really give you anything.
+**Description:** Display a performance counter on the remote server. This is for debug use only, it doesn't really give you anything.
 
 **Help:**
 ```
 debug-counter [-h] [-c COUNTER] [-a {x86,x64,unk}] [-i]
-Display a performance counter on the remote server.  This is for debug use only, it doesn't really give you anything.
+Display a performance counter on the remote server. This is for debug use only, it doesn't really give you anything.
 ```
 
 **Example Usage:**
@@ -2245,7 +2331,7 @@ Example Usage: counter -c 123 [-a x86]
 - **`counter`**: Specify the counter to display
   - Required: No
 
-- **`arch`**: Specify the architecture of the remote server
+- **`arch`**: Specify the architecture of the remote server 
   - Choices: x86, x64, unk
   - Default: `unk`
   - Required: No
@@ -2258,7 +2344,7 @@ Example Usage: counter -c 123 [-a x86]
 
 **Help:**
 ```
-network [-h] [-tcp] [-rdp]
+network [-h] [--tcp] [--rdp]
 Display network information on the remote server
 ```
 
@@ -2275,47 +2361,48 @@ Example Usage: network
 
 **Help:**
 ```
-atexec [-h] -c COMMAND -sp PATH [-sn SAVE_NAME] -tn NAME [-ta AUTHOR] [-td DESCRIPTION] [-tf FOLDER] [-sh SHARE] [--shell] [-w WAIT]
+atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA] [--td TD] [--tf TF] [--sh SH] [--shell] [-w WAIT]
 Execute a command on the remote server
 ```
 
 **Example Usage:**
 ```
 Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\Users\\Public\\Downloads\\ -c ipconfig
+For multi-word commands: atexec -c "echo hello world" -tn MyTask
 ```
 
 ### Arguments
 
-- **`command`**: Specify the command to execute
+- **`command`**: Specify the command to execute. For commands with spaces, wrap in quotes (e.g., 'echo hello world')
   - Required: Yes
 
-- **`path`**: Specify the folder to save the output file
+- **`sp`**: Specify the folder to save the output file 
   - Default: `\Users\Public\Downloads\`
   - Required: Yes
 
-- **`save_name`**: Specify the name of the output file.  Default is <random 8-10 chars>.txt
+- **`sn`**: Specify the name of the output file.  Default is <random 8-10 chars>.txt
   - Required: No
 
-- **`name`**: Specify the name of the scheduled task
-  - Required: Yes
+- **`tn`**: Specify the name of the scheduled task (default: auto-generated)
+  - Required: No
 
-- **`author`**: Specify the author of the scheduled task
+- **`ta`**: Specify the author of the scheduled task 
   - Default: `Slinger`
   - Required: No
 
-- **`description`**: Specify the description of the scheduled task
+- **`td`**: Specify the description of the scheduled task 
   - Default: `Scheduled task created by Slinger`
   - Required: No
 
-- **`folder`**: Specify the folder to run the task in
+- **`tf`**: Specify the folder to run the task in 
   - Default: `\Windows`
   - Required: No
 
-- **`share`**: Specify the share name to connect to
+- **`sh`**: Specify the share name to connect to 
   - Default: `C$`
   - Required: No
 
-- **`wait`**: Seconds to wait for the task to complete
+- **`wait`**: Seconds to wait for the task to complete 
   - Default: `1`
   - Required: No
 
@@ -2355,148 +2442,67 @@ Example Usage: plugins
 
 ---
 
-## `eventlog`
+## `downloads`
 
-**Description:** Windows Event Log operations via WMI - Query, monitor, and manage Windows Event Logs
+**Description:** Manage resume download states and cleanup
 
 **Help:**
 ```
-eventlog [-h] {query,list,clear,backup,monitor,enable,disable,clean}
-Query, monitor, and manage Windows Event Logs via WMI
+downloads [-h] {list,cleanup} ...
+Manage resume download states and cleanup
 ```
 
 **Example Usage:**
 ```
-eventlog query -log System -type Error -count 50           # Query 50 error events from System log
-eventlog monitor -log Security -timeout 300 -filter "EventCode=4625"  # Monitor failed logins
-eventlog clear -log Application --backup /tmp/app_backup.evt           # Clear with backup
-eventlog clean -log System -method local --backup                      # Advanced cleaning
-```
-
-### Subcommands
-
-#### `eventlog query`
-Query Windows Event Log entries with filtering
-```
--log <name>        Event log name (System, Application, Security, etc.) [Required]
--id <number>       Specific event ID to filter
--type <level>      Event level (error, warning, information, success, failure)
--since <date>      Events since date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')
--count <number>    Maximum number of events to return (default: 100)
--source <name>     Filter by event source name
--format <format>   Output format (table, json, list, csv) (default: table)
--o <file>          Save output to file
-```
-
-#### `eventlog list`
-List all available event logs on the remote system
-
-#### `eventlog clear`
-Clear specified event log with optional backup
-```
--log <name>        Event log name to clear [Required]
---backup <file>    Backup log to file before clearing
---force           Clear without backup confirmation
-```
-
-#### `eventlog backup`
-Backup event log to file
-```
--log <name>        Event log name to backup [Required]
--o <file>          Output file path for backup [Required]
-```
-
-#### `eventlog monitor`
-Monitor event log for new entries in real-time
-```
--log <name>        Event log name to monitor [Required]
--timeout <seconds> Monitoring timeout in seconds (default: 300)
--filter <wql>      WQL filter for events (e.g., 'EventCode=4625')
---interactive      Enable interactive commands during monitoring
-```
-
-**Interactive monitoring commands:**
-- `Ctrl+C` - Stop monitoring but maintain SMB connection
-- `q` + Enter - Quit gracefully with summary
-- `s` + Enter - Show current statistics
-- `p` + Enter - Pause/Resume monitoring
-
-#### `eventlog enable/disable`
-Enable or disable event logging for specified log
-```
--log <name>        Event log name to enable/disable [Required]
-```
-
-#### `eventlog clean`
-Advanced event log cleaning with local processing
-```
--log <name>        Event log name to clean [Required]
--method <type>     Cleaning method: local (download/process/upload) or upload (default: local)
---backup <file>    Backup original log before cleaning
---from <file>      Upload cleaned log from local file (use with -method upload)
-```
-
-### Bang Commands for Local Log Processing
-
-After downloading logs with `eventlog clean -method local`, use these bang commands:
-
-#### `! logparse <logfile> [options]`
-Parse and analyze downloaded log files
-```
---analyze          Perform detailed analysis with statistics
---show-summary     Show event summary information
---verify           Verify log file integrity
-```
-
-#### `! logclean <logfile> [options]`
-Clean log files by removing specific events
-```
---remove-pattern <pattern>     Remove events matching pattern
---remove-eventcode <codes>     Remove events with specific codes (comma-separated)
---remove-source <source>       Remove events from specific source
---time-range <start> <end>     Remove events in time range
-```
-
-#### `! logreplace <logfile> [options]`
-Replace patterns in log events
-```
---pattern <regex>      Regular expression pattern to find
---replace <text>       Replacement text
---field <fieldname>    Target field (default: Message)
-```
-
-#### `! logmerge <output> <log1> <log2> [options]`
-Merge multiple log files
-```
---sort-by-time         Sort merged events chronologically
-```
-
-#### `! logexport <logfile> [options]`
-Export logs to different formats
-```
---format <type>        Export format (json, csv, xml)
---output <file>        Output file path
-```
-
-#### `! logstats <logfile> [options]`
-Generate log file statistics
-```
---detailed             Show detailed statistics breakdown
-```
-
-### Example Workflow
-
-```bash
-# 1. Download and clean a log locally
-eventlog clean -log Application -method local --backup
-
-# 2. Use bang commands to process the downloaded log
-! logparse /tmp/Application_1234567890.evt --analyze
-! logclean /tmp/Application_1234567890.evt --remove-eventcode "1001,1002"
-! logreplace /tmp/Application_1234567890.evt.cleaned --pattern "UserName=.*" --replace "UserName=REDACTED"
-
-# 3. Upload the cleaned log back
-eventlog clean -log Application -method upload --from /tmp/Application_1234567890.evt.cleaned
+Example Usage: downloads list
 ```
 
 ---
+
+## `eventlog`
+
+**Description:** Query Windows Event Logs via RPC over SMB named pipe \pipe\eventlog
+
+**Help:**
+```
+eventlog [-h] {query,list,check} ...
+Query Windows Event Logs via RPC over SMB named pipe \pipe\eventlog
+```
+
+**Example Usage:**
+```
+Example Usage:
+  eventlog list                    # List available event logs
+  eventlog check --log 'System'    # Check if a specific log exists
+  eventlog query --log System --level Error --count 50
+  eventlog sources --log Application
+```
+
+---
+
+## `wmiexec`
+
+**Description:** Execute commands on the remote system using various WMI execution methods. Each method has different capabilities, stealth levels, and requirements.
+
+**Help:**
+```
+wmiexec [-h] [--endpoint-info] METHOD ...
+Execute commands on the remote system using various WMI execution methods. Each method has different capabilities, stealth levels, and requirements.
+```
+
+**Example Usage:**
+```
+Available Methods:
+  task     - Task Scheduler backend (default, most reliable)
+  dcom     - Traditional Win32_Process.Create via DCOM
+  event    - WMI Event Consumer (stealthy)
+
+Example Usage:
+  wmiexec task 'whoami'                    # Task Scheduler method
+  wmiexec task 'whoami' --tn MyTask        # Custom task name
+  wmiexec dcom 'systeminfo'                # Traditional DCOM
+  wmiexec event 'net user' --trigger-delay 5  # Event consumer
+```
+
+---
+
