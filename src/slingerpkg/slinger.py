@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+import sys
+import os
+
+# Add the src directory to Python path when running directly
+if __name__ == "__main__":
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    src_dir = os.path.dirname(script_dir)
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.slingerclient import SlingerClient
 from slingerpkg.lib.local_log_processor import LocalLogProcessor
