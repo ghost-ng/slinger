@@ -123,9 +123,15 @@ class WMIQuery:
 
             # Create WMI service connection for this namespace
             print_debug(f"Connecting to WMI namespace: {namespace}")
-            iInterface = self._dcom_connection.CoCreateInstanceEx(wmi.CLSID_WbemLocator, wmi.IID_IWbemLocator)
-            iWbemLocator = wmi.IWbemLocator(iInterface)
-            iWbemServices = iWbemLocator.ConnectServer(namespace, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+            iInterface = self._dcom_connection.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
+            iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+            # Format namespace correctly for NTLMLogin
+            if namespace.startswith("root/"):
+                namespace_path = f"//./{namespace}"
+            else:
+                namespace_path = f"//./root/{namespace}"
+            iWbemServices = iWbemLevel1Login.NTLMLogin(namespace_path, NULL, NULL)
+            iWbemLevel1Login.RemRelease()
 
             # Set security context
             username = getattr(self, "username", None)
