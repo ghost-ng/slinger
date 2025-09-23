@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinger"
-version = "1.8"
+version = "1.8.1"
 description = "An impacket swiss army knife (sort of)"
 readme = "README.md"
 dependencies = [ "impacket==0.11.0", "prompt_toolkit==3.0.41", "pycryptodome==3.20.0", "setuptools==70.0.0", "tabulate==0.8.9", "toml", "passlib", "dotenv", "openai", "pexpect",]
