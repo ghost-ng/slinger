@@ -29,20 +29,20 @@ class atexec:
         # remove trailing backslash
         share_path = share_path.rstrip("\\")
         cmd = "cmd.exe"
-        if not args.save_name:
+        if not args.sn:
             random_save_name = generate_random_string(8, 10) + ".txt"
         else:
-            random_save_name = args.save_name
+            random_save_name = args.sn
         # save_file_path = args.path + f"{share_path}\\{random_save_name}"
         save_file_path = ntpath.join(share_path, random_save_name)
-        arguments = f"/C {args.command} > {save_file_path} 2>&1"
+        arguments = f"/C {args.c} > {save_file_path} 2>&1"
         timestamp = generate_random_date()
         xml_escaped_args = xml_escape(arguments)
         xml = f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 	<RegistrationInfo>
-        <Author>{xml_escape(args.author)}</Author>
-        <Description>{xml_escape(args.description)}</Description>
+        <Author>{xml_escape(args.ta)}</Author>
+        <Description>{xml_escape(args.td)}</Description>
         <URI>\\{xml_escape(args.tn)}</URI>
 	</RegistrationInfo>
 	<Triggers>
@@ -87,16 +87,16 @@ class atexec:
 </Task>
 """
         print_debug(f"Task '{args.tn}' will save output to: {save_file_path}")
-        resp = self.dce_transport._create_task(args.tn, args.folder, xml)
+        resp = self.dce_transport._create_task(args.tn, args.tf, xml)
         return resp, random_save_name
 
     def atexec(self, args):
 
         task_name = args.tn
-        task_author = args.author
-        task_description = args.description
-        task_command = args.command
-        task_folder = args.folder
+        task_author = args.ta
+        task_description = args.td
+        task_command = args.c
+        task_folder = args.tf
 
         # get a list of shares
         share_info_dict = self.list_shares(args=None, echo=False, ret=True)
@@ -107,11 +107,11 @@ class atexec:
             return
         # check if the share exists
         for share_info in share_info_dict:
-            if share_info["name"] == args.share:
+            if share_info["name"] == args.sh:
                 share_exists = True
                 # Ensure proper path construction with backslashes
                 share_root = share_info["path"].rstrip("\\")  # Remove trailing backslash
-                user_path = args.path.lstrip("\\").rstrip(
+                user_path = args.sp.lstrip("\\").rstrip(
                     "\\"
                 )  # Remove only leading/trailing backslashes
                 args.share_path = f"{share_root}\\{user_path}"
@@ -119,7 +119,7 @@ class atexec:
                 break
 
         if not share_exists:
-            print_bad(f"Share '{args.share}' does not exist")
+            print_bad(f"Share '{args.sh}' does not exist")
             return
 
         # Connect to the pipe
@@ -176,19 +176,19 @@ class atexec:
         try:
             # Create relative path from share root (no leading backslashes)
             # Ensure proper path construction with backslashes
-            relative_path = args.path.lstrip("\\").rstrip(
+            relative_path = args.sp.lstrip("\\").rstrip(
                 "\\"
             )  # Remove only leading/trailing backslashes
             args.remote_path = f"{relative_path}\\{save_file_name}"
             # Ensure we're connected to the share for file operations
-            print_debug(f"Current share: {getattr(self, 'share', 'None')}, needed: {args.share}")
-            if not hasattr(self, "share") or self.share != args.share:
-                print_debug(f"Connecting to share: {args.share}")
+            print_debug(f"Current share: {getattr(self, 'share', 'None')}, needed: {args.sh}")
+            if not hasattr(self, "share") or self.share != args.sh:
+                print_debug(f"Connecting to share: {args.sh}")
                 self.connect_share(args)
             else:
                 print_debug(f"Already on correct share: {self.share}")
             print_debug(f"Retrieving output from: {args.remote_path}")
-            sleep(args.wait)
+            sleep(args.w)
             print_info(f"Command output:")
             self.cat(args, echo=False)  # Show the output content without download progress
             self.delete(args.remote_path)
@@ -209,16 +209,16 @@ class atexec:
 
         # Update share to match currently connected share
         if hasattr(self, "share") and self.share:
-            args.share = self.share
+            args.sh = self.share
 
             # Adjust default path based on share type
-            if args.path == "\\Users\\Public\\Downloads\\" and args.share == "ADMIN$":
-                args.path = "\\Temp\\"
-                print_debug(f"Using ADMIN$ appropriate path: {args.path}")
+            if args.sp == "\\Users\\Public\\Downloads\\" and args.sh == "ADMIN$":
+                args.sp = "\\Temp\\"
+                print_debug(f"Using ADMIN$ appropriate path: {args.sp}")
 
         cmd = None
         # handle mistakes in which the user specifies a full path
-        if ":" in args.path:
+        if ":" in args.sp:
             print_bad("Invalid path name, please use a relative path")
             return
         if args.shell:
@@ -235,13 +235,13 @@ class atexec:
                     # Display current atexec configuration
                     print_info("Current atexec configuration:")
                     print_info(f"  Task Name (-tn): {args.tn}")
-                    print_info(f"  Share (-sh): {args.share}")
-                    print_info(f"  Path (-sp): {args.path}")
-                    print_info(f"  Author (-ta): {args.author}")
-                    print_info(f"  Description (-td): {args.description}")
-                    print_info(f"  Folder (-tf): {args.folder}")
-                    print_info(f"  Wait Time (-w): {args.wait}s")
-                    print_info(f"  Save Name (-sn): {args.save_name}")
+                    print_info(f"  Share (-sh): {args.sh}")
+                    print_info(f"  Path (-sp): {args.sp}")
+                    print_info(f"  Author (-ta): {args.ta}")
+                    print_info(f"  Description (-td): {args.td}")
+                    print_info(f"  Folder (-tf): {args.tf}")
+                    print_info(f"  Wait Time (-w): {args.w}s")
+                    print_info(f"  Save Name (-sn): {args.sn}")
                     print()
                     continue
 
@@ -250,7 +250,7 @@ class atexec:
                 import copy
 
                 shell_args = copy.copy(args)
-                shell_args.command = cmd
+                shell_args.c = cmd
 
                 # Generate a unique task name for each shell command
                 from slingerpkg.utils.common import generate_random_string
@@ -259,18 +259,18 @@ class atexec:
 
                 # Display arguments for user reference
                 print_info(f"Executing with arguments:")
-                print_info(f"  Command: {shell_args.command}")
+                print_info(f"  Command: {shell_args.c}")
                 print_info(f"  Task Name: {shell_args.tn}")
-                print_info(f"  Share: {shell_args.share}")
-                print_info(f"  Path: {shell_args.path}")
-                print_info(f"  Author: {shell_args.author}")
-                print_info(f"  Wait Time: {shell_args.wait}s")
+                print_info(f"  Share: {shell_args.sh}")
+                print_info(f"  Path: {shell_args.sp}")
+                print_info(f"  Author: {shell_args.ta}")
+                print_info(f"  Wait Time: {shell_args.w}s")
                 print()
 
                 self.atexec(shell_args)
         else:
             # handle if no command is specified
-            if args.command is None:
+            if args.c is None:
                 print_bad("No command specified")
                 return
             self.atexec(args)
