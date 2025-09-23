@@ -107,7 +107,7 @@ class atexec:
             return
         # check if the share exists
         for share_info in share_info_dict:
-            if share_info["name"] == args.sh:
+            if share_info["name"] == (args.sh).upper():
                 share_exists = True
                 # Ensure proper path construction with backslashes
                 share_root = share_info["path"].rstrip("\\")  # Remove trailing backslash
@@ -188,7 +188,7 @@ class atexec:
             else:
                 print_debug(f"Already on correct share: {self.share}")
             print_debug(f"Retrieving output from: {args.remote_path}")
-            sleep(args.w)
+            sleep(args.wait)
             print_info(f"Command output:")
             self.cat(args, echo=False)  # Show the output content without download progress
             self.delete(args.remote_path)
@@ -212,7 +212,7 @@ class atexec:
             args.sh = self.share
 
             # Adjust default path based on share type
-            if args.sp == "\\Users\\Public\\Downloads\\" and args.sh == "ADMIN$":
+            if args.sp == "\\Users\\Public\\Downloads\\" and args.sh.upper() == "ADMIN$":
                 args.sp = "\\Temp\\"
                 print_debug(f"Using ADMIN$ appropriate path: {args.sp}")
 
