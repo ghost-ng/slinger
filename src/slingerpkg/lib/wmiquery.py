@@ -98,27 +98,34 @@ class WMIQuery:
             from impacket.dcerpc.v5.dcom import wmi
             from impacket.dcerpc.v5.dtypes import NULL
 
-            # Use existing connection credentials
+            # Use existing connection credentials (following wmiexec patterns)
             host = getattr(self, "host", None)
             username = getattr(self, "username", None)
-            password = getattr(self, "password", None)
-            domain = getattr(self, "domain", None)
-            lmhash = getattr(self, "lmhash", None)
-            nthash = getattr(self, "nthash", None)
+            password = getattr(self, "password", "")
+            domain = getattr(self, "domain", "")
 
             if not host:
                 raise Exception("No host connection available")
 
+            # Handle NTLM hash parsing (following existing wmiexec patterns)
+            lm_hash = ""
+            nt_hash = ""
+            if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+                if ":" in self.ntlm_hash:
+                    lm_hash, nt_hash = self.ntlm_hash.split(":")
+                else:
+                    nt_hash = self.ntlm_hash
+
             print_debug(f"Connecting to WMI namespace: {namespace}")
 
             # Establish DCOM connection (reusing existing patterns)
-            dcom = DCOMConnection(host, username, password, domain, lmhash, nthash)
+            dcom = DCOMConnection(host, username, password, domain, lm_hash, nt_hash)
             iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLocator, wmi.IID_IWbemLocator)
             iWbemLocator = wmi.IWbemLocator(iInterface)
             iWbemServices = iWbemLocator.ConnectServer(namespace, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 
             # Set security context
-            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lmhash, nthash)
+            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lm_hash, nt_hash)
 
             # Execute query
             print_debug(f"Executing WQL: {wql_query}")
@@ -174,7 +181,7 @@ class WMIQuery:
             iWbemServices = iWbemLocator.ConnectServer(namespace, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 
             # Set security context
-            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lmhash, nthash)
+            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lm_hash, nt_hash)
 
             # Get class object
             iObject, _ = iWbemServices.GetObject(class_name)
