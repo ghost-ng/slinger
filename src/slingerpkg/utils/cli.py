@@ -2026,7 +2026,8 @@ Examples:
   wmiexec query --describe Win32_Process
   wmiexec query --interactive
   wmiexec query --template processes --timeout 300
-  wmiexec query "SELECT * FROM Win32_UserAccount" --format json -o users.json""",
+  wmiexec query "SELECT * FROM Win32_UserAccount" --format json -o users.json
+  wmiexec query --template processes --format table""",
     )
     
     # Query argument group - mutually exclusive options
@@ -2079,9 +2080,9 @@ Examples:
     parser_wmi_query.add_argument(
         "--format",
         type=str,
-        choices=["table", "json", "csv"],
-        help="Output format for query results (default: table)",
-        default="table",
+        choices=["list", "table", "json", "csv"],
+        help="Output format for query results (default: list)",
+        default="list",
     )
     parser_wmi_query.add_argument(
         "-o", "--output",

@@ -20,7 +20,7 @@ class WMIQuery:
     def __init__(self):
         print_debug("WMIQuery Module Loaded!")
         self.current_namespace = "root/cimv2"
-        self.output_format = "table"
+        self.output_format = "list"
         # WMI session reuse
         self._dcom_connection = None
         self._wmi_services = {}  # namespace -> IWbemServices objects
@@ -414,8 +414,10 @@ class WMIQuery:
             return self._format_json(results)
         elif output_format.lower() == "csv":
             return self._format_csv(results)
-        else:  # Default to table
+        elif output_format.lower() == "table":
             return self._format_table(results)
+        else:  # Default to list
+            return self._format_list(results)
 
     def _format_table(self, results):
         """Format results as a table"""
@@ -437,6 +439,46 @@ class WMIQuery:
             rows.append(row)
 
         return tabulate(rows, headers=headers, tablefmt="grid")
+
+    def _format_list(self, results):
+        """Format results as a clean list (default format)"""
+        if not results:
+            return "No results"
+
+        output_lines = []
+        
+        for i, result in enumerate(results, 1):
+            # Add separator between records (except for first)
+            if i > 1:
+                output_lines.append("")
+            
+            # Add record header
+            output_lines.append(f"=== Record {i} ===")
+            
+            # Add each property
+            for key, value_dict in result.items():
+                if isinstance(value_dict, dict) and 'value' in value_dict:
+                    value = value_dict['value']
+                else:
+                    value = value_dict
+                
+                # Format the value nicely
+                if value is None:
+                    formatted_value = "NULL"
+                elif isinstance(value, list):
+                    if len(value) == 0:
+                        formatted_value = "[]"
+                    elif len(value) == 1:
+                        formatted_value = str(value[0])
+                    else:
+                        formatted_value = f"[{', '.join(str(item) for item in value)}]"
+                else:
+                    formatted_value = str(value)
+                
+                # Add the formatted property
+                output_lines.append(f"  {key}: {formatted_value}")
+        
+        return "\n".join(output_lines)
 
     def _format_json(self, results):
         """Format results as JSON"""
@@ -519,7 +561,7 @@ Available Commands:
   exit                    - Exit interactive shell
   describe <class>        - Describe WMI class schema
   namespace <namespace>   - Change current namespace (default: root/cimv2)
-  format <format>         - Set output format (table, json, csv)
+  format <format>         - Set output format (list, table, json, csv)
   template <name>         - Execute predefined query template
   templates               - List available query templates
   ! <command>             - Execute local shell command
@@ -571,11 +613,11 @@ WQL Query Examples:
             return
         
         format_type = format_type.strip().lower()
-        if format_type in ['table', 'json', 'csv']:
+        if format_type in ['list', 'table', 'json', 'csv']:
             self.wmi_query.output_format = format_type
             print_good(f"Output format set to: {format_type}")
         else:
-            print_bad("Invalid format. Use: table, json, or csv")
+            print_bad("Invalid format. Use: list, table, json, or csv")
 
     def do_template(self, template_name):
         """Execute a predefined query template: template processes"""
