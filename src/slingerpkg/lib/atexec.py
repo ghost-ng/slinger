@@ -35,7 +35,7 @@ class atexec:
             random_save_name = args.sn
         # save_file_path = args.path + f"{share_path}\\{random_save_name}"
         save_file_path = ntpath.join(share_path, random_save_name)
-        arguments = f"/C {args.c} > {save_file_path} 2>&1"
+        arguments = f"/C {args.command} > {save_file_path} 2>&1"
         timestamp = generate_random_date()
         xml_escaped_args = xml_escape(arguments)
         xml = f"""<?xml version="1.0" encoding="UTF-16"?>
@@ -95,7 +95,7 @@ class atexec:
         task_name = args.tn
         task_author = args.ta
         task_description = args.td
-        task_command = args.c
+        task_command = args.command
         task_folder = args.tf
 
         # get a list of shares
@@ -240,7 +240,7 @@ class atexec:
                     print_info(f"  Author (-ta): {args.ta}")
                     print_info(f"  Description (-td): {args.td}")
                     print_info(f"  Folder (-tf): {args.tf}")
-                    print_info(f"  Wait Time (-w): {args.w}s")
+                    print_info(f"  Wait Time (-w): {args.wait}s")
                     print_info(f"  Save Name (-sn): {args.sn}")
                     print()
                     continue
@@ -250,7 +250,7 @@ class atexec:
                 import copy
 
                 shell_args = copy.copy(args)
-                shell_args.c = cmd
+                shell_args.command = cmd
 
                 # Generate a unique task name for each shell command
                 from slingerpkg.utils.common import generate_random_string
@@ -259,18 +259,18 @@ class atexec:
 
                 # Display arguments for user reference
                 print_info(f"Executing with arguments:")
-                print_info(f"  Command: {shell_args.c}")
+                print_info(f"  Command: {shell_args.command}")
                 print_info(f"  Task Name: {shell_args.tn}")
                 print_info(f"  Share: {shell_args.sh}")
                 print_info(f"  Path: {shell_args.sp}")
                 print_info(f"  Author: {shell_args.ta}")
-                print_info(f"  Wait Time: {shell_args.w}s")
+                print_info(f"  Wait Time: {shell_args.wait}s")
                 print()
 
                 self.atexec(shell_args)
         else:
             # handle if no command is specified
-            if args.c is None:
+            if args.command is None:
                 print_bad("No command specified")
                 return
             self.atexec(args)
