@@ -21,6 +21,9 @@ class WMIQuery:
         print_debug("WMIQuery Module Loaded!")
         self.current_namespace = "root/cimv2"
         self.output_format = "table"
+        # WMI session reuse
+        self._dcom_connection = None
+        self._wmi_services = {}  # namespace -> IWbemServices objects
 
     def wmi_query_handler(self, args):
         """Main handler for wmiexec query command"""
@@ -50,6 +53,103 @@ class WMIQuery:
         else:
             print_bad("No query specified. Use --help for usage information.")
 
+    def setup_wmi(self, namespace="root/cimv2"):
+        """Setup and reuse WMI connection for the session"""
+        try:
+            # Check if we already have a connection to this namespace
+            if namespace in self._wmi_services:
+                print_debug(f"Reusing existing WMI connection for namespace: {namespace}")
+                return self._wmi_services[namespace]
+
+            # Import WMI components
+            from impacket.dcerpc.v5.dcomrt import DCOMConnection
+            from impacket.dcerpc.v5.dcom import wmi
+            from impacket.dcerpc.v5.dtypes import NULL
+
+            # Create DCOM connection if we don't have one
+            if self._dcom_connection is None:
+                print_debug("Creating new DCOM connection for WMI")
+                
+                # Use existing connection credentials (following wmiexec patterns)
+                host = getattr(self, "host", None)
+                username = getattr(self, "username", None)
+                password = getattr(self, "password", "")
+                domain = getattr(self, "domain", "")
+
+                if not host:
+                    raise Exception("No host connection available")
+
+                # Handle NTLM hash parsing (following existing wmiexec patterns)
+                lm_hash = ""
+                nt_hash = ""
+                if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+                    if ":" in self.ntlm_hash:
+                        lm_hash, nt_hash = self.ntlm_hash.split(":")
+                    else:
+                        nt_hash = self.ntlm_hash
+
+                # Create DCOM connection (reused for all operations)
+                self._dcom_connection = DCOMConnection(host, username, password, domain, lm_hash, nt_hash)
+                print_debug("DCOM connection established for WMI session")
+            else:
+                print_debug("Reusing existing DCOM connection")
+
+            # Create WMI service connection for this namespace
+            print_debug(f"Connecting to WMI namespace: {namespace}")
+            iInterface = self._dcom_connection.CoCreateInstanceEx(wmi.CLSID_WbemLocator, wmi.IID_IWbemLocator)
+            iWbemLocator = wmi.IWbemLocator(iInterface)
+            iWbemServices = iWbemLocator.ConnectServer(namespace, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+
+            # Set security context
+            username = getattr(self, "username", None)
+            password = getattr(self, "password", "")
+            domain = getattr(self, "domain", "")
+            
+            # Handle NTLM hash parsing
+            lm_hash = ""
+            nt_hash = ""
+            if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+                if ":" in self.ntlm_hash:
+                    lm_hash, nt_hash = self.ntlm_hash.split(":")
+                else:
+                    nt_hash = self.ntlm_hash
+                    
+            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lm_hash, nt_hash)
+
+            # Cache the service connection for this namespace
+            self._wmi_services[namespace] = iWbemServices
+            print_debug(f"WMI service cached for namespace: {namespace}")
+
+            return iWbemServices
+
+        except Exception as e:
+            print_debug(f"WMI setup error: {e}")
+            raise Exception(f"Failed to setup WMI connection: {e}")
+
+    def cleanup_wmi(self):
+        """Cleanup WMI connections when slinger session ends"""
+        try:
+            # Cleanup WMI service connections
+            for namespace, service in self._wmi_services.items():
+                try:
+                    service.RemRelease()
+                    print_debug(f"Released WMI service for namespace: {namespace}")
+                except:
+                    pass
+            self._wmi_services.clear()
+
+            # Cleanup DCOM connection
+            if self._dcom_connection:
+                try:
+                    self._dcom_connection.disconnect()
+                    print_debug("DCOM connection closed")
+                except:
+                    pass
+                self._dcom_connection = None
+
+        except Exception as e:
+            print_debug(f"WMI cleanup error: {e}")
+
     def _execute_single_query(self, wql_query, args):
         """Execute a single WQL query"""
         try:
@@ -67,7 +167,7 @@ class WMIQuery:
             print_debug(f"Namespace: {namespace}")
             print_debug(f"Format: {output_format}")
 
-            # Execute the query using existing DCOM connection patterns
+            # Execute the query using setup_wmi() for connection reuse
             results = self._run_wql_query(wql_query, namespace)
 
             if results:
@@ -91,41 +191,10 @@ class WMIQuery:
             print_debug(f"Exception details: {e}")
 
     def _run_wql_query(self, wql_query, namespace="root/cimv2"):
-        """Execute WQL query using existing DCOM infrastructure"""
+        """Execute WQL query using setup_wmi() for connection reuse"""
         try:
-            # Import and use existing DCOM connection patterns from wmiexec
-            from impacket.dcerpc.v5.dcomrt import DCOMConnection
-            from impacket.dcerpc.v5.dcom import wmi
-            from impacket.dcerpc.v5.dtypes import NULL
-
-            # Use existing connection credentials (following wmiexec patterns)
-            host = getattr(self, "host", None)
-            username = getattr(self, "username", None)
-            password = getattr(self, "password", "")
-            domain = getattr(self, "domain", "")
-
-            if not host:
-                raise Exception("No host connection available")
-
-            # Handle NTLM hash parsing (following existing wmiexec patterns)
-            lm_hash = ""
-            nt_hash = ""
-            if hasattr(self, "ntlm_hash") and self.ntlm_hash:
-                if ":" in self.ntlm_hash:
-                    lm_hash, nt_hash = self.ntlm_hash.split(":")
-                else:
-                    nt_hash = self.ntlm_hash
-
-            print_debug(f"Connecting to WMI namespace: {namespace}")
-
-            # Establish DCOM connection (reusing existing patterns)
-            dcom = DCOMConnection(host, username, password, domain, lm_hash, nt_hash)
-            iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLocator, wmi.IID_IWbemLocator)
-            iWbemLocator = wmi.IWbemLocator(iInterface)
-            iWbemServices = iWbemLocator.ConnectServer(namespace, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-
-            # Set security context
-            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lm_hash, nt_hash)
+            # Use setup_wmi() to get/reuse WMI connection
+            iWbemServices = self.setup_wmi(namespace)
 
             # Execute query
             print_debug(f"Executing WQL: {wql_query}")
@@ -142,11 +211,8 @@ class WMIQuery:
                 except Exception:
                     break
 
-            # Cleanup
+            # Only cleanup the enumerator, keep the service connection for reuse
             iEnumWbemClassObject.RemRelease()
-            iWbemServices.RemRelease()
-            iWbemLocator.RemRelease()
-            dcom.disconnect()
 
             print_debug(f"Query completed, {len(results)} results")
             return results
@@ -161,27 +227,8 @@ class WMIQuery:
             namespace = getattr(args, "namespace", self.current_namespace)
             print_info(f"Describing class '{class_name}' in namespace '{namespace}'")
 
-            # Import DCOM components
-            from impacket.dcerpc.v5.dcomrt import DCOMConnection
-            from impacket.dcerpc.v5.dcom import wmi
-            from impacket.dcerpc.v5.dtypes import NULL
-
-            # Use existing connection credentials
-            host = getattr(self, "host", None)
-            username = getattr(self, "username", None)
-            password = getattr(self, "password", None)
-            domain = getattr(self, "domain", None)
-            lmhash = getattr(self, "lmhash", None)
-            nthash = getattr(self, "nthash", None)
-
-            # Establish connection
-            dcom = DCOMConnection(host, username, password, domain, lmhash, nthash)
-            iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLocator, wmi.IID_IWbemLocator)
-            iWbemLocator = wmi.IWbemLocator(iInterface)
-            iWbemServices = iWbemLocator.ConnectServer(namespace, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-
-            # Set security context
-            iWbemServices.get_dce_rpc().set_credentials(username, password, domain, lm_hash, nt_hash)
+            # Use setup_wmi() to get/reuse WMI connection
+            iWbemServices = self.setup_wmi(namespace)
 
             # Get class object
             iObject, _ = iWbemServices.GetObject(class_name)
@@ -190,11 +237,8 @@ class WMIQuery:
             print_good(f"Class: {class_name}")
             iObject.printInformation()
 
-            # Cleanup
+            # Cleanup only the object, keep service connection for reuse
             iObject.RemRelease()
-            iWbemServices.RemRelease()
-            iWbemLocator.RemRelease()
-            dcom.disconnect()
 
         except Exception as e:
             print_bad(f"Failed to describe class '{class_name}': {str(e)}")
