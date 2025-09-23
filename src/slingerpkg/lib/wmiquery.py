@@ -185,6 +185,38 @@ class WMIQuery:
         """Get shared WMI service for query operations"""
         return self.setup_wmi(namespace, operation_type="query")
 
+    def _check_query_performance(self, wql_query):
+        """Check query for potential performance issues and warn user"""
+        query_lower = wql_query.lower()
+        
+        # Detect potentially slow queries
+        slow_patterns = [
+            ("select * from", "SELECT * queries can be slow for large result sets"),
+            ("win32_product", "Win32_Product queries are notoriously slow (software inventory)"),
+            ("win32_quickfixengineering", "Win32_QuickFixEngineering can be slow (Windows updates)"),
+            ("win32_logicaldisk", "Win32_LogicalDisk queries may take time for multiple drives"),
+            ("win32_networkadapter", "Win32_NetworkAdapter queries can be slow with many adapters"),
+            ("win32_service", "Win32_Service queries may take time with many services"),
+            ("win32_process", "Win32_Process queries can be slow with many running processes")
+        ]
+        
+        # Check for wildcards without WHERE clauses
+        if "select *" in query_lower and "where" not in query_lower:
+            print_warning("Query selects all columns without WHERE clause - this may be slow")
+        
+        # Check specific slow patterns
+        for pattern, warning in slow_patterns:
+            if pattern in query_lower:
+                print_warning(f"Performance warning: {warning}")
+                break
+        
+        # Check for complex queries
+        if query_lower.count("join") > 0:
+            print_warning("JOIN queries in WMI can be particularly slow")
+        
+        if query_lower.count("like") > 1:
+            print_warning("Multiple LIKE clauses may impact query performance")
+
     def _execute_single_query(self, wql_query, args):
         """Execute a single WQL query"""
         try:
@@ -202,8 +234,18 @@ class WMIQuery:
             print_debug(f"Namespace: {namespace}")
             print_debug(f"Format: {output_format}")
 
+            # Check for potentially slow queries and warn user
+            self._check_query_performance(wql_query)
+            
+            # Get timeout from args or use default
+            timeout = getattr(args, "timeout", 120)  # Default 2 minutes
+            
             # Execute the query using setup_wmi() for connection reuse
-            results = self._run_wql_query(wql_query, namespace)
+            print_info("Executing WMI query... (this may take a moment)")
+            if timeout > 30:
+                print_info(f"Query timeout set to {timeout} seconds - use Ctrl+C to interrupt if needed")
+            
+            results = self._run_wql_query(wql_query, namespace, timeout)
 
             if results:
                 # Format and display results
@@ -225,31 +267,59 @@ class WMIQuery:
             print_bad(f"WQL query failed: {str(e)}")
             print_debug(f"Exception details: {e}")
 
-    def _run_wql_query(self, wql_query, namespace="root/cimv2"):
+    def _run_wql_query(self, wql_query, namespace="root/cimv2", timeout=120):
         """Execute WQL query using setup_wmi() for connection reuse"""
+        import time
+        
         try:
             # Use setup_wmi() to get/reuse WMI connection
             iWbemServices = self.setup_wmi(namespace)
 
-            # Execute query
+            # Execute query with timing
+            start_time = time.time()
             print_debug(f"Executing WQL: {wql_query}")
             iEnumWbemClassObject = iWbemServices.ExecQuery(wql_query)
 
-            # Process results
+            # Process results with progress feedback
             results = []
+            result_count = 0
+            last_progress_time = time.time()
+            
             while True:
                 try:
+                    # Check timeout
+                    current_time = time.time()
+                    elapsed = current_time - start_time
+                    if elapsed > timeout:
+                        print_warning(f"Query timeout after {timeout}s - stopping enumeration")
+                        break
+                    
                     pEnum = iEnumWbemClassObject.Next(0xffffffff, 1)[0]
                     record = pEnum.getProperties()
                     results.append(record)
+                    result_count += 1
                     pEnum.RemRelease()
+                    
+                    # Show progress every 5 seconds for long queries
+                    if current_time - last_progress_time > 5.0:
+                        print_info(f"Query still running... {result_count} results so far ({elapsed:.1f}s elapsed)")
+                        last_progress_time = current_time
+                        
                 except Exception:
                     break
 
             # Only cleanup the enumerator, keep the service connection for reuse
             iEnumWbemClassObject.RemRelease()
 
-            print_debug(f"Query completed, {len(results)} results")
+            # Show completion timing
+            end_time = time.time()
+            elapsed = end_time - start_time
+            
+            if elapsed > 2.0:  # Show timing for queries that take more than 2 seconds
+                print_good(f"Query completed in {elapsed:.1f}s - {len(results)} results")
+            else:
+                print_debug(f"Query completed, {len(results)} results")
+                
             return results
 
         except Exception as e:
@@ -412,18 +482,21 @@ class WMIQuery:
         shell.cmdloop()
 
     def _get_query_templates(self):
-        """Return predefined query templates"""
+        """Return predefined query templates with performance notes"""
         return {
             "processes": "SELECT Name, ProcessId, ParentProcessId, CommandLine FROM Win32_Process",
-            "services": "SELECT Name, State, StartMode, PathName FROM Win32_Service",
+            "services": "SELECT Name, State, StartMode, PathName FROM Win32_Service", 
             "users": "SELECT Name, FullName, LocalAccount, Disabled FROM Win32_UserAccount",
             "network": "SELECT Description, IPAddress, MACAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
-            "software": "SELECT Name, Version, Vendor, InstallDate FROM Win32_Product",
+            "software": "SELECT Name, Version, Vendor, InstallDate FROM Win32_Product",  # SLOW!
             "drives": "SELECT DeviceID, Size, FreeSpace, FileSystem FROM Win32_LogicalDisk",
-            "startup": "SELECT Name, Command, Location FROM Win32_StartupCommand",
+            "startup": "SELECT Name, Command, Location FROM Win32_StartupCommand", 
             "shares": "SELECT Name, Path, Description FROM Win32_Share",
-            "hotfixes": "SELECT HotFixID, Description, InstalledOn FROM Win32_QuickFixEngineering",
-            "environment": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = False"
+            "hotfixes": "SELECT HotFixID, Description, InstalledOn FROM Win32_QuickFixEngineering",  # Can be slow
+            "environment": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = False",
+            # Fast alternatives
+            "processes_fast": "SELECT Name, ProcessId FROM Win32_Process",
+            "services_fast": "SELECT Name, State FROM Win32_Service"
         }
 
 

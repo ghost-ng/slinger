@@ -2025,7 +2025,7 @@ Examples:
   wmiexec query "SELECT * FROM Win32_Service WHERE State = 'Running'"
   wmiexec query --describe Win32_Process
   wmiexec query --interactive
-  wmiexec query --template processes
+  wmiexec query --template processes --timeout 300
   wmiexec query "SELECT * FROM Win32_UserAccount" --format json -o users.json""",
     )
     
@@ -2088,6 +2088,13 @@ Examples:
         type=str,
         help="Save query results to file",
         metavar="FILE",
+    )
+    parser_wmi_query.add_argument(
+        "--timeout",
+        type=int,
+        help="Query timeout in seconds (default: 120)",
+        default=120,
+        metavar="SECONDS",
     )
 
     # Global WMI options
