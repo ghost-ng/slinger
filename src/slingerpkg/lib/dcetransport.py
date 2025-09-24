@@ -187,18 +187,35 @@ class DCETransport:
             pass
 
     def _disconnect(self):
+        """Disconnect with graceful service cleanup and timeout handling"""
         if self.rrpshouldStop:
-            self._connect("svcctl")
-            self._stop_service("RemoteRegistry")
-            print_info("Remote Registry state restored: RUNNING -> STOPPED")
+            try:
+                self._connect("svcctl")
+                result = self._stop_service("RemoteRegistry", timeout=5)  # 5 second timeout
+                if result:
+                    print_info("Remote Registry state restored: RUNNING -> STOPPED")
+                else:
+                    print_info("Remote Registry cleanup completed (may still be running)")
+            except Exception as e:
+                print_warning(f"Remote Registry cleanup failed: {str(e)}")
+                print_debug("Registry service cleanup error:", sys.exc_info())
         elif self.rrpstarted and not self.rrpshouldStop:
             print_info("Remote Registry state: no changes made (was already RUNNING)")
             
         if self.rrpshouldDisable:
-            self._connect("svcctl")
-            self._disable_service("RemoteRegistry")
-            print_info("Remote Registry state restored: ENABLED -> DISABLED")
-        self.dce.disconnect()
+            try:
+                self._connect("svcctl")
+                self._disable_service("RemoteRegistry")
+                print_info("Remote Registry state restored: ENABLED -> DISABLED")
+            except Exception as e:
+                print_warning(f"Remote Registry disable failed: {str(e)}")
+                print_debug("Registry service disable error:", sys.exc_info())
+        
+        try:
+            self.dce.disconnect()
+        except Exception as e:
+            print_debug(f"DCE disconnect error: {e}")
+        
         self.is_connected = False
 
     def _who(self):
@@ -481,13 +498,17 @@ class DCETransport:
                 print_debug(str(e), sys.exc_info())
                 return False
 
-    def _stop_service(self, service_name):
+    def _stop_service(self, service_name, timeout=10):
+        """Stop service with timeout and dependency error handling"""
+        import time
+        
         if not self.is_connected:
             raise Exception("Not connected to remote host")
         self.bind_override = True
         self._bind(scmr.MSRPC_UUID_SCMR)
         ans = scmr.hROpenSCManagerW(self.dce)
         self.scManagerHandle = ans["lpScHandle"]
+        
         try:
             ans = scmr.hROpenServiceW(self.dce, self.scManagerHandle, service_name + "\x00")
         except Exception as e:
@@ -497,14 +518,44 @@ class DCETransport:
                 print_bad("An error occurred: " + str(e))
                 print_debug("", sys.exc_info())
             return False
+        
         serviceHandle = ans["lpServiceHandle"]
-        raw = scmr.hRControlService(self.dce, serviceHandle, scmr.SERVICE_CONTROL_STOP)
-        unpacked = self._unpack_control_response(raw)
-        # print_info(unpacked)
-        self._close_scm_handle(serviceHandle)
-        if service_name == "RemoteRegistry":
-            self.rrpstarted = False
-        return unpacked
+        
+        try:
+            # Attempt to stop the service with proper error handling
+            raw = scmr.hRControlService(self.dce, serviceHandle, scmr.SERVICE_CONTROL_STOP)
+            unpacked = self._unpack_control_response(raw)
+            self._close_scm_handle(serviceHandle)
+            if service_name == "RemoteRegistry":
+                self.rrpstarted = False
+            return unpacked
+            
+        except Exception as e:
+            error_msg = str(e)
+            
+            # Handle specific service stop errors gracefully
+            if "ERROR_DEPENDENT_SERVICES_RUNNING" in error_msg or "0x41b" in error_msg:
+                print_warning(f"Cannot stop {service_name}: other services depend on it")
+                print_info(f"Skipping {service_name} stop - dependencies prevent shutdown")
+            elif "ERROR_SERVICE_NOT_ACTIVE" in error_msg:
+                print_debug(f"Service {service_name} was already stopped")
+            elif "rpc_s_access_denied" in error_msg:
+                print_warning(f"Access denied stopping {service_name}")
+            else:
+                print_warning(f"Could not stop {service_name}: {error_msg}")
+                print_debug("Service stop error details:", sys.exc_info())
+            
+            # Always cleanup handle
+            try:
+                self._close_scm_handle(serviceHandle)
+            except:
+                pass
+            
+            # Update internal state even if stop failed to prevent retry loops
+            if service_name == "RemoteRegistry":
+                self.rrpstarted = False
+                
+            return False
 
     def _checkServiceStatus(self, serviceName):
         self._connect("svcctl")

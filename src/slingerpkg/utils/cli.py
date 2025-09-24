@@ -168,6 +168,7 @@ def print_all_commands_verbose(parser):
             "env",
             "network",
             "ifconfig",
+            "wmiexec query",
         ],
         "⚙️ Service Management": [
             "enumservices",
@@ -2009,6 +2010,92 @@ Examples:
         type=str,
         help="Put the entire command directly into CommandLineTemplate. ExecutablePath is set to the provided string value.",
         default=None,
+    )
+
+    # WMI Query method - Execute WQL queries and examine WMI objects
+    parser_wmi_query = wmiexec_subparsers.add_parser(
+        "query",
+        help="Execute WQL queries and examine WMI objects",
+        description="Execute WMI Query Language (WQL) queries against the remote system. "
+        "Supports interactive mode, class description, and multiple output formats.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Query Examples:
+  wmiexec query "SELECT * FROM Win32_Process"
+  wmiexec query "SELECT Name, ProcessId FROM Win32_Process WHERE Name = 'notepad.exe'"
+  wmiexec query "SELECT * FROM Win32_Service WHERE State = 'Running'"
+  wmiexec query --describe Win32_Process
+  wmiexec query --interactive
+  wmiexec query --template processes --timeout 300
+  wmiexec query "SELECT * FROM Win32_UserAccount" --format json -o users.json
+  wmiexec query --template processes --format table""",
+    )
+    
+    # Query argument group - mutually exclusive options
+    query_group = parser_wmi_query.add_mutually_exclusive_group()
+    query_group.add_argument(
+        "query",
+        nargs="?",
+        help="WQL query string to execute (e.g., 'SELECT * FROM Win32_Process')",
+    )
+    query_group.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Start interactive WQL shell for multiple queries",
+        default=False,
+    )
+    query_group.add_argument(
+        "--describe",
+        type=str,
+        help="Describe WMI class schema (e.g., --describe Win32_Process)",
+        metavar="CLASS",
+    )
+    query_group.add_argument(
+        "--list-classes",
+        action="store_true",
+        help="List available WMI classes in current namespace",
+        default=False,
+    )
+    query_group.add_argument(
+        "--template",
+        type=str,
+        help="Execute predefined query template (use --list-templates to see available)",
+        metavar="TEMPLATE",
+    )
+    query_group.add_argument(
+        "--list-templates",
+        action="store_true",
+        help="List available query templates",
+        default=False,
+    )
+    
+    # WMI namespace option
+    parser_wmi_query.add_argument(
+        "--namespace",
+        type=str,
+        help="WMI namespace to query (default: root/cimv2)",
+        default="root/cimv2",
+    )
+    
+    # Output formatting options
+    parser_wmi_query.add_argument(
+        "--format",
+        type=str,
+        choices=["list", "table", "json", "csv"],
+        help="Output format for query results (default: list)",
+        default="list",
+    )
+    parser_wmi_query.add_argument(
+        "-o", "--output",
+        type=str,
+        help="Save query results to file",
+        metavar="FILE",
+    )
+    parser_wmi_query.add_argument(
+        "--timeout",
+        type=int,
+        help="Query timeout in seconds (default: 120)",
+        default=120,
+        metavar="SECONDS",
     )
 
     # Global WMI options
