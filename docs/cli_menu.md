@@ -2484,6 +2484,8 @@ downloads list [-h]
 Display all active resumable downloads with progress
 ```
 
+  - Required: No
+
 ---
 
 #### `downloads cleanup`
@@ -2551,39 +2553,19 @@ Examples:
 ##### Arguments
 
 - **`log`**: Event log name (System, Application, Security, etc.)
-  - Required: Yes
-
 - **`id`**: Specific event ID to filter
-  - Required: No
-
 - **`level`**: Event level to filter
   - Choices: error, warning, information, success, failure
-  - Required: No
-
 - **`since`**: Events since date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')
-  - Required: No
-
 - **`last`**: Events from the last X minutes
-  - Required: No
-
 - **`limit`**: Maximum number of events to return
   - Default: `1000`
-  - Required: No
-
 - **`source`**: Filter by event source name
-  - Required: No
-
 - **`find`**: Search for string in event content
-  - Required: No
-
 - **`format`**: Output format (default: list)
   - Choices: table, json, list, csv
   - Default: `list`
-  - Required: No
-
 - **`output`**: Save output to file
-  - Required: No
-
 - **`order`**: Order events by newest first (default) or oldest first
   - Choices: newest, oldest
   - Default: `newest`
@@ -2600,6 +2582,8 @@ Examples:
 eventlog list [-h]
 List all available event logs on the remote system via RPC over \pipe\eventlog
 ```
+
+  - Required: No
 
 ---
 
@@ -2677,33 +2661,17 @@ wmiexec task "ipconfig" --output network.txt
 ##### Arguments
 
 - **`command`**: Command to execute (not required for --interactive mode)
-  - Required: No
-
 - **`tn`**: Custom scheduled task name (default: auto-generated WMI_Task_XXXXX)
-  - Required: No
-
 - **`sp`**: Directory to save output file
   - Default: `\Windows\Temp\`
-  - Required: No
-
 - **`sn`**: Name of output file (default: auto-generated wmi_np_output_XXXXX.tmp)
-  - Required: No
-
 - **`cleanup_delay`**: Seconds to wait before task cleanup
   - Default: `2`
-  - Required: No
-
 - **`timeout`**: Command execution timeout in seconds
   - Default: `30`
-  - Required: No
-
 - **`output`**: Save command output to local file
-  - Required: No
-
 - **`working_dir`**: Working directory for command execution
   - Default: `C:\`
-  - Required: No
-
 - **`shell`**: Shell to use for command execution
   - Choices: cmd, powershell
   - Default: `cmd`
@@ -2753,26 +2721,14 @@ Interactive Mode:
 ##### Arguments
 
 - **`command`**: Command to execute (not required for --interactive mode)
-  - Required: No
-
 - **`working_dir`**: Working directory for command execution
   - Default: `C:\`
-  - Required: No
-
 - **`timeout`**: Command execution timeout in seconds
   - Default: `30`
-  - Required: No
-
 - **`output`**: Save command output to local file
-  - Required: No
-
 - **`sleep_time`**: Sleep time before capturing output in seconds
   - Default: `1.0`
-  - Required: No
-
 - **`save_name`**: Custom filename for remote output capture (default: auto-generated)
-  - Required: No
-
 - **`shell`**: Shell to use for command execution
   - Choices: cmd, powershell
   - Default: `cmd`
@@ -2839,55 +2795,27 @@ Examples:
 ##### Arguments
 
 - **`command`**: Command to execute (not required for --interactive mode)
-  - Required: No
-
 - **`consumer_name`**: Name for CommandLineEventConsumer (default: auto-generated)
-  - Required: No
-
 - **`filter_name`**: Name for __EventFilter (default: auto-generated)
-  - Required: No
-
 - **`trigger_delay`**: Seconds to wait before triggering event
   - Default: `5`
-  - Required: No
-
 - **`timeout`**: Total execution timeout in seconds
   - Default: `30`
-  - Required: No
-
 - **`save`**: Save command output to local file
-  - Required: No
-
 - **`working_dir`**: Working directory for command execution
   - Default: `C:\`
-  - Required: No
-
 - **`shell`**: Shell to use for command execution
   - Choices: cmd, powershell
   - Default: `cmd`
-  - Required: No
-
 - **`exe`**: Execution type: 'cmd' (uploads .bat file) or 'pwsh' (uploads .ps1 file)
   - Choices: cmd, pwsh
   - Default: `cmd`
-  - Required: No
-
 - **`trigger_exe`**: Executable to trigger the Event Filter (default: notepad.exe). Will be automatically spawned after consumer creation.
   - Default: `notepad.exe`
-  - Required: No
-
 - **`trigger`**: Only trigger an existing Event Consumer (no creation). Specify executable to spawn.
-  - Required: No
-
 - **`upload_path`**: Custom script upload path on target (default: C:\Windows\Temp\RANDOM_NAME.ext where ext is .bat for cmd or .ps1 for pwsh)
-  - Required: No
-
 - **`script_name`**: Custom script filename (without extension, will be auto-appended based on --exe type). If not specified, completely random name is generated.
-  - Required: No
-
 - **`output`**: Custom remote output file path for capturing command results (default: C:\Windows\Temp\out_RANDOM.tmp). Supports CMS notation.
-  - Required: No
-
 - **`raw_exec`**: Put the entire command directly into CommandLineTemplate. ExecutablePath is set to the provided string value.
   - Required: No
 
@@ -2924,26 +2852,14 @@ Query Examples:
 ##### Arguments
 
 - **`query`**: WQL query string to execute (e.g., 'SELECT * FROM Win32_Process')
-  - Required: No
-
 - **`describe`**: Describe WMI class schema (e.g., --describe Win32_Process)
-  - Required: No
-
 - **`template`**: Execute predefined query template (use --list-templates to see available)
-  - Required: No
-
 - **`namespace`**: WMI namespace to query (default: root/cimv2)
   - Default: `root/cimv2`
-  - Required: No
-
 - **`format`**: Output format for query results (default: list)
   - Choices: list, table, json, csv
   - Default: `list`
-  - Required: No
-
 - **`output`**: Save query results to file
-  - Required: No
-
 - **`timeout`**: Query timeout in seconds (default: 120)
   - Default: `120`
   - Required: No
