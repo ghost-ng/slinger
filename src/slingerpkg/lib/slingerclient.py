@@ -178,6 +178,15 @@ class SlingerClient(
 
         except Exception as e:
             print_debug(str(e), sys.exc_info())
+        
+        # Cleanup WMI connections if they exist
+        try:
+            if hasattr(self, '_wmi_services') and hasattr(self, 'cleanup_wmi'):
+                print_debug("Cleaning up WMI connections...")
+                self.cleanup_wmi()
+        except Exception as e:
+            print_debug(f"WMI cleanup error: {e}")
+        
         self.conn = None
 
     def is_connected_to_remote_share(self):
