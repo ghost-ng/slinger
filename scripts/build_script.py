@@ -1,10 +1,11 @@
 import argparse
 import re
 import sys
-from unittest.mock import MagicMock
-import toml
-from pathlib import Path
 import subprocess
+from unittest.mock import MagicMock
+from pathlib import Path
+
+import toml
 
 # Dynamically add the src directory to the Python path
 current_dir = Path(__file__).resolve().parent
@@ -38,7 +39,10 @@ def extract_commands_and_args(parser):
                     "help": help_text,
                     "epilog": getattr(subparser, "epilog", None),
                     "arguments": [],
+                    "subcommands": {},
                 }
+
+                # Extract regular arguments
                 for sub_action in subparser._actions:
                     if isinstance(sub_action, argparse._StoreAction):
                         commands[command]["arguments"].append(
@@ -54,6 +58,45 @@ def extract_commands_and_args(parser):
                                 ),
                             }
                         )
+                    # Extract nested subparsers (like wmiexec query, eventlog query, etc.)
+                    elif isinstance(sub_action, argparse._SubParsersAction):
+                        for subcommand, sub_subparser in sub_action.choices.items():
+                            sub_usage = (
+                                sub_subparser.format_usage()
+                                if hasattr(sub_subparser, "format_usage")
+                                else ""
+                            )
+                            sub_usage = sub_usage.replace("usage: slinger ", "").strip()
+                            sub_desc = getattr(
+                                sub_subparser, "description", "No description provided"
+                            )
+                            sub_help_text = f"{sub_usage}\n{sub_desc}" if sub_usage else sub_desc
+
+                            commands[command]["subcommands"][subcommand] = {
+                                "description": sub_desc,
+                                "help": sub_help_text,
+                                "epilog": getattr(sub_subparser, "epilog", None),
+                                "arguments": [],
+                            }
+
+                            # Extract arguments for the nested subcommand
+                            for sub_sub_action in sub_subparser._actions:
+                                if isinstance(sub_sub_action, argparse._StoreAction):
+                                    commands[command]["subcommands"][subcommand][
+                                        "arguments"
+                                    ].append(
+                                        {
+                                            "name": sub_sub_action.dest,
+                                            "help": sub_sub_action.help,
+                                            "choices": sub_sub_action.choices,
+                                            "default": sub_sub_action.default,
+                                            "required": (
+                                                sub_sub_action.required
+                                                if hasattr(sub_sub_action, "required")
+                                                else False
+                                            ),
+                                        }
+                                    )
     return commands
 
 
@@ -78,8 +121,36 @@ def generate_markdown(commands, output_file):
                         md_file.write(f"  - Choices: {', '.join(arg['choices'])}\n")
                     if arg["default"] is not None:
                         md_file.write(f"  - Default: `{arg['default']}`\n")
-                    md_file.write(f"  - Required: {'Yes' if arg['required'] else 'No'}\n\n")
-            md_file.write("---\n\n")
+                    required_text = "Yes" if arg["required"] else "No"
+                    md_file.write(f"  - Required: {required_text}\n\n")
+
+            # Handle nested subcommands (like wmiexec query, eventlog query)
+            if details.get("subcommands"):
+                md_file.write("### Subcommands\n\n")
+                for subcommand, sub_details in details["subcommands"].items():
+                    md_file.write(f"#### `{command} {subcommand}`\n\n")
+                    md_file.write(f"**Description:** {sub_details['description']}\n\n")
+                    md_file.write(f"**Help:**\n```\n{sub_details['help']}\n```\n\n")
+                    if sub_details["epilog"]:
+                        md_file.write(f"**Example Usage:**\n```\n{sub_details['epilog']}\n```\n\n")
+                    if sub_details["arguments"]:
+                        md_file.write("##### Arguments\n\n")
+                        for arg in sub_details["arguments"]:
+                            md_file.write(
+                                f"- **`{arg['name']}`**: {arg['help'] or 'No description provided'}\n".replace(
+                                    "(default: %(default)s)", ""
+                                )
+                            )
+                            if arg["choices"]:
+                                choices_text = ", ".join(map(str, arg["choices"]))
+                                md_file.write(f"  - Choices: {choices_text}\n")
+                            if arg["default"] is not None:
+                                md_file.write(f"  - Default: `{arg['default']}`\n")
+                            required_text = "Yes" if arg["required"] else "No"
+                    md_file.write(f"  - Required: {required_text}\n\n")
+                    md_file.write("---\n\n")
+            else:
+                md_file.write("---\n\n")
 
 
 def get_package_dir():
@@ -138,8 +209,10 @@ def generate_help_markdown():
     # Extract commands and arguments
     commands = extract_commands_and_args(parser)
 
-    # Generate the markdown file
-    output_file = "cli_menu.md"
+    # Generate the markdown file in docs/ directory
+    docs_dir = Path(__file__).resolve().parent.parent / "docs"
+    docs_dir.mkdir(exist_ok=True)  # Ensure docs directory exists
+    output_file = docs_dir / "cli_menu.md"
     generate_markdown(commands, output_file)
     print(f"Markdown documentation generated: {output_file}")
 

