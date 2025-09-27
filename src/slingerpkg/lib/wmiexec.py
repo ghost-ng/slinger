@@ -31,9 +31,7 @@ class wmiexec(WMIQuery):
         user = getattr(self, "username", "Unknown")
         print_verbose(f"WMI execution on {host} as {user}")
 
-        if not self.check_if_connected():
-            print_warning("You must be connected to a share to use WMI execution.")
-            return
+        # Connection requirements vary by WMI method - check per method
 
         # Handle endpoint info request BEFORE method routing
         if hasattr(args, "endpoint_info") and args.endpoint_info:
@@ -53,7 +51,10 @@ class wmiexec(WMIQuery):
         print_verbose(f"WMI method: {wmi_method}")
 
         if wmi_method == "dcom":
-            # Traditional DCOM method using this module
+            # Traditional DCOM method using this module - requires share connection
+            if not self.check_if_connected():
+                print_warning("You must be connected to a share to use WMI DCOM execution.")
+                return
             print_verbose("Routing to traditional DCOM WMI execution")
             return self._handle_wmiexec_dcom(args)
         elif wmi_method == "event":
@@ -61,7 +62,12 @@ class wmiexec(WMIQuery):
             print_verbose("Routing to WMI Event Consumer execution")
             return self._handle_wmiexec_event(args)
         elif wmi_method == "task":
-            # Route to the WMI Named Pipe module for task method
+            # Route to the WMI Named Pipe module for task method - requires share connection
+            if not self.check_if_connected():
+                print_warning(
+                    "You must be connected to a share to use WMI Task Scheduler execution."
+                )
+                return
             print_verbose("Routing to WMI Task Scheduler execution (Named Pipe module)")
             if hasattr(self, "execute_wmi_command_namedpipe"):
                 # Call the WMI Named Pipe execution directly
@@ -115,9 +121,7 @@ class wmiexec(WMIQuery):
             )
 
             if result["success"]:
-                print_good(
-                    f"WMI execution completed. Process ID: {result['process_id']}"
-                )
+                print_good(f"WMI execution completed. Process ID: {result['process_id']}")
                 if result.get("output"):
                     print(result["output"])
                 if getattr(args, "output", None):
@@ -134,9 +138,7 @@ class wmiexec(WMIQuery):
     def _handle_wmiexec_event(self, args):
         """Handle WMI Event Consumer execution"""
         print_bad("WMI Event Consumer method is not implemented yet")
-        print_info(
-            "This feature is under development and will be available in a future release"
-        )
+        print_info("This feature is under development and will be available in a future release")
         print_info("Please use 'wmiexec dcom' or 'wmiexec task' methods instead")
 
         return {
@@ -159,18 +161,14 @@ class wmiexec(WMIQuery):
 
             # Query CommandLineEventConsumers
             try:
-                consumer_objects = iWbemServices.ExecQuery(
-                    "SELECT * FROM CommandLineEventConsumer"
-                )
+                consumer_objects = iWbemServices.ExecQuery("SELECT * FROM CommandLineEventConsumer")
                 while True:
                     try:
                         consumer = consumer_objects.Next(0x1, 1)[0]
                         consumers.append(
                             {
                                 "Name": str(consumer.Name or "Unknown"),
-                                "ExecutablePath": str(
-                                    consumer.ExecutablePath or "Unknown"
-                                ),
+                                "ExecutablePath": str(consumer.ExecutablePath or "Unknown"),
                                 "CommandLineTemplate": str(
                                     consumer.CommandLineTemplate or "Unknown"
                                 ),
@@ -200,9 +198,7 @@ class wmiexec(WMIQuery):
 
             # Query Bindings
             try:
-                binding_objects = iWbemServices.ExecQuery(
-                    "SELECT * FROM __FilterToConsumerBinding"
-                )
+                binding_objects = iWbemServices.ExecQuery("SELECT * FROM __FilterToConsumerBinding")
                 while True:
                     try:
                         binding = binding_objects.Next(0x1, 1)[0]
@@ -227,9 +223,7 @@ class wmiexec(WMIQuery):
                 for i, consumer in enumerate(consumers, 1):
                     print_info(f"  {i}. {consumer['Name']}")
                     print_info(f"     ExecutablePath: {consumer['ExecutablePath']}")
-                    print_info(
-                        f"     CommandLineTemplate: {consumer['CommandLineTemplate']}"
-                    )
+                    print_info(f"     CommandLineTemplate: {consumer['CommandLineTemplate']}")
 
             if filters:
                 print_good("\n🔍 Event Filters:")
@@ -273,9 +267,7 @@ class wmiexec(WMIQuery):
 
         try:
             # Use the regular WMI command execution to spawn the trigger process
-            print_verbose(
-                f"Executing {args.trigger} via WMI to trigger any active Event Filters"
-            )
+            print_verbose(f"Executing {args.trigger} via WMI to trigger any active Event Filters")
             result = self.execute_wmi_command(
                 command=args.trigger,
                 capture_output=False,
@@ -356,26 +348,21 @@ class wmiexec(WMIQuery):
                         output_file=None,  # No file output in interactive mode
                         trigger_exe=getattr(args, "trigger_exe", "notepad.exe"),
                         system_mode=getattr(args, "system", False),  # --system flag
-                        custom_remote_output=getattr(
-                            args, "output", None
-                        ),  # -o/--output flag
+                        custom_remote_output=getattr(args, "output", None),  # -o/--output flag
                         working_dir=getattr(args, "working_dir", "C:\\"),
                         shell=getattr(args, "shell", "cmd"),
                         use_batch=True,  # Always use batch approach
                         raw_command=raw_command_flag,  # --raw-command flag
                         raw_exec=raw_exec_value,  # --raw-exec value
                         custom_script_path=None,  # No custom script path in interactive
-                        custom_script_name=getattr(
-                            args, "script_name", None
-                        ),  # Custom script name
+                        custom_script_name=getattr(args, "script_name", None),  # Custom script name
                         exe_type=getattr(args, "exe", "cmd"),  # Use exe type from args
                     )
 
                     if result["success"]:
                         if (
                             result.get("output")
-                            and result["output"]
-                            != "Event consumer executed (no output captured)"
+                            and result["output"] != "Event consumer executed (no output captured)"
                         ):
                             print(result["output"])
                             session_output.append(f"{command}: {result['output']}")
@@ -383,12 +370,8 @@ class wmiexec(WMIQuery):
                             print_good("Command executed successfully (no output)")
                             session_output.append(f"{command}: [executed]")
                     else:
-                        print_bad(
-                            f"Command failed: {result.get('error', 'Unknown error')}"
-                        )
-                        session_output.append(
-                            f"{command}: [FAILED] {result.get('error', '')}"
-                        )
+                        print_bad(f"Command failed: {result.get('error', 'Unknown error')}")
+                        session_output.append(f"{command}: [FAILED] {result.get('error', '')}")
 
                 except KeyboardInterrupt:
                     print("\nUse 'exit' to quit")
@@ -499,20 +482,14 @@ class wmiexec(WMIQuery):
                     else:
                         output_filename = f"{generate_random_string()}.txt"
 
-                    print_verbose(
-                        f"Output file: {output_filename} (filesystem artifact)"
-                    )
+                    print_verbose(f"Output file: {output_filename} (filesystem artifact)")
 
                     # Create proper Windows file system path for output redirection
                     if share_name.endswith("$"):
                         # Convert C$ to C:\ for Windows file system path
                         drive_letter = share_name[0].upper()
-                        output_path = (
-                            f"{drive_letter}:\\Windows\\Temp\\{output_filename}"
-                        )
-                        print_verbose(
-                            f"Output path: {output_path} (Windows filesystem path)"
-                        )
+                        output_path = f"{drive_letter}:\\Windows\\Temp\\{output_filename}"
+                        print_verbose(f"Output path: {output_path} (Windows filesystem path)")
                     else:
                         # Handle custom shares
                         output_path = f"\\\\127.0.0.1\\{share_name}\\{output_filename}"
@@ -527,9 +504,7 @@ class wmiexec(WMIQuery):
                             "PowerShell process creation (Event ID 4688/1) with stealth flags"
                         )
                     else:  # shell == 'cmd' (default)
-                        full_command = (
-                            f'cmd.exe /Q /c {command} 1> "{output_path}" 2>&1'
-                        )
+                        full_command = f'cmd.exe /Q /c {command} 1> "{output_path}" 2>&1'
                 else:
                     # STEP 1 FIX: No output capture, simplified command preparation
                     output_filename = None
@@ -537,15 +512,11 @@ class wmiexec(WMIQuery):
 
                     # Prepare command based on shell type
                     if raw_command:
-                        full_command = (
-                            command  # Execute exactly as specified, no modifications
-                        )
+                        full_command = command  # Execute exactly as specified, no modifications
                     elif shell == "powershell":
                         # Enhanced PowerShell stealth execution (no output capture)
                         stealth_flags = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -NonInteractive -NoLogo"
-                        full_command = (
-                            f'powershell.exe {stealth_flags} -Command "{command}"'
-                        )
+                        full_command = f'powershell.exe {stealth_flags} -Command "{command}"'
                         print_verbose(
                             "PowerShell process creation (Event ID 4688/1) with stealth flags"
                         )
@@ -559,21 +530,15 @@ class wmiexec(WMIQuery):
                 return_value = result.ReturnValue
 
                 print_verbose(f"Process created: PID {process_id} (Event ID 4688/1)")
-                print_debug(
-                    f"WMI execution result: ReturnValue={return_value}, PID={process_id}"
-                )
+                print_debug(f"WMI execution result: ReturnValue={return_value}, PID={process_id}")
 
                 if return_value == 0:
 
                     # Capture output if enabled (but not for raw commands)
                     output_text = None
                     if capture_output and output_filename and not raw_command:
-                        print_verbose(
-                            f"Output file: {output_filename} (filesystem artifact)"
-                        )
-                        print_debug(
-                            f"Capturing command output after {sleep_time} second sleep"
-                        )
+                        print_verbose(f"Output file: {output_filename} (filesystem artifact)")
+                        print_debug(f"Capturing command output after {sleep_time} second sleep")
                         time.sleep(sleep_time)
 
                         try:
@@ -606,9 +571,7 @@ class wmiexec(WMIQuery):
                                     # Calculate the correct SMB path for cross-share operations
                                     if share_name.endswith("$"):
                                         # File was written to C:\Windows\Temp\filename.txt
-                                        cross_share_path = (
-                                            f"Windows\\Temp\\{output_filename}"
-                                        )
+                                        cross_share_path = f"Windows\\Temp\\{output_filename}"
                                     else:
                                         cross_share_path = output_filename
 
@@ -627,9 +590,7 @@ class wmiexec(WMIQuery):
                                     print_verbose(
                                         f"Cleaning up remote output file: {cross_share_path}"
                                     )
-                                    self._delete_file_from_share(
-                                        cross_share_path, share_name
-                                    )
+                                    self._delete_file_from_share(cross_share_path, share_name)
 
                                 finally:
                                     # Restore original share connection
@@ -649,37 +610,25 @@ class wmiexec(WMIQuery):
                                 if share_name.endswith("$"):
                                     # File was written to C:\Windows\Temp\filename.txt
                                     # SMB path should be Windows\Temp\filename.txt
-                                    smb_output_path = (
-                                        f"Windows\\Temp\\{output_filename}"
-                                    )
-                                    print_verbose(
-                                        f"SMB download path: {smb_output_path}"
-                                    )
+                                    smb_output_path = f"Windows\\Temp\\{output_filename}"
+                                    print_verbose(f"SMB download path: {smb_output_path}")
                                 else:
                                     smb_output_path = output_filename
 
                                 self.download(smb_output_path, temp_local, echo=False)
 
                                 # Read the content
-                                print_verbose(
-                                    f"Reading output from local temp file: {temp_local}"
-                                )
-                                with open(
-                                    temp_local, "r", encoding="utf-8", errors="ignore"
-                                ) as f:
+                                print_verbose(f"Reading output from local temp file: {temp_local}")
+                                with open(temp_local, "r", encoding="utf-8", errors="ignore") as f:
                                     output_text = f.read().strip()
-                                print_verbose(
-                                    f"Output read: {len(output_text)} characters"
-                                )
+                                print_verbose(f"Output read: {len(output_text)} characters")
 
                                 # Clean up local temp file
                                 os.unlink(temp_local)
                                 print_verbose("Local temp file cleaned up")
 
                                 # Clean up remote output file using existing smblib method
-                                print_verbose(
-                                    f"Deleting remote output file: {smb_output_path}"
-                                )
+                                print_verbose(f"Deleting remote output file: {smb_output_path}")
                                 self.delete(smb_output_path)
 
                             if not output_text:
@@ -687,17 +636,12 @@ class wmiexec(WMIQuery):
                         except Exception as e:
                             # Enhanced error handling for output capture failures
                             error_msg = str(e)
-                            if (
-                                "timed out" in error_msg
-                                or "timeout" in error_msg.lower()
-                            ):
+                            if "timed out" in error_msg or "timeout" in error_msg.lower():
                                 print_warning(
                                     f"Output capture timed out - command may still be running"
                                 )
                                 output_text = f"Command executed with PID {process_id} (output capture timed out)"
-                            elif (
-                                "Broken pipe" in error_msg or "[Errno 32]" in error_msg
-                            ):
+                            elif "Broken pipe" in error_msg or "[Errno 32]" in error_msg:
                                 print_warning("Connection lost during output capture")
                                 if hasattr(self, "_handle_broken_pipe_error"):
                                     self._handle_broken_pipe_error("output capture")
@@ -712,7 +656,9 @@ class wmiexec(WMIQuery):
                                 output_text = f"Command executed with PID {process_id} (output capture failed)"
                     else:
                         if raw_command:
-                            output_text = f"Raw command executed with PID {process_id} (no output capture)"
+                            output_text = (
+                                f"Raw command executed with PID {process_id} (no output capture)"
+                            )
                         else:
                             output_text = f"Command executed with PID {process_id}"
 
@@ -728,9 +674,7 @@ class wmiexec(WMIQuery):
                         "error": None,
                     }
                 else:
-                    error_msg = (
-                        f"Win32_Process.Create failed with return code: {return_value}"
-                    )
+                    error_msg = f"Win32_Process.Create failed with return code: {return_value}"
                     return {
                         "success": False,
                         "output": None,
@@ -811,9 +755,7 @@ class wmiexec(WMIQuery):
 
         # User-friendly status
         print_info(f"Creating WMI Event Consumer: {command}")
-        print_verbose(
-            f"Event Consumer artifacts: Filter={filter_name}, Consumer={consumer_name}"
-        )
+        print_verbose(f"Event Consumer artifacts: Filter={filter_name}, Consumer={consumer_name}")
         print_verbose(f"Trigger executable: {trigger_exe}")
         print_debug(f"Flag status: raw_exec='{raw_exec}', raw_command={raw_command}")
         print_info(f"Input command for processing: '{command}'")
@@ -822,16 +764,12 @@ class wmiexec(WMIQuery):
                 print_verbose(
                     f"Raw exec mode (--raw-exec): Command will be placed directly in CommandLineTemplate, ExecutablePath set to empty string"
                 )
-                print_info(
-                    f"Mode: --raw-exec (ExecutablePath will be set to empty string)"
-                )
+                print_info(f"Mode: --raw-exec (ExecutablePath will be set to empty string)")
             else:
                 print_verbose(
                     f"Raw exec mode (--raw-exec): Command will be placed directly in CommandLineTemplate, ExecutablePath set to '{raw_exec}'"
                 )
-                print_info(
-                    f"Mode: --raw-exec (ExecutablePath will be set to '{raw_exec}')"
-                )
+                print_info(f"Mode: --raw-exec (ExecutablePath will be set to '{raw_exec}')")
         elif raw_command:
             print_verbose(
                 "Raw command mode (--raw-command): Command will be placed directly in CommandLineTemplate (ExecutablePath remains cmd.exe)"
@@ -874,9 +812,7 @@ class wmiexec(WMIQuery):
 
             # Step 4: Create __FilterToConsumerBinding (official Microsoft implementation)
             print_debug("Creating __FilterToConsumerBinding")
-            self._create_official_filter_binding(
-                iWbemServices, filter_path, consumer_path
-            )
+            self._create_official_filter_binding(iWbemServices, filter_path, consumer_path)
             print_info(f"✓ Event Consumer binding created")
 
             # Step 5: Trigger the event to execute the consumer
@@ -894,12 +830,8 @@ class wmiexec(WMIQuery):
             # Step 6: Wait for event consumer execution
             output_text = "Event consumer executed"
             if capture_output:
-                print_info(
-                    f"Waiting {trigger_delay} seconds for Event Consumer execution..."
-                )
-                print_debug(
-                    f"Event Consumer should execute when {trigger_exe} process starts"
-                )
+                print_info(f"Waiting {trigger_delay} seconds for Event Consumer execution...")
+                print_debug(f"Event Consumer should execute when {trigger_exe} process starts")
 
                 # Add extra wait time for first few seconds to allow Event Consumer to fully initialize
                 initial_wait = 3
@@ -945,13 +877,9 @@ class wmiexec(WMIQuery):
                                     )
                                     break
                             except Exception as check_e:
-                                print_debug(
-                                    f"File existence check {attempt + 1} failed: {check_e}"
-                                )
+                                print_debug(f"File existence check {attempt + 1} failed: {check_e}")
                                 if attempt < max_retries - 1:
-                                    print_debug(
-                                        f"Waiting {retry_delay} seconds before retry..."
-                                    )
+                                    print_debug(f"Waiting {retry_delay} seconds before retry...")
                                     time.sleep(retry_delay)
 
                         if not file_found:
@@ -971,30 +899,19 @@ class wmiexec(WMIQuery):
                                 )
                                 recent_files = []
                                 for f in temp_files[:10]:  # Check first 10 files
-                                    if (
-                                        not f.is_directory()
-                                        and f.get_longname().endswith(".txt")
-                                    ):
+                                    if not f.is_directory() and f.get_longname().endswith(".txt"):
                                         recent_files.append(f.get_longname())
                                 if recent_files:
-                                    print_debug(
-                                        f"Recent .txt files in temp: {recent_files}"
-                                    )
+                                    print_debug(f"Recent .txt files in temp: {recent_files}")
                                 else:
-                                    print_debug(
-                                        "No recent .txt files found in Windows\\Temp"
-                                    )
+                                    print_debug("No recent .txt files found in Windows\\Temp")
                             except Exception as diag_e:
                                 print_debug(f"Diagnostic check failed: {diag_e}")
 
-                            output_text = (
-                                "Event consumer executed (no output file created)"
-                            )
+                            output_text = "Event consumer executed (no output file created)"
                         else:
                             # Step 2: File exists, attempt to download
-                            print_debug(
-                                f"Downloading Event Consumer output file: {output_path}"
-                            )
+                            print_debug(f"Downloading Event Consumer output file: {output_path}")
                             output_text = self._read_file_from_share(
                                 output_path, getattr(self, "share", "C$")
                             )
@@ -1007,16 +924,12 @@ class wmiexec(WMIQuery):
                             if output_file:
                                 self._save_output_to_file(output_text, output_file)
                         else:
-                            print_warning(
-                                "Event Consumer output file is empty or missing"
-                            )
+                            print_warning("Event Consumer output file is empty or missing")
                             output_text = "Event consumer executed (no output captured)"
 
                         # Clean up Event Consumer output file
                         try:
-                            print_verbose(
-                                f"Cleaning up Event Consumer output file: {output_path}"
-                            )
+                            print_verbose(f"Cleaning up Event Consumer output file: {output_path}")
                             self.delete(output_path)
                         except Exception as cleanup_e:
                             print_debug(
@@ -1030,9 +943,7 @@ class wmiexec(WMIQuery):
                 # Try to capture output if custom output redirection was specified
                 elif custom_remote_output:
                     try:
-                        print_debug(
-                            f"Attempting to retrieve output from: {custom_remote_output}"
-                        )
+                        print_debug(f"Attempting to retrieve output from: {custom_remote_output}")
                         output_text = self._read_file_from_share(
                             custom_remote_output, getattr(self, "share", "C$")
                         )
@@ -1047,9 +958,7 @@ class wmiexec(WMIQuery):
                                     f.write(output_text)
                                 print_info(f"Output saved to: {output_file}")
                         else:
-                            print_info(
-                                "⚠ Event Consumer executed but no output captured"
-                            )
+                            print_info("⚠ Event Consumer executed but no output captured")
                             output_text = "Event consumer executed (no output captured)"
 
                         # Clean up remote output file
@@ -1066,17 +975,13 @@ class wmiexec(WMIQuery):
                         print_debug(f"Output capture error: {output_err}")
                         output_text = "Event consumer executed (output capture failed)"
                 else:
-                    print_info(
-                        "Event Consumer executed (no output redirection specified)"
-                    )
+                    print_info("Event Consumer executed (no output redirection specified)")
 
             # Step 7: Cleanup WMI objects (unless disabled)
             if cleanup:
                 print_debug("Cleaning up WMI Event Consumer objects")
                 try:
-                    self._cleanup_event_consumer_objects(
-                        iWbemServices, filter_name, consumer_name
-                    )
+                    self._cleanup_event_consumer_objects(iWbemServices, filter_name, consumer_name)
                     print_verbose("WMI Event Consumer artifacts cleaned")
                 except Exception as e:
                     print_warning(f"Cleanup failed: {e}")
@@ -1110,9 +1015,7 @@ class wmiexec(WMIQuery):
             if cleanup and iWbemServices:
                 try:
                     print_debug("Attempting cleanup after failure")
-                    self._cleanup_event_consumer_objects(
-                        iWbemServices, filter_name, consumer_name
-                    )
+                    self._cleanup_event_consumer_objects(iWbemServices, filter_name, consumer_name)
                 except Exception as cleanup_error:
                     print_debug(f"Cleanup after failure also failed: {cleanup_error}")
 
@@ -1238,9 +1141,7 @@ class wmiexec(WMIQuery):
                 need_to_restore = True
                 print_debug(f"Temporarily switched to share for deletion: {share_name}")
             else:
-                print_debug(
-                    f"Already connected to target share for deletion: {share_name}"
-                )
+                print_debug(f"Already connected to target share for deletion: {share_name}")
 
             # Use smblib delete method
             self.delete(filename)
@@ -1311,9 +1212,7 @@ class wmiexec(WMIQuery):
                             current_working_dir = new_dir
                             print_info(f"Changed directory to: {current_working_dir}")
                             session_output.append(f"{prompt}{command}")
-                            session_output.append(
-                                f"Directory changed to: {current_working_dir}"
-                            )
+                            session_output.append(f"Directory changed to: {current_working_dir}")
                         else:
                             print_warning("Failed to change directory")
                             session_output.append(f"{prompt}{command}")
@@ -1348,17 +1247,11 @@ class wmiexec(WMIQuery):
                         else:
                             print_info("Command executed (no output captured)")
                             session_output.append(f"{prompt}{command}")
-                            session_output.append(
-                                "Command executed (no output captured)"
-                            )
+                            session_output.append("Command executed (no output captured)")
                     else:
-                        print_bad(
-                            f"Command failed: {result.get('error', 'Unknown error')}"
-                        )
+                        print_bad(f"Command failed: {result.get('error', 'Unknown error')}")
                         session_output.append(f"{prompt}{command}")
-                        session_output.append(
-                            f"ERROR: {result.get('error', 'Unknown error')}"
-                        )
+                        session_output.append(f"ERROR: {result.get('error', 'Unknown error')}")
 
                 except KeyboardInterrupt:
                     print()
@@ -1558,9 +1451,7 @@ class wmiexec(WMIQuery):
         print_debug("DCOM connection established")
 
         # Create WMI interface
-        iInterface = dcom.CoCreateInstanceEx(
-            wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
-        )
+        iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
         iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
         iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/cimv2", NULL, NULL)
         iWbemLevel1Login.RemRelease()
@@ -1614,9 +1505,7 @@ class wmiexec(WMIQuery):
             # --raw-command: Use cmd.exe as ExecutablePath but put command directly in template
             cmd_template = command
             eventConsumer.ExecutablePath = "C:\\Windows\\System32\\cmd.exe"
-            print_debug(
-                f"Raw command mode (--raw-command): Using command directly: {cmd_template}"
-            )
+            print_debug(f"Raw command mode (--raw-command): Using command directly: {cmd_template}")
             print_debug(f"ExecutablePath set to: C:\\Windows\\System32\\cmd.exe")
             print_info(f"✓ ExecutablePath kept as: {eventConsumer.ExecutablePath}")
             print_info(f"✓ CommandLineTemplate set to: {cmd_template}")
@@ -1625,7 +1514,9 @@ class wmiexec(WMIQuery):
             eventConsumer.ExecutablePath = "C:\\Windows\\System32\\cmd.exe"
 
             if working_dir:
-                cmd_template = f'C:\\Windows\\System32\\cmd.exe /c cd /d "{working_dir}" && {command}'
+                cmd_template = (
+                    f'C:\\Windows\\System32\\cmd.exe /c cd /d "{working_dir}" && {command}'
+                )
             else:
                 cmd_template = f"C:\\Windows\\System32\\cmd.exe /c {command}"
 
@@ -1662,9 +1553,7 @@ class wmiexec(WMIQuery):
         # Return the object path for binding
         return f'CommandLineEventConsumer.Name="{consumer_name}"'
 
-    def _create_official_event_filter(
-        self, iWbemServices, filter_name, trigger_exe="notepad.exe"
-    ):
+    def _create_official_event_filter(self, iWbemServices, filter_name, trigger_exe="notepad.exe"):
         """Create __EventFilter (official Microsoft implementation)"""
         print_debug(f"Creating __EventFilter: {filter_name}")
 
@@ -1706,13 +1595,9 @@ class wmiexec(WMIQuery):
         # Return the object path for binding
         return f'__EventFilter.Name="{filter_name}"'
 
-    def _create_official_filter_binding(
-        self, iWbemServices, filter_path, consumer_path
-    ):
+    def _create_official_filter_binding(self, iWbemServices, filter_path, consumer_path):
         """Create __FilterToConsumerBinding (official Microsoft implementation)"""
-        print_debug(
-            f"Creating __FilterToConsumerBinding: {filter_path} -> {consumer_path}"
-        )
+        print_debug(f"Creating __FilterToConsumerBinding: {filter_path} -> {consumer_path}")
 
         # Get __FilterToConsumerBinding class and spawn instance
         eventBinding, _ = iWbemServices.GetObject("__FilterToConsumerBinding")
@@ -1779,9 +1664,7 @@ class wmiexec(WMIQuery):
         # NAMESPACE RESEARCH: Based on MDSec + Impacket analysis, this is correct:
         # - Login: root/subscription (where Event Consumers are stored)
         # - EventNamespace: root/cimv2 (where events are monitored)
-        iInterface = dcom.CoCreateInstanceEx(
-            wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
-        )
+        iInterface = dcom.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
         iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
         iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/subscription", NULL, NULL)
         # ALTERNATIVE TEST: iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/cimv2", NULL, NULL)
@@ -1791,9 +1674,7 @@ class wmiexec(WMIQuery):
 
         return dcom, iWbemServices
 
-    def _create_event_filter(
-        self, iWbemServices, filter_name, trigger_exe="notepad.exe"
-    ):
+    def _create_event_filter(self, iWbemServices, filter_name, trigger_exe="notepad.exe"):
         """Create WMI Event Filter for triggering"""
 
         # Use legitimate system event as trigger (process creation)
@@ -1849,17 +1730,13 @@ class wmiexec(WMIQuery):
         # Verify the Event Filter was created correctly and is active
         try:
             # Fix: GetObject returns a tuple (object, result), get the first element
-            filter_result = iWbemServices.GetObject(
-                f"__EventFilter.Name='{filter_name}'"
-            )
+            filter_result = iWbemServices.GetObject(f"__EventFilter.Name='{filter_name}'")
             if isinstance(filter_result, tuple):
                 created_filter = filter_result[0]
             else:
                 created_filter = filter_result
             print_debug(f"Event Filter verified: {created_filter.Name}")
-            print_debug(
-                f"Event Filter active namespace: {created_filter.EventNamespace}"
-            )
+            print_debug(f"Event Filter active namespace: {created_filter.EventNamespace}")
             print_debug(f"Event Filter query: {created_filter.Query}")
             print_debug(f"Event Filter monitoring Win32_Process creation events")
         except Exception as e:
@@ -1870,9 +1747,7 @@ class wmiexec(WMIQuery):
     def _create_consumer_binding(self, iWbemServices, filter_name, consumer_name):
         """Create FilterToConsumerBinding to link filter and consumer"""
 
-        print_debug(
-            f"Creating FilterToConsumerBinding: {filter_name} -> {consumer_name}"
-        )
+        print_debug(f"Creating FilterToConsumerBinding: {filter_name} -> {consumer_name}")
 
         # WMIPERSIST MIRROR: Get __FilterToConsumerBinding and spawn instance (exact pattern)
         eventBinding, _ = iWbemServices.GetObject("__FilterToConsumerBinding")
@@ -1917,9 +1792,7 @@ class wmiexec(WMIQuery):
 
         # Create the binding
         print_debug("Putting __FilterToConsumerBinding...")
-        binding_result, binding_obj_path = iWbemServices.PutInstance(
-            eventBinding.marshalMe()
-        )
+        binding_result, binding_obj_path = iWbemServices.PutInstance(eventBinding.marshalMe())
         print_debug(f"FilterToConsumerBinding created: {binding_obj_path}")
 
         return binding_result
@@ -1962,9 +1835,7 @@ class wmiexec(WMIQuery):
             )
 
             print_debug(f"Win32_Process.Create result: {result}, PID: {process_id}")
-            print_debug(
-                f"[CREATEPROCESS DEBUG] ReturnValue={result}, ProcessId={process_id}"
-            )
+            print_debug(f"[CREATEPROCESS DEBUG] ReturnValue={result}, ProcessId={process_id}")
 
             # Create result object
             class TriggerResult:
@@ -1997,9 +1868,7 @@ class wmiexec(WMIQuery):
                 # Don't use "cmd /c" - spawn the actual process directly so the filter detects it
                 # The filter is watching for NOTEPAD.EXE, so we need to spawn notepad.exe directly
                 trigger_command = trigger_exe
-                print_debug(
-                    f"Direct trigger command (no cmd wrapper): {trigger_command}"
-                )
+                print_debug(f"Direct trigger command (no cmd wrapper): {trigger_command}")
                 result = self.execute_wmi_command(
                     command=trigger_command,
                     capture_output=False,
@@ -2067,9 +1936,7 @@ class wmiexec(WMIQuery):
             if return_value == 0:
                 print_debug(f"✓ Simplified trigger succeeded (PID: {process_id})")
             else:
-                print_debug(
-                    f"✗ Simplified trigger failed with return code: {return_value}"
-                )
+                print_debug(f"✗ Simplified trigger failed with return code: {return_value}")
 
             return result
 
@@ -2102,17 +1969,13 @@ class wmiexec(WMIQuery):
                 # Try to read output file using existing SMB methods
                 output_text = self._read_output_file_smb(output_path)
                 if output_text and output_text.strip():
-                    print_verbose(
-                        f"Event consumer output captured (filesystem artifact)"
-                    )
+                    print_verbose(f"Event consumer output captured (filesystem artifact)")
                     print_debug(f"Output content preview: {output_text[:100]}")
                     # Clean up remote output file
                     self._delete_output_file_smb(output_path)
                     return output_text.strip()
                 else:
-                    print_debug(
-                        f"Attempt {attempt}: Output file exists but empty or no content"
-                    )
+                    print_debug(f"Attempt {attempt}: Output file exists but empty or no content")
             except Exception as e:
                 print_debug(f"Output capture attempt {attempt} failed: {e}")
                 # Add specific check for file not found vs other errors
@@ -2215,9 +2078,7 @@ class wmiexec(WMIQuery):
         except Exception as e:
             print_debug(f"Error deleting output file: {e}")
 
-    def _cleanup_event_consumer_objects(
-        self, iWbemServices, filter_name, consumer_name
-    ):
+    def _cleanup_event_consumer_objects(self, iWbemServices, filter_name, consumer_name):
         """Clean up WMI Event Consumer objects to avoid persistence"""
 
         print_debug("Starting WMI Event Consumer cleanup")
@@ -2231,7 +2092,9 @@ class wmiexec(WMIQuery):
                 # Direct deletion using constructed path
                 filter_ref = f'__EventFilter.Name="{filter_name}"'
                 consumer_ref = f'CommandLineEventConsumer.Name="{consumer_name}"'
-                binding_path = f'__FilterToConsumerBinding.Consumer="{consumer_ref}",Filter="{filter_ref}"'
+                binding_path = (
+                    f'__FilterToConsumerBinding.Consumer="{consumer_ref}",Filter="{filter_ref}"'
+                )
 
                 iWbemServices.DeleteInstance(binding_path)
                 objects_removed += 1
@@ -2264,9 +2127,7 @@ class wmiexec(WMIQuery):
                 print_debug(f"Filter cleanup failed: {error_msg}")
 
             if objects_removed > 0:
-                print_debug(
-                    f"WMI Event Consumer cleanup: {objects_removed} objects removed"
-                )
+                print_debug(f"WMI Event Consumer cleanup: {objects_removed} objects removed")
             else:
                 print_warning("WMI Event Consumer cleanup: No objects removed")
 
@@ -2286,9 +2147,7 @@ class wmiexec(WMIQuery):
 
         # Determine executable path and command line template
         if exe_type == "pwsh":
-            executable_path = (
-                "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-            )
+            executable_path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
             # Parse script path for PowerShell execution
             if ":" in script_path and not script_path[1] == ":":
                 share_part, file_part = script_path.split(":", 1)

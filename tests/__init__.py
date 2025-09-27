@@ -1,1 +1,0 @@
-# Slinger Test Suite
