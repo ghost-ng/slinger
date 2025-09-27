@@ -27,9 +27,7 @@ class WMIQuery:
 
     def wmi_query_handler(self, args):
         """Main handler for wmiexec query command"""
-        if not self.check_if_connected():
-            print_warning("You must be connected to a share to use WMI queries.")
-            return
+        # WMI queries do not require share connection - they use direct WMI/DCOM
 
         # Handle different query modes
         if hasattr(args, "interactive") and args.interactive:
@@ -53,101 +51,173 @@ class WMIQuery:
         else:
             print_bad("No query specified. Use --help for usage information.")
 
-    def setup_wmi(self, namespace="root/cimv2", operation_type="query"):
-        """Setup and reuse WMI connection for the session
-        
+    def setup_wmi(self, namespace="root/cimv2", operation_type="query", max_retries=2):
+        """Setup and reuse WMI connection for the session with retry logic
+
         Args:
             namespace: WMI namespace to connect to
-            operation_type: Type of operation ('query', 'dcom', 'event') 
+            operation_type: Type of operation ('query', 'dcom', 'event')
                           - affects what objects are returned
-        
+            max_retries: Number of connection attempts on failure
+
         Returns:
             For 'query': IWbemServices object
-            For 'dcom': tuple of (dcom_connection, IWbemServices)  
+            For 'dcom': tuple of (dcom_connection, IWbemServices)
             For 'event': tuple of (dcom_connection, IWbemServices)
         """
-        try:
-            # Check if we already have a connection to this namespace
-            if namespace in self._wmi_services:
-                print_debug(f"Reusing existing WMI connection for namespace: {namespace}")
-                iWbemServices = self._wmi_services[namespace]
-                
+        import time
+
+        for attempt in range(max_retries + 1):
+            try:
+                # Check if we already have a connection to this namespace (skip on retry)
+                if namespace in self._wmi_services and attempt == 0:
+                    print_debug(f"Reusing existing WMI connection for namespace: {namespace}")
+                    iWbemServices = self._wmi_services[namespace]
+
+                    # Test the connection with a quick query to ensure it's still valid
+                    try:
+                        # Quick test - this will fail fast if connection is stale
+                        test_enum = iWbemServices.ExecQuery(
+                            "SELECT Name FROM Win32_OperatingSystem"
+                        )
+                        test_enum.Next(0xFFFFFFFF, 1)  # Get just one result
+                        test_enum.RemRelease()
+                        print_debug("Existing WMI connection validated successfully")
+
+                        # Return appropriate objects based on operation type
+                        if operation_type in ["dcom", "event"]:
+                            return (self._dcom_connection, iWbemServices)
+                        else:  # query
+                            return iWbemServices
+                    except Exception as test_e:
+                        print_debug(f"Existing WMI connection failed validation: {test_e}")
+                        # Clear stale connections and fall through to create new one
+                        self._cleanup_stale_connection(namespace)
+
+                # Import WMI components
+                from impacket.dcerpc.v5.dcomrt import DCOMConnection
+                from impacket.dcerpc.v5.dcom import wmi
+                from impacket.dcerpc.v5.dtypes import NULL
+
+                # Create DCOM connection if we don't have one or if retry
+                if self._dcom_connection is None or attempt > 0:
+                    if attempt > 0:
+                        print_debug(f"WMI connection attempt {attempt + 1}/{max_retries + 1}")
+                        # Clean up any existing connection on retry
+                        self._cleanup_stale_connection()
+                        # Brief delay before retry to allow network recovery
+                        time.sleep(1.0)
+
+                    print_debug("Creating new DCOM connection for WMI")
+
+                    # Use existing connection credentials (following wmiexec patterns)
+                    host = getattr(self, "host", None)
+                    username = getattr(self, "username", None)
+                    password = getattr(self, "password", "")
+                    domain = getattr(self, "domain", "")
+
+                    if not host:
+                        raise Exception("No host connection available")
+
+                    # Handle NTLM hash parsing (following existing wmiexec patterns)
+                    lm_hash = ""
+                    nt_hash = ""
+                    if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+                        if ":" in self.ntlm_hash:
+                            lm_hash, nt_hash = self.ntlm_hash.split(":")
+                        else:
+                            nt_hash = self.ntlm_hash
+
+                    # Create DCOM connection with full options (reused for all operations)
+                    self._dcom_connection = DCOMConnection(
+                        host,
+                        username,
+                        password,
+                        domain,
+                        lm_hash,
+                        nt_hash,
+                        aesKey="",
+                        oxidResolver=True,
+                        doKerberos=getattr(self, "use_kerberos", False),
+                    )
+                    print_debug("DCOM connection established for WMI session")
+                else:
+                    print_debug("Reusing existing DCOM connection")
+
+                # Create WMI service connection for this namespace
+                print_debug(f"Connecting to WMI namespace: {namespace}")
+                iInterface = self._dcom_connection.CoCreateInstanceEx(
+                    wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+                )
+                iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+                # Format namespace correctly for NTLMLogin
+                if namespace.startswith("root/"):
+                    namespace_path = f"//./{namespace}"
+                else:
+                    namespace_path = f"//./root/{namespace}"
+                iWbemServices = iWbemLevel1Login.NTLMLogin(namespace_path, NULL, NULL)
+                iWbemLevel1Login.RemRelease()
+
+                # Note: Do NOT call set_credentials() after NTLMLogin() - it's already authenticated
+
+                # Cache the service connection for this namespace
+                self._wmi_services[namespace] = iWbemServices
+                print_debug(f"WMI service cached for namespace: {namespace}")
+
                 # Return appropriate objects based on operation type
-                if operation_type in ['dcom', 'event']:
+                if operation_type in ["dcom", "event"]:
                     return (self._dcom_connection, iWbemServices)
                 else:  # query
                     return iWbemServices
 
-            # Import WMI components
-            from impacket.dcerpc.v5.dcomrt import DCOMConnection
-            from impacket.dcerpc.v5.dcom import wmi
-            from impacket.dcerpc.v5.dtypes import NULL
-
-            # Create DCOM connection if we don't have one
-            if self._dcom_connection is None:
-                print_debug("Creating new DCOM connection for WMI")
-                
-                # Use existing connection credentials (following wmiexec patterns)
-                host = getattr(self, "host", None)
-                username = getattr(self, "username", None)
-                password = getattr(self, "password", "")
-                domain = getattr(self, "domain", "")
-
-                if not host:
-                    raise Exception("No host connection available")
-
-                # Handle NTLM hash parsing (following existing wmiexec patterns)
-                lm_hash = ""
-                nt_hash = ""
-                if hasattr(self, "ntlm_hash") and self.ntlm_hash:
-                    if ":" in self.ntlm_hash:
-                        lm_hash, nt_hash = self.ntlm_hash.split(":")
-                    else:
-                        nt_hash = self.ntlm_hash
-
-                # Create DCOM connection with full options (reused for all operations)
-                self._dcom_connection = DCOMConnection(
-                    host, 
-                    username, 
-                    password, 
-                    domain, 
-                    lm_hash, 
-                    nt_hash,
-                    aesKey="",
-                    oxidResolver=True,
-                    doKerberos=getattr(self, "use_kerberos", False)
+            except Exception as e:
+                error_msg = str(e).lower()
+                is_timeout_error = any(
+                    timeout_word in error_msg
+                    for timeout_word in [
+                        "timeout",
+                        "timed out",
+                        "connection reset",
+                        "connection refused",
+                    ]
                 )
-                print_debug("DCOM connection established for WMI session")
-            else:
-                print_debug("Reusing existing DCOM connection")
 
-            # Create WMI service connection for this namespace
-            print_debug(f"Connecting to WMI namespace: {namespace}")
-            iInterface = self._dcom_connection.CoCreateInstanceEx(wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login)
-            iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
-            # Format namespace correctly for NTLMLogin
-            if namespace.startswith("root/"):
-                namespace_path = f"//./{namespace}"
-            else:
-                namespace_path = f"//./root/{namespace}"
-            iWbemServices = iWbemLevel1Login.NTLMLogin(namespace_path, NULL, NULL)
-            iWbemLevel1Login.RemRelease()
+                if attempt < max_retries and is_timeout_error:
+                    print_debug(f"WMI connection attempt {attempt + 1} failed with timeout: {e}")
+                    continue  # Retry
+                else:
+                    print_debug(f"WMI setup error (attempt {attempt + 1}): {e}")
+                    raise Exception(f"Failed to setup WMI connection: {e}")
 
-            # Note: Do NOT call set_credentials() after NTLMLogin() - it's already authenticated
+        raise Exception("Max retries exceeded for WMI connection setup")
 
-            # Cache the service connection for this namespace
-            self._wmi_services[namespace] = iWbemServices
-            print_debug(f"WMI service cached for namespace: {namespace}")
-
-            # Return appropriate objects based on operation type
-            if operation_type in ['dcom', 'event']:
-                return (self._dcom_connection, iWbemServices)
-            else:  # query
-                return iWbemServices
-
-        except Exception as e:
-            print_debug(f"WMI setup error: {e}")
-            raise Exception(f"Failed to setup WMI connection: {e}")
+    def _cleanup_stale_connection(self, namespace=None):
+        """Clean up stale WMI connections"""
+        try:
+            if namespace and namespace in self._wmi_services:
+                try:
+                    self._wmi_services[namespace].RemRelease()
+                except:
+                    pass
+                del self._wmi_services[namespace]
+                print_debug(f"Cleaned up stale WMI service for namespace: {namespace}")
+            elif namespace is None:
+                # Clean up all connections
+                for ns, service in self._wmi_services.items():
+                    try:
+                        service.RemRelease()
+                    except:
+                        pass
+                self._wmi_services.clear()
+                if self._dcom_connection:
+                    try:
+                        self._dcom_connection.disconnect()
+                    except:
+                        pass
+                    self._dcom_connection = None
+                print_debug("Cleaned up all stale WMI connections")
+        except Exception as cleanup_error:
+            print_debug(f"Error during connection cleanup: {cleanup_error}")
 
     def cleanup_wmi(self):
         """Cleanup WMI connections when slinger session ends"""
@@ -178,7 +248,7 @@ class WMIQuery:
         return self.setup_wmi(namespace, operation_type="dcom")
 
     def get_wmi_event_connection(self, namespace="root/cimv2"):
-        """Get shared DCOM connection and WMI service for event operations"""  
+        """Get shared DCOM connection and WMI service for event operations"""
         return self.setup_wmi(namespace, operation_type="event")
 
     def get_wmi_query_connection(self, namespace="root/cimv2"):
@@ -188,32 +258,35 @@ class WMIQuery:
     def _check_query_performance(self, wql_query):
         """Check query for potential performance issues and warn user"""
         query_lower = wql_query.lower()
-        
+
         # Detect potentially slow queries
         slow_patterns = [
             ("select * from", "SELECT * queries can be slow for large result sets"),
             ("win32_product", "Win32_Product queries are notoriously slow (software inventory)"),
-            ("win32_quickfixengineering", "Win32_QuickFixEngineering can be slow (Windows updates)"),
+            (
+                "win32_quickfixengineering",
+                "Win32_QuickFixEngineering can be slow (Windows updates)",
+            ),
             ("win32_logicaldisk", "Win32_LogicalDisk queries may take time for multiple drives"),
             ("win32_networkadapter", "Win32_NetworkAdapter queries can be slow with many adapters"),
             ("win32_service", "Win32_Service queries may take time with many services"),
-            ("win32_process", "Win32_Process queries can be slow with many running processes")
+            ("win32_process", "Win32_Process queries can be slow with many running processes"),
         ]
-        
+
         # Check for wildcards without WHERE clauses
         if "select *" in query_lower and "where" not in query_lower:
             print_warning("Query selects all columns without WHERE clause - this may be slow")
-        
+
         # Check specific slow patterns
         for pattern, warning in slow_patterns:
             if pattern in query_lower:
                 print_warning(f"Performance warning: {warning}")
                 break
-        
+
         # Check for complex queries
         if query_lower.count("join") > 0:
             print_warning("JOIN queries in WMI can be particularly slow")
-        
+
         if query_lower.count("like") > 1:
             print_warning("Multiple LIKE clauses may impact query performance")
 
@@ -236,21 +309,23 @@ class WMIQuery:
 
             # Check for potentially slow queries and warn user
             self._check_query_performance(wql_query)
-            
+
             # Get timeout from args or use default
             timeout = getattr(args, "timeout", 120)  # Default 2 minutes
-            
+
             # Execute the query using setup_wmi() for connection reuse
             print_info("Executing WMI query... (this may take a moment)")
             if timeout > 30:
-                print_info(f"Query timeout set to {timeout} seconds - use Ctrl+C to interrupt if needed")
-            
+                print_info(
+                    f"Query timeout set to {timeout} seconds - use Ctrl+C to interrupt if needed"
+                )
+
             results = self._run_wql_query(wql_query, namespace, timeout)
 
             if results:
                 # Format and display results
                 formatted_output = self._format_results(results, output_format)
-                
+
                 if output_file:
                     # Use existing tee_output system for file output
                     with tee_output(output_file):
@@ -258,7 +333,7 @@ class WMIQuery:
                     print_good(f"Query results saved to: {output_file}")
                 else:
                     print(formatted_output)
-                    
+
                 print_info(f"Query returned {len(results)} result(s)")
             else:
                 print_warning("Query returned no results")
@@ -270,7 +345,7 @@ class WMIQuery:
     def _run_wql_query(self, wql_query, namespace="root/cimv2", timeout=120):
         """Execute WQL query using setup_wmi() for connection reuse"""
         import time
-        
+
         try:
             # Use setup_wmi() to get/reuse WMI connection
             iWbemServices = self.setup_wmi(namespace)
@@ -284,7 +359,7 @@ class WMIQuery:
             results = []
             result_count = 0
             last_progress_time = time.time()
-            
+
             while True:
                 try:
                     # Check timeout
@@ -293,18 +368,20 @@ class WMIQuery:
                     if elapsed > timeout:
                         print_warning(f"Query timeout after {timeout}s - stopping enumeration")
                         break
-                    
-                    pEnum = iEnumWbemClassObject.Next(0xffffffff, 1)[0]
+
+                    pEnum = iEnumWbemClassObject.Next(0xFFFFFFFF, 1)[0]
                     record = pEnum.getProperties()
                     results.append(record)
                     result_count += 1
                     pEnum.RemRelease()
-                    
+
                     # Show progress every 5 seconds for long queries
                     if current_time - last_progress_time > 5.0:
-                        print_info(f"Query still running... {result_count} results so far ({elapsed:.1f}s elapsed)")
+                        print_info(
+                            f"Query still running... {result_count} results so far ({elapsed:.1f}s elapsed)"
+                        )
                         last_progress_time = current_time
-                        
+
                 except Exception:
                     break
 
@@ -314,12 +391,12 @@ class WMIQuery:
             # Show completion timing
             end_time = time.time()
             elapsed = end_time - start_time
-            
+
             if elapsed > 2.0:  # Show timing for queries that take more than 2 seconds
                 print_good(f"Query completed in {elapsed:.1f}s - {len(results)} results")
             else:
                 print_debug(f"Query completed, {len(results)} results")
-                
+
             return results
 
         except Exception as e:
@@ -337,7 +414,7 @@ class WMIQuery:
 
             # Get class object
             iObject, _ = iWbemServices.GetObject(class_name)
-            
+
             # Display class information
             print_good(f"Class: {class_name}")
             iObject.printInformation()
@@ -362,11 +439,11 @@ class WMIQuery:
             if results:
                 class_names = []
                 for result in results:
-                    if '__CLASS' in result:
-                        class_names.append(result['__CLASS']['value'])
+                    if "__CLASS" in result:
+                        class_names.append(result["__CLASS"]["value"])
 
                 class_names.sort()
-                
+
                 # Display in columns
                 print_good(f"Available classes in {namespace}:")
                 for i, class_name in enumerate(class_names):
@@ -386,7 +463,7 @@ class WMIQuery:
         """Execute a predefined query template"""
         templates = self._get_query_templates()
         template_name = template_name.lower()
-        
+
         if template_name in templates:
             query = templates[template_name]
             print_info(f"Executing template '{template_name}': {query}")
@@ -399,29 +476,76 @@ class WMIQuery:
     def _list_templates(self, args):
         """List available query templates organized by category"""
         templates = self._get_query_templates()
-        
+
         # Organize templates by category
         categories = {
-            "🔍 Process & Execution": ["processes", "processes_fast", "processes_full", "suspicious_processes", "parent_child"],
-            "⚙️ Services": ["services", "services_fast", "running_services", "auto_services", "stopped_services"],
-            "👥 Users & Security": ["users", "local_users", "admin_users", "groups", "local_groups", "logon_sessions"],
-            "🌐 Network": ["network", "network_adapters", "ip_config", "network_connections", "dns_settings"],
-            "💻 System Information": ["system_info", "os_info", "bios_info", "timezone", "computer_info"],
+            "🔍 Process & Execution": [
+                "processes",
+                "processes_fast",
+                "processes_full",
+                "suspicious_processes",
+                "parent_child",
+            ],
+            "⚙️ Services": [
+                "services",
+                "services_fast",
+                "running_services",
+                "auto_services",
+                "stopped_services",
+            ],
+            "👥 Users & Security": [
+                "users",
+                "local_users",
+                "admin_users",
+                "groups",
+                "local_groups",
+                "logon_sessions",
+            ],
+            "🌐 Network": ["network", "network_adapters", "net_adapter", "dns_settings"],
+            "💻 System Information": [
+                "system_info",
+                "os_info",
+                "bios_info",
+                "timezone",
+                "computer_info",
+            ],
             "💾 Storage & Drives": ["drives", "disk_drives", "volumes", "usb_devices"],
-            "🔒 Security & Monitoring": ["antivirus", "firewall", "audit_policy", "shares", "printers"],
-            "📦 Software & Applications": ["software", "installed_programs", "startup", "startup_programs"],
+            "🔒 Security & Monitoring": [
+                "antivirus",
+                "firewall",
+                "audit_policy",
+                "shares",
+                "printers",
+            ],
+            "📦 Software & Applications": [
+                "software",
+                "installed_programs",
+                "startup",
+                "startup_programs",
+            ],
             "⏰ Scheduled Tasks": ["scheduled_tasks", "task_info"],
             "🔄 Updates & Patches": ["hotfixes", "updates"],
             "🖥️ Hardware": ["hardware", "cpu_info", "memory", "pci_devices"],
             "🌍 Environment & Config": ["environment", "system_env", "registry_hives"],
             "📊 Performance & Monitoring": ["event_logs", "perf_counters"],
-            "🎯 Quick Reconnaissance": ["recon_basic", "recon_os", "recon_users", "recon_shares", "recon_services"],
-            "🛡️ Security Focused": ["security_software", "admin_shares", "privileged_groups", "system_accounts"],
+            "🎯 Quick Reconnaissance": [
+                "recon_basic",
+                "recon_os",
+                "recon_users",
+                "recon_shares",
+                "recon_services",
+            ],
+            "🛡️ Security Focused": [
+                "security_software",
+                "admin_shares",
+                "privileged_groups",
+                "system_accounts",
+            ],
         }
-        
+
         print_good("Available WMI query templates:")
         print()
-        
+
         for category, template_names in categories.items():
             print_info(f"{category}")
             for name in template_names:
@@ -433,22 +557,22 @@ class WMIQuery:
                         warning = " ⚠️ "
                     elif "Can be slow" in str(query):
                         warning = " ⏳ "
-                    
+
                     print(f"  {name:<20}{warning}")
             print()
-        
+
         # Show any templates not in categories
         categorized = set()
         for template_names in categories.values():
             categorized.update(template_names)
-        
+
         uncategorized = set(templates.keys()) - categorized
         if uncategorized:
             print_info("🔧 Other Templates")
             for name in sorted(uncategorized):
                 print(f"  {name}")
             print()
-        
+
         print_info(f"Total templates: {len(templates)}")
         print_info("Usage: wmiexec query --template <name>")
         print_info("Legend: ⚠️  = Very slow, ⏳ = Can be slow")
@@ -474,16 +598,16 @@ class WMIQuery:
 
         # Extract headers from first result
         headers = list(results[0].keys())
-        
+
         # Extract data rows
         rows = []
         for result in results:
             row = []
             for header in headers:
-                value = result.get(header, {}).get('value', 'N/A')
+                value = result.get(header, {}).get("value", "N/A")
                 if isinstance(value, list):
-                    value = ', '.join(str(item) for item in value)
-                row.append(str(value) if value is not None else 'NULL')
+                    value = ", ".join(str(item) for item in value)
+                row.append(str(value) if value is not None else "NULL")
             rows.append(row)
 
         return tabulate(rows, headers=headers, tablefmt="grid")
@@ -494,22 +618,22 @@ class WMIQuery:
             return "No results"
 
         output_lines = []
-        
+
         for i, result in enumerate(results, 1):
             # Add separator between records (except for first)
             if i > 1:
                 output_lines.append("")
-            
+
             # Add record header
             output_lines.append(f"=== Record {i} ===")
-            
+
             # Add each property
             for key, value_dict in result.items():
-                if isinstance(value_dict, dict) and 'value' in value_dict:
-                    value = value_dict['value']
+                if isinstance(value_dict, dict) and "value" in value_dict:
+                    value = value_dict["value"]
                 else:
                     value = value_dict
-                
+
                 # Format the value nicely
                 if value is None:
                     formatted_value = "NULL"
@@ -522,10 +646,10 @@ class WMIQuery:
                         formatted_value = f"[{', '.join(str(item) for item in value)}]"
                 else:
                     formatted_value = str(value)
-                
+
                 # Add the formatted property
                 output_lines.append(f"  {key}: {formatted_value}")
-        
+
         return "\n".join(output_lines)
 
     def _format_json(self, results):
@@ -534,12 +658,12 @@ class WMIQuery:
         for result in results:
             json_result = {}
             for key, value_dict in result.items():
-                if isinstance(value_dict, dict) and 'value' in value_dict:
-                    json_result[key] = value_dict['value']
+                if isinstance(value_dict, dict) and "value" in value_dict:
+                    json_result[key] = value_dict["value"]
                 else:
                     json_result[key] = value_dict
             json_results.append(json_result)
-        
+
         return json.dumps(json_results, indent=2, default=str)
 
     def _format_csv(self, results):
@@ -555,10 +679,10 @@ class WMIQuery:
         for result in results:
             row = []
             for header in headers:
-                value = result.get(header, {}).get('value', 'N/A')
+                value = result.get(header, {}).get("value", "N/A")
                 if isinstance(value, list):
-                    value = ', '.join(str(item) for item in value)
-                row.append(str(value) if value is not None else 'NULL')
+                    value = ", ".join(str(item) for item in value)
+                row.append(str(value) if value is not None else "NULL")
             writer.writerow(row)
 
         return output.getvalue()
@@ -567,7 +691,7 @@ class WMIQuery:
         """Start interactive WQL shell"""
         print_info("Starting interactive WQL shell")
         print_info("Type 'help' for available commands, 'exit' to quit")
-        
+
         shell = WQLShell(self, args)
         shell.cmdloop()
 
@@ -580,14 +704,12 @@ class WMIQuery:
             "processes_full": "SELECT * FROM Win32_Process",  # SLOW!
             "suspicious_processes": "SELECT Name, ProcessId, CommandLine FROM Win32_Process WHERE CommandLine LIKE '%powershell%' OR CommandLine LIKE '%cmd%' OR CommandLine LIKE '%wscript%'",
             "parent_child": "SELECT Name, ProcessId, ParentProcessId, CreationDate FROM Win32_Process",
-            
             # === SERVICES ===
             "services": "SELECT Name, State, StartMode, PathName FROM Win32_Service",
             "services_fast": "SELECT Name, State FROM Win32_Service",
             "running_services": "SELECT Name, PathName, StartName FROM Win32_Service WHERE State = 'Running'",
             "auto_services": "SELECT Name, PathName, Description FROM Win32_Service WHERE StartMode = 'Auto'",
             "stopped_services": "SELECT Name, StartMode, PathName FROM Win32_Service WHERE State = 'Stopped'",
-            
             # === USERS & SECURITY ===
             "users": "SELECT Name, FullName, LocalAccount, Disabled FROM Win32_UserAccount",
             "local_users": "SELECT Name, FullName, Disabled, PasswordRequired FROM Win32_UserAccount WHERE LocalAccount = True",
@@ -595,70 +717,57 @@ class WMIQuery:
             "groups": "SELECT Name, Description, LocalAccount FROM Win32_Group",
             "local_groups": "SELECT Name, Description, SID FROM Win32_Group WHERE LocalAccount = True",
             "logon_sessions": "SELECT LogonId, LogonType, StartTime, AuthenticationPackage FROM Win32_LogonSession",
-            
             # === NETWORK & CONNECTIVITY ===
             "network": "SELECT Description, IPAddress, MACAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
             "network_adapters": "SELECT Name, AdapterType, MACAddress, Speed FROM Win32_NetworkAdapter WHERE NetEnabled = True",
-            "ip_config": "SELECT Description, IPAddress, SubnetMask, DefaultIPGateway FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
-            "network_connections": "SELECT LocalAddress, LocalPort, RemoteAddress, RemotePort, State FROM Win32_PerfRawData_Tcpip_TCPv4",
-            "dns_settings": "SELECT Description, DNSServerSearchOrder, DNSDomain FROM Win32_NetworkAdapterConfiguration WHERE DNSServerSearchOrder IS NOT NULL",
-            
+            "net_adapter": "SELECT Description, MACAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
+            "dns_settings": "SELECT Description, DNSDomain FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True",
             # === SYSTEM INFORMATION ===
             "system_info": "SELECT Name, TotalPhysicalMemory, NumberOfProcessors, SystemType FROM Win32_ComputerSystem",
             "os_info": "SELECT Caption, Version, OSArchitecture, InstallDate, LastBootUpTime FROM Win32_OperatingSystem",
             "bios_info": "SELECT Manufacturer, SMBIOSBIOSVersion, ReleaseDate FROM Win32_BIOS",
             "timezone": "SELECT Caption, StandardName, Bias FROM Win32_TimeZone",
             "computer_info": "SELECT Name, Domain, Workgroup, TotalPhysicalMemory FROM Win32_ComputerSystem",
-            
             # === STORAGE & DRIVES ===
             "drives": "SELECT DeviceID, Size, FreeSpace, FileSystem FROM Win32_LogicalDisk",
             "disk_drives": "SELECT Model, Size, MediaType, InterfaceType FROM Win32_DiskDrive",
             "volumes": "SELECT DriveLetter, Label, FileSystem, Capacity FROM Win32_Volume WHERE DriveLetter IS NOT NULL",
-            "usb_devices": "SELECT DeviceID, Description, Manufacturer FROM Win32_USBControllerDevice",
-            
+            "usb_devices": "SELECT DeviceID, Description, Manufacturer FROM Win32_PnPEntity WHERE DeviceID LIKE 'USB%'",
             # === SECURITY & MONITORING ===
-            "antivirus": "SELECT displayName, pathToSignedProductExe FROM AntiVirusProduct",  # root/SecurityCenter2
-            "firewall": "SELECT DisplayName, Enabled, Direction, Action FROM MSFT_NetFirewallRule",  # root/StandardCimv2  
-            "audit_policy": "SELECT Category, SubCategory, AuditPolicyPerUser FROM Win32_SystemAudit",
+            "antivirus": "SELECT Name, DisplayName, State, PathName FROM Win32_Service WHERE Name LIKE '%WinDefend%' OR Name LIKE '%McAfee%' OR Name LIKE '%mfe%' OR Name LIKE '%McShield%' OR Name LIKE '%Norton%' OR Name LIKE '%Symantec%' OR Name LIKE '%ccSvcHst%' OR Name LIKE '%nav%' OR Name LIKE '%AVP%' OR Name LIKE '%Kaspersky%' OR Name LIKE '%klim%' OR Name LIKE '%VSSERV%' OR Name LIKE '%Bitdefender%' OR Name LIKE '%BD%' OR Name LIKE '%Avast%' OR Name LIKE '%AVG%' OR Name LIKE '%tm%' OR Name LIKE '%Trend%' OR Name LIKE '%OfficeScan%' OR Name LIKE '%ekrn%' OR Name LIKE '%ESET%' OR Name LIKE '%NOD32%' OR Name LIKE '%MBAM%' OR Name LIKE '%Malwarebytes%'",
+            "firewall": "SELECT Name, Started, StartMode FROM Win32_Service WHERE Name LIKE '%firewall%' OR Name LIKE '%mpssvc%'",
+            "audit_policy": "SELECT Name, Started, StartMode FROM Win32_Service WHERE Name LIKE '%audit%' OR Name = 'EventLog'",
             "shares": "SELECT Name, Path, Description FROM Win32_Share",
-            "printers": "SELECT Name, DriverName, PortName, Shared FROM Win32_Printer",
-            
+            "printers": "SELECT Name, Started, StartMode FROM Win32_Service WHERE Name LIKE '%print%' OR Name LIKE '%spooler%'",
             # === SOFTWARE & APPLICATIONS ===
             "software": "SELECT Name, Version, Vendor, InstallDate FROM Win32_Product",  # VERY SLOW!
             "installed_programs": "SELECT Name, Version, InstallLocation FROM Win32_Product WHERE Name IS NOT NULL",  # SLOW!
             "startup": "SELECT Name, Command, Location FROM Win32_StartupCommand",
             "startup_programs": "SELECT Name, Command, User, Location FROM Win32_StartupCommand",
-            
             # === SCHEDULED TASKS ===
-            "scheduled_tasks": "SELECT TaskName, State, LastRunTime, NextRunTime FROM Win32_ScheduledJob",
-            "task_info": "SELECT Name, State, Enabled, Hidden FROM MSFT_ScheduledTask",  # root/Microsoft/Windows/TaskScheduler
-            
+            "scheduled_tasks": "SELECT Name, Command, Owner FROM Win32_ScheduledJob",
+            "task_info": "SELECT Name, Command, Owner FROM Win32_ScheduledJob",  # Using standard Win32_ScheduledJob class
             # === UPDATES & PATCHES ===
             "hotfixes": "SELECT HotFixID, Description, InstalledOn FROM Win32_QuickFixEngineering",  # Can be slow
             "updates": "SELECT HotFixID, Description, InstalledBy, InstalledOn FROM Win32_QuickFixEngineering",
-            
             # === HARDWARE ===
             "hardware": "SELECT Name, Manufacturer, Model FROM Win32_ComputerSystem",
             "cpu_info": "SELECT Name, NumberOfCores, MaxClockSpeed, Manufacturer FROM Win32_Processor",
-            "memory": "SELECT TotalPhysicalMemory, TotalVirtualMemory, AvailablePhysicalMemory FROM Win32_OperatingSystem",
+            "memory": "SELECT TotalPhysicalMemory FROM Win32_OperatingSystem",
             "pci_devices": "SELECT Name, Manufacturer, DeviceID FROM Win32_PnPEntity WHERE DeviceID LIKE 'PCI%'",
-            
             # === ENVIRONMENT & CONFIG ===
             "environment": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = False",
             "system_env": "SELECT Name, VariableValue FROM Win32_Environment WHERE SystemVariable = True",
             "registry_hives": "SELECT Name, MaximumSize FROM Win32_Registry",
-            
             # === PERFORMANCE & MONITORING ===
             "event_logs": "SELECT LogfileName, MaxFileSize, NumberOfRecords FROM Win32_NTEventlogFile",
             "perf_counters": "SELECT Name, Description FROM Win32_PerfRawData",
-            
             # === QUICK RECONNAISSANCE ===
             "recon_basic": "SELECT Name, Domain, TotalPhysicalMemory FROM Win32_ComputerSystem",
             "recon_os": "SELECT Caption, Version, OSArchitecture FROM Win32_OperatingSystem",
             "recon_users": "SELECT Name, Disabled FROM Win32_UserAccount WHERE LocalAccount = True",
             "recon_shares": "SELECT Name, Path FROM Win32_Share WHERE Type = 0",
             "recon_services": "SELECT Name, State FROM Win32_Service WHERE State = 'Running' AND StartMode = 'Auto'",
-            
             # === SECURITY FOCUSED ===
             "security_software": "SELECT Name, PathName FROM Win32_Service WHERE Name LIKE '%antivirus%' OR Name LIKE '%defender%' OR Name LIKE '%security%'",
             "admin_shares": "SELECT Name, Path, Description FROM Win32_Share WHERE Name LIKE '%$'",
@@ -669,18 +778,19 @@ class WMIQuery:
 
 class WQLShell(cmd.Cmd):
     """Interactive WQL shell for WMI queries"""
-    
+
     def __init__(self, wmi_query_instance, args):
         super().__init__()
         self.wmi_query = wmi_query_instance
         self.args = args
-        self.prompt = 'WQL> '
-        self.intro = '[!] Interactive WQL Shell - Type help for commands'
+        self.prompt = "WQL> "
+        self.intro = "[!] Interactive WQL Shell - Type help for commands"
 
     def do_help(self, line):
         """Show help information"""
         if not line:
-            print("""
+            print(
+                """
 Available Commands:
   help                    - Show this help
   exit                    - Exit interactive shell
@@ -696,7 +806,8 @@ WQL Query Examples:
   SELECT Name, ProcessId FROM Win32_Process WHERE Name = 'notepad.exe'
   SELECT * FROM Win32_Service WHERE State = 'Running'
   SELECT Name FROM Win32_UserAccount
-            """)
+            """
+            )
         else:
             # Show help for specific command
             super().do_help(line)
@@ -715,11 +826,11 @@ WQL Query Examples:
         if not class_name:
             print_bad("Usage: describe <class_name>")
             return
-        
+
         # Create temporary args for describe
-        temp_args = type('Args', (), {})()
+        temp_args = type("Args", (), {})()
         temp_args.namespace = getattr(self.args, "namespace", "root/cimv2")
-        
+
         self.wmi_query._describe_class(class_name.strip(), temp_args)
 
     def do_namespace(self, namespace):
@@ -727,7 +838,7 @@ WQL Query Examples:
         if not namespace:
             print_info(f"Current namespace: {self.wmi_query.current_namespace}")
             return
-        
+
         self.wmi_query.current_namespace = namespace.strip()
         print_good(f"Namespace changed to: {namespace.strip()}")
 
@@ -736,9 +847,9 @@ WQL Query Examples:
         if not format_type:
             print_info(f"Current format: {self.wmi_query.output_format}")
             return
-        
+
         format_type = format_type.strip().lower()
-        if format_type in ['list', 'table', 'json', 'csv']:
+        if format_type in ["list", "table", "json", "csv"]:
             self.wmi_query.output_format = format_type
             print_good(f"Output format set to: {format_type}")
         else:
@@ -750,10 +861,10 @@ WQL Query Examples:
             print_bad("Usage: template <template_name>")
             print_info("Use 'templates' command to see available templates")
             return
-        
+
         templates = self.wmi_query._get_query_templates()
         template_name = template_name.strip().lower()
-        
+
         if template_name in templates:
             query = templates[template_name]
             print_info(f"Executing template '{template_name}': {query}")
@@ -772,6 +883,7 @@ WQL Query Examples:
     def do_shell(self, command):
         """Execute local shell command: ! ls -la"""
         import os
+
         os.system(command)
 
     def default(self, line):
@@ -783,11 +895,11 @@ WQL Query Examples:
         """Execute a WQL query in the shell context"""
         try:
             # Create temporary args for query execution
-            temp_args = type('Args', (), {})()
+            temp_args = type("Args", (), {})()
             temp_args.namespace = getattr(self.args, "namespace", self.wmi_query.current_namespace)
             temp_args.format = self.wmi_query.output_format
             temp_args.output = None  # No file output in interactive mode
-            
+
             self.wmi_query._execute_single_query(query, temp_args)
         except KeyboardInterrupt:
             print_info("\nQuery interrupted")
