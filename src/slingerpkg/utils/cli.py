@@ -29,9 +29,7 @@ def extract_commands_and_args(parser):
 # This is for "help <command>"
 def force_help(parser, command):
     subparsers_action = [
-        action
-        for action in parser._actions
-        if isinstance(action, argparse._SubParsersAction)
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
     ][0]
     command_parser = subparsers_action.choices.get(command)
 
@@ -60,9 +58,7 @@ def print_all_help(parser):
     their respective help messages. It assumes that the parser contains subparsers.
     """
     subparsers_action = [
-        action
-        for action in parser._actions
-        if isinstance(action, argparse._SubParsersAction)
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
     ][0]
     command_parser = subparsers_action.choices
     for command, parser in command_parser.items():
@@ -74,9 +70,7 @@ def print_all_commands_simple(parser):
     """Print available commands in simple 4-column format"""
     # Get commands from parser
     subparsers_action = [
-        action
-        for action in parser._actions
-        if isinstance(action, argparse._SubParsersAction)
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
     ][0]
     commands = subparsers_action.choices
 
@@ -87,9 +81,7 @@ def print_all_commands_simple(parser):
     rows = -(-len(sorted_commands) // 4)  # Ceiling division
 
     # Split into columns
-    columns = [
-        sorted_commands[i : i + rows] for i in range(0, len(sorted_commands), rows)
-    ]
+    columns = [sorted_commands[i : i + rows] for i in range(0, len(sorted_commands), rows)]
 
     # Print header
     print("\nAvailable commands:")
@@ -101,9 +93,7 @@ def print_all_commands_simple(parser):
         print("  ".join(formatted_row))
 
     # Print footer
-    print(
-        "\nType help <command> or <command> -h for more information on a specific command"
-    )
+    print("\nType help <command> or <command> -h for more information on a specific command")
     print("Type help --verbose for detailed categorized help\n")
 
 
@@ -111,9 +101,7 @@ def print_all_commands_verbose(parser):
     """Print available commands grouped by function with aliases"""
     # Get commands from parser
     subparsers_action = [
-        action
-        for action in parser._actions
-        if isinstance(action, argparse._SubParsersAction)
+        action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
     ][0]
     commands = subparsers_action.choices
 
@@ -259,9 +247,7 @@ def print_all_commands_verbose(parser):
             print("    Subcommands: list, cleanup")
         elif category == "🧩 Plugin System":
             print("    • Use 'plugins' to list loaded plugins and their information")
-            print(
-                "    • Use 'reload' to reload all plugins from configured directories"
-            )
+            print("    • Use 'reload' to reload all plugins from configured directories")
             print(
                 "    • Plugin commands are dynamically loaded and appear in their "
                 "respective categories"
@@ -302,9 +288,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         if "invalid choice" in message:
             print_log("Invalid command entered. Type help for a list of commands.")
-            raise InvalidParsing(
-                "Invalid command entered. Type help for a list of commands."
-            )
+            raise InvalidParsing("Invalid command entered. Type help for a list of commands.")
 
 
 def show_command_help(parser, command):
@@ -434,23 +418,15 @@ def setup_cli_parser(slingerClient):
         "--size",
         help="File size filter: +1MB (larger than), -100KB (smaller than), =5GB (exactly)",
     )
-    parser_find.add_argument(
-        "--mtime", type=int, help="Modified within N days (positive number)"
-    )
-    parser_find.add_argument(
-        "--ctime", type=int, help="Created within N days (positive number)"
-    )
-    parser_find.add_argument(
-        "--atime", type=int, help="Accessed within N days (positive number)"
-    )
+    parser_find.add_argument("--mtime", type=int, help="Modified within N days (positive number)")
+    parser_find.add_argument("--ctime", type=int, help="Created within N days (positive number)")
+    parser_find.add_argument("--atime", type=int, help="Accessed within N days (positive number)")
     parser_find.add_argument(
         "--regex",
         action="store_true",
         help="Use regular expression pattern matching instead of wildcards",
     )
-    parser_find.add_argument(
-        "--iname", action="store_true", help="Case insensitive name matching"
-    )
+    parser_find.add_argument("--iname", action="store_true", help="Case insensitive name matching")
     parser_find.add_argument(
         "--maxdepth",
         type=int,
@@ -463,18 +439,14 @@ def setup_cli_parser(slingerClient):
         default=0,
         help="Minimum search depth (default: %(default)s)",
     )
-    parser_find.add_argument(
-        "--limit", type=int, help="Maximum number of results to return"
-    )
+    parser_find.add_argument("--limit", type=int, help="Maximum number of results to return")
     parser_find.add_argument(
         "--sort",
         choices=["name", "size", "mtime", "ctime", "atime"],
         default="name",
         help="Sort results by field (default: %(default)s)",
     )
-    parser_find.add_argument(
-        "--reverse", action="store_true", help="Reverse sort order"
-    )
+    parser_find.add_argument("--reverse", action="store_true", help="Reverse sort order")
     parser_find.add_argument(
         "--format",
         choices=["table", "list", "paths", "json"],
@@ -555,9 +527,7 @@ def setup_cli_parser(slingerClient):
         "File paths with spaces must be entirely in quotes.",
         epilog="Example Usage: cat /path/to/file",
     )
-    parser_cat.add_argument(
-        "remote_path", help="Specify the remote file path to display contents"
-    )
+    parser_cat.add_argument("remote_path", help="Specify the remote file path to display contents")
     parser_cat.set_defaults(func=slingerClient.cat)
 
     # Subparser for 'cd' command
@@ -606,9 +576,7 @@ def setup_cli_parser(slingerClient):
         description="Display help information for the application",
         epilog="Example Usage: help",
     )
-    parser_help.add_argument(
-        "cmd", nargs="?", help="Specify a command to show help for"
-    )
+    parser_help.add_argument("cmd", nargs="?", help="Specify a command to show help for")
     parser_help.add_argument(
         "--verbose", action="store_true", help="Show detailed categorized help"
     )
@@ -986,9 +954,7 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: upload /local/path /remote/path",
     )
     parser_upload.set_defaults(func=slingerClient.upload_handler)
-    parser_upload.add_argument(
-        "local_path", help="Specify the local file path to upload"
-    )
+    parser_upload.add_argument("local_path", help="Specify the local file path to upload")
     parser_upload.add_argument(
         "remote_path",
         nargs="?",
@@ -1005,9 +971,7 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt",
     )
     parser_download.set_defaults(func=slingerClient.download_handler)
-    parser_download.add_argument(
-        "remote_path", help="Specify the remote file path to download"
-    )
+    parser_download.add_argument("remote_path", help="Specify the remote file path to download")
     parser_download.add_argument(
         "local_path",
         nargs="?",
@@ -1069,9 +1033,7 @@ def setup_cli_parser(slingerClient):
         description="Create a new directory on the remote server",
         epilog="Example Usage: mkdir /path/to/new/directory",
     )
-    parser_mkdir.add_argument(
-        "path", help="Specify the path of the directory to create"
-    )
+    parser_mkdir.add_argument("path", help="Specify the path of the directory to create")
     parser_mkdir.set_defaults(func=slingerClient.mkdir)
 
     # Subparser for 'rmdir' command
@@ -1167,9 +1129,7 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: regset -k HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\"
         'CurrentVersion\\\\Run\\\\ -v test -d "C:\\test.exe"',
     )
-    parser_regset.add_argument(
-        "-k", "--key", help="Specify the registry key to set", required=True
-    )
+    parser_regset.add_argument("-k", "--key", help="Specify the registry key to set", required=True)
     parser_regset.add_argument(
         "-v", "--value", help="Specify the registry value to set", required=True
     )
@@ -1305,9 +1265,7 @@ def setup_cli_parser(slingerClient):
         description="Set a variable for use in the application",
         epilog="Example Usage: set varname value",
     )
-    parser_setvar.add_argument(
-        "varname", help="Set the debug variable to True or False"
-    )
+    parser_setvar.add_argument("varname", help="Set the debug variable to True or False")
     parser_setvar.add_argument(
         "value", help="Set the mode variable to True or False", nargs="?", default=""
     )
@@ -1326,9 +1284,7 @@ def setup_cli_parser(slingerClient):
         epilog='Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"',
     )
     parser_rungroup = parser_run.add_mutually_exclusive_group(required=True)
-    parser_rungroup.add_argument(
-        "-c", "--cmd-chain", help="Specify a command sequence to run"
-    )
+    parser_rungroup.add_argument("-c", "--cmd-chain", help="Specify a command sequence to run")
     parser_rungroup.add_argument("-f", "--file", help="Specify a script file to run")
 
     parser_hashdump = subparsers.add_parser(
@@ -1592,9 +1548,7 @@ def setup_cli_parser(slingerClient):
         required=True,
         help="Event log name (System, Application, Security, etc.)",
     )
-    parser_eventlog_query.add_argument(
-        "--id", type=int, help="Specific event ID to filter"
-    )
+    parser_eventlog_query.add_argument("--id", type=int, help="Specific event ID to filter")
     parser_eventlog_query.add_argument(
         "--type",
         "--level",
@@ -1612,9 +1566,7 @@ def setup_cli_parser(slingerClient):
         "--limit", type=int, default=1000, help="Maximum number of events to return"
     )
     parser_eventlog_query.add_argument("--source", help="Filter by event source name")
-    parser_eventlog_query.add_argument(
-        "--find", help="Search for string in event content"
-    )
+    parser_eventlog_query.add_argument("--find", help="Search for string in event content")
     parser_eventlog_query.add_argument(
         "--format",
         choices=["table", "json", "list", "csv"],
@@ -1781,7 +1733,7 @@ Example Usage:
         description="Execute commands using traditional WMI Win32_Process.Create method via DCOM. "
         "Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.",
         epilog="""Command Wrappers:
-  DEFAULT: cmd.exe /Q /c "command"     # Standard Windows command 
+  DEFAULT: cmd.exe /Q /c "command"     # Standard Windows command
   execution
   --raw-command: command               # No wrapper, execute directly
   --shell powershell: powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -NonInteractive -NoLogo -Command "command"
@@ -2029,7 +1981,7 @@ Examples:
   wmiexec query "SELECT * FROM Win32_UserAccount" --format json -o users.json
   wmiexec query --template processes --format table""",
     )
-    
+
     # Query argument group - mutually exclusive options
     query_group = parser_wmi_query.add_mutually_exclusive_group()
     query_group.add_argument(
@@ -2067,7 +2019,7 @@ Examples:
         help="List available query templates",
         default=False,
     )
-    
+
     # WMI namespace option
     parser_wmi_query.add_argument(
         "--namespace",
@@ -2075,7 +2027,7 @@ Examples:
         help="WMI namespace to query (default: root/cimv2)",
         default="root/cimv2",
     )
-    
+
     # Output formatting options
     parser_wmi_query.add_argument(
         "--format",
@@ -2085,7 +2037,8 @@ Examples:
         default="list",
     )
     parser_wmi_query.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         type=str,
         help="Save query results to file",
         metavar="FILE",
@@ -2108,6 +2061,63 @@ Examples:
 
     # Set handler - will route to appropriate method based on wmi_method
     parser_wmiexec.set_defaults(func=slingerClient.wmiexec_handler)
+
+    # Subparser for 'agent' command - Cooperative Agent Builder
+    parser_agent = subparsers.add_parser(
+        "agent",
+        help="Build and manage cooperative agents",
+        description="Build polymorphic C++ agents for named pipe command execution",
+        epilog="Example Usage: agent build --arch x64 --encryption | agent build --arch both --no-encryption",
+    )
+
+    # Agent subcommands
+    agent_subparsers = parser_agent.add_subparsers(dest="agent_command")
+
+    # Agent build subcommand
+    parser_agent_build = agent_subparsers.add_parser(
+        "build",
+        help="Build polymorphic agents",
+        description="Build C++ agents with advanced obfuscation and polymorphic encryption",
+        epilog="Example: agent build --arch x64 --encryption --debug",
+    )
+    parser_agent_build.add_argument(
+        "--arch",
+        choices=["x86", "x64", "both"],
+        default="both",
+        help="Target architecture for agent build",
+    )
+    parser_agent_build.add_argument(
+        "--encryption",
+        action="store_true",
+        default=True,
+        help="Enable polymorphic encryption (default: enabled)",
+    )
+    parser_agent_build.add_argument(
+        "--no-encryption",
+        action="store_true",
+        help="Disable polymorphic encryption",
+    )
+    parser_agent_build.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug output during build",
+    )
+    parser_agent_build.add_argument(
+        "--output-dir",
+        type=str,
+        help="Custom output directory for built agents",
+    )
+
+    # Agent info subcommand
+    parser_agent_info = agent_subparsers.add_parser(
+        "info",
+        help="Show agent build information",
+        description="Display configuration and capabilities of the agent builder",
+    )
+    parser_agent_info.set_defaults(func=slingerClient.agent_handler)
+
+    # Set handler for agent commands
+    parser_agent.set_defaults(func=slingerClient.agent_handler)
 
     return parser
 

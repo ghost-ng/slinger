@@ -178,15 +178,15 @@ class SlingerClient(
 
         except Exception as e:
             print_debug(str(e), sys.exc_info())
-        
+
         # Cleanup WMI connections if they exist
         try:
-            if hasattr(self, '_wmi_services') and hasattr(self, 'cleanup_wmi'):
+            if hasattr(self, "_wmi_services") and hasattr(self, "cleanup_wmi"):
                 print_debug("Cleaning up WMI connections...")
                 self.cleanup_wmi()
         except Exception as e:
             print_debug(f"WMI cleanup error: {e}")
-        
+
         self.conn = None
 
     def is_connected_to_remote_share(self):
@@ -567,28 +567,112 @@ class SlingerClient(
                 self.conn.login(username, password, domain, lmhash, nthash)
             else:
                 self.conn.login(username, password, domain)
-            self.setup_dce_transport()
-            print_good("Successfully reconnected to the server")
 
-            # If we were connected to a share, reconnect
+            # Try to reconnect to the original share if we had one
             if current_share:
                 try:
-                    self.use(f"use {current_share}")
-                    print_good(f"Reconnected to share {current_share}")
+                    self.conn.connectTree(current_share)
+                    self.share = current_share
+                    self.is_connected_to_share = True
+                    print_success(f"Reconnected to share: {current_share}")
 
-                    # Try to restore path
-                    if current_path and current_path != "\\":
+                    # Try to change back to the original path
+                    if current_path and current_path != "/":
                         try:
-                            self.cd(f"cd {current_path}")
-                            print_good(f"Restored path to {current_path}")
+                            self.cd_no_output(current_path)
+                            print_info(f"Current directory: {self.pwd()}")
                         except:
-                            print_warning(f"Could not restore path to {current_path}")
+                            print_warning(f"Could not change back to original path: {current_path}")
+                            print_info(f"Current directory: {self.pwd()}")
+
                 except Exception as e:
-                    print_warning(f"Could not reconnect to share {current_share}: {e}")
+                    print_error(f"Failed to reconnect to share {current_share}: {e}")
+                    self.is_connected_to_share = False
+            else:
+                print_success("Reconnected to server")
 
         except Exception as e:
-            print_bad(f"Failed to reconnect: {e}")
-            print_debug(f"Traceback: {traceback.format_exc()}")
+            print_error(f"Failed to reconnect: {e}")
+
+    def agent_handler(self, args):
+        """Handle agent commands for cooperative agent building"""
+        try:
+            # Import the agent builder
+            from slingerpkg.lib.cooperative_agent import build_cooperative_agent, AgentBuilder
+            import os
+
+            if args.agent_command == "build":
+                print_info("Building cooperative agent...")
+
+                # Handle encryption settings
+                encryption = args.encryption and not args.no_encryption
+
+                # Determine output directory
+                output_dir = (
+                    args.output_dir if hasattr(args, "output_dir") and args.output_dir else None
+                )
+
+                # Build the agent(s)
+                built_agents = build_cooperative_agent(
+                    arch=args.arch, encryption=encryption, debug=args.debug
+                )
+
+                if built_agents:
+                    print_success(f"Successfully built {len(built_agents)} agent(s):")
+                    for agent_path in built_agents:
+                        file_size = os.path.getsize(agent_path) if os.path.exists(agent_path) else 0
+                        print_log(f"  {agent_path} ({file_size:,} bytes)")
+
+                    print_info("\nAgent Features:")
+                    print_log("  ✓ Named pipe command execution")
+                    print_log(
+                        "  ✓ Polymorphic encryption"
+                        if encryption
+                        else "  ✗ Polymorphic encryption disabled"
+                    )
+                    print_log("  ✓ Function name obfuscation")
+                    print_log("  ✓ String literal obfuscation")
+                    print_log("  ✓ Control flow obfuscation")
+                    print_log("  ✓ No sandbox detection")
+                    print_log("  ✓ No process detection")
+
+                else:
+                    print_error("Failed to build agents. Check build dependencies.")
+                    print_info("Required: CMake, C++ compiler (MSVC/MinGW)")
+
+            elif args.agent_command == "info":
+                print_info("Cooperative Agent Builder Information")
+
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                builder = AgentBuilder(base_path)
+                info = builder.get_build_info()
+
+                print_log(f"Template Directory: {info['template_dir']}")
+                print_log(f"Build Directory: {info['build_dir']}")
+                print_log(f"Output Directory: {info['output_dir']}")
+                print_log(f"Supported Architectures: {', '.join(info['supported_architectures'])}")
+
+                print_info("\nFeatures:")
+                for feature in info["features"]:
+                    print_log(f"  ✓ {feature}")
+
+                print_info("\nCurrent Build Configuration:")
+                print_log(f"  Encryption Seed: {info['encryption_seed']}")
+                print_log(f"  Layout Seed: {info['layout_seed']}")
+
+            else:
+                print_error(f"Unknown agent command: {args.agent_command}")
+                print_info("Available commands: build, info")
+
+        except ImportError as e:
+            print_error(f"Agent builder not available: {e}")
+            print_info("Ensure cooperative_agent.py is in lib/ directory")
+        except Exception as e:
+            print_error(f"Agent command failed: {e}")
+            if hasattr(args, "debug") and args.debug:
+                import traceback
+
+                traceback.print_exc()
 
     def sizeof_fmt(self, num, suffix="B"):
         """Format file size in human readable format"""
