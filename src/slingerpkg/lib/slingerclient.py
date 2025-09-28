@@ -598,27 +598,101 @@ class SlingerClient(
         """Handle agent commands for cooperative agent building"""
         try:
             # Import the agent builder
-            from slingerpkg.lib.cooperative_agent import build_cooperative_agent, AgentBuilder
+            import sys
             import os
 
+            print_debug("Starting agent_handler execution")
+            print_debug(f"Current file: {__file__}")
+            print_debug(f"Python path: {sys.path}")
+
+            # Try direct import first (since we copied the file to slingerpkg/lib)
+            try:
+                from slingerpkg.lib.cooperative_agent import build_cooperative_agent, AgentBuilder
+
+                print_debug("Successfully imported from slingerpkg.lib.cooperative_agent")
+            except ImportError as import_error:
+                print_debug(f"Direct import failed: {import_error}")
+                print_debug("Attempting fallback import path")
+
+                # Fallback: Add lib directory to path for cooperative_agent import
+                lib_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "lib"
+                )
+                print_debug(f"Trying lib path: {lib_path}")
+                if lib_path not in sys.path:
+                    sys.path.insert(0, lib_path)
+
+                from cooperative_agent import build_cooperative_agent, AgentBuilder
+
+                print_debug("Successfully imported from fallback path")
+
             if args.agent_command == "build":
+                # Handle dry run mode
+                if hasattr(args, "dry_run") and args.dry_run:
+                    print_info("Checking build readiness (dry run)...")
+
+                    # Get the project root directory - go up from slingerpkg/lib/slingerclient.py
+                    current_file_dir = os.path.dirname(__file__)  # slingerpkg/lib
+                    slingerpkg_dir = os.path.dirname(current_file_dir)  # slingerpkg
+                    src_dir = os.path.dirname(slingerpkg_dir)  # src
+                    base_path = os.path.dirname(src_dir)  # project root
+
+                    print_debug(f"Calculated base_path for dry-run: {base_path}")
+                    print_debug(f"Expected lib path: {os.path.join(base_path, 'lib')}")
+
+                    builder = AgentBuilder(base_path)
+                    deps = builder.check_build_dependencies()
+
+                    print_log(f"Architecture: {args.arch}")
+                    print_log(
+                        f"Encryption: {'Enabled' if args.encryption and not args.no_encryption else 'Disabled'}"
+                    )
+                    print_log(f"Debug mode: {'Enabled' if args.debug else 'Disabled'}")
+
+                    if deps.get("cmake", False) and deps.get("cpp_compiler", False):
+                        print_good("\n✓ All dependencies available - ready to build")
+                        print_info("Run without --dry-run to actually build the agent")
+                    else:
+                        print_bad("\n✗ Missing dependencies:")
+                        if not deps.get("cmake", False):
+                            print_log("  ✗ CMake not found")
+                        if not deps.get("cpp_compiler", False):
+                            print_log("  ✗ C++ compiler not found")
+                    return
+
                 print_info("Building cooperative agent...")
 
                 # Handle encryption settings
                 encryption = args.encryption and not args.no_encryption
+                print_debug(f"Encryption enabled: {encryption}")
 
                 # Determine output directory
                 output_dir = (
                     args.output_dir if hasattr(args, "output_dir") and args.output_dir else None
                 )
+                print_debug(f"Output directory: {output_dir}")
+
+                # Get the project root directory for building - same calculation as dry-run
+                current_file_dir = os.path.dirname(__file__)  # slingerpkg/lib
+                slingerpkg_dir = os.path.dirname(current_file_dir)  # slingerpkg
+                src_dir = os.path.dirname(slingerpkg_dir)  # src
+                base_path = os.path.dirname(src_dir)  # project root
+
+                print_debug(f"Calculated base_path for build: {base_path}")
+                print_debug(
+                    f"Template directory: {os.path.join(base_path, 'lib', 'agent_templates')}"
+                )
 
                 # Build the agent(s)
+                print_debug(
+                    f"Starting build with arch={args.arch}, encryption={encryption}, debug={args.debug}"
+                )
                 built_agents = build_cooperative_agent(
-                    arch=args.arch, encryption=encryption, debug=args.debug
+                    arch=args.arch, encryption=encryption, debug=args.debug, base_path=base_path
                 )
 
                 if built_agents:
-                    print_success(f"Successfully built {len(built_agents)} agent(s):")
+                    print_good(f"Successfully built {len(built_agents)} agent(s):")
                     for agent_path in built_agents:
                         file_size = os.path.getsize(agent_path) if os.path.exists(agent_path) else 0
                         print_log(f"  {agent_path} ({file_size:,} bytes)")
@@ -637,13 +711,20 @@ class SlingerClient(
                     print_log("  ✓ No process detection")
 
                 else:
-                    print_error("Failed to build agents. Check build dependencies.")
+                    print_bad("Failed to build agents. Check build dependencies.")
                     print_info("Required: CMake, C++ compiler (MSVC/MinGW)")
 
             elif args.agent_command == "info":
                 print_info("Cooperative Agent Builder Information")
 
-                base_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+                # Get the project root directory - same calculation as build
+                current_file_dir = os.path.dirname(__file__)  # slingerpkg/lib
+                slingerpkg_dir = os.path.dirname(current_file_dir)  # slingerpkg
+                src_dir = os.path.dirname(slingerpkg_dir)  # src
+                base_path = os.path.dirname(src_dir)  # project root
+
+                print_debug(f"Calculated base_path for info: {base_path}")
+
                 builder = AgentBuilder(base_path)
                 info = builder.get_build_info()
 
@@ -651,6 +732,21 @@ class SlingerClient(
                 print_log(f"Build Directory: {info['build_dir']}")
                 print_log(f"Output Directory: {info['output_dir']}")
                 print_log(f"Supported Architectures: {', '.join(info['supported_architectures'])}")
+
+                print_info("\nBuild Dependencies:")
+                deps = info["dependencies"]
+                cmake_status = "✓" if deps["cmake_available"] else "✗"
+                compiler_status = "✓" if deps["cpp_compiler_available"] else "✗"
+                print_log(
+                    f"  {cmake_status} CMake: {'Available' if deps['cmake_available'] else 'Not found'}"
+                )
+                print_log(
+                    f"  {compiler_status} C++ Compiler: {deps['compiler_found'] if deps['cpp_compiler_available'] else 'Not found'}"
+                )
+
+                print_info("\nTemplate Files:")
+                for template in info["template_files"]:
+                    print_log(f"  ✓ {template}")
 
                 print_info("\nFeatures:")
                 for feature in info["features"]:
@@ -660,18 +756,30 @@ class SlingerClient(
                 print_log(f"  Encryption Seed: {info['encryption_seed']}")
                 print_log(f"  Layout Seed: {info['layout_seed']}")
 
+                # Show build readiness
+                if deps["cmake_available"] and deps["cpp_compiler_available"]:
+                    print_good("\n✓ System ready for agent building")
+                else:
+                    print_warning("\n⚠ Missing build dependencies - install CMake and C++ compiler")
+
             else:
-                print_error(f"Unknown agent command: {args.agent_command}")
+                print_bad(f"Unknown agent command: {args.agent_command}")
                 print_info("Available commands: build, info")
 
         except ImportError as e:
-            print_error(f"Agent builder not available: {e}")
+            print_bad(f"Agent builder not available: {e}")
+            print_debug(f"ImportError details: {e}")
+            print_debug(f"Current working directory: {os.getcwd()}")
+            print_debug(f"__file__ path: {__file__}")
             print_info("Ensure cooperative_agent.py is in lib/ directory")
         except Exception as e:
-            print_error(f"Agent command failed: {e}")
+            print_bad(f"Agent command failed: {e}")
+            print_debug(f"Exception type: {type(e).__name__}")
+            print_debug(f"Exception details: {e}")
             if hasattr(args, "debug") and args.debug:
                 import traceback
 
+                print_debug("Full traceback:")
                 traceback.print_exc()
 
     def sizeof_fmt(self, num, suffix="B"):

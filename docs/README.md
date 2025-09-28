@@ -15,6 +15,7 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Wrapper Commands**: Commands to edit port forwarding rules, view the windows firewall, ip information, etc
 - **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
 - **Query Performance Data**: (Experimental) Remotely query performance data like remote processes
+- **Cooperative Agent System**: Build polymorphic C++ agents with advanced obfuscation for named pipe command execution
 
 ## Demo
 
@@ -235,14 +236,86 @@ Example Usage: run -c|-f [script]
 
 ## Installation
 
-Clone the repository and install using one of the below methods:
+### Quick Install with pipx (Recommended)
+```bash
+pipx install slinger
+```
 
-### Using this Repo
+### Install System Dependencies for Cooperative Agent Features
+
+To use the cooperative agent build features, you'll need CMake and a C++ compiler:
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update && sudo apt install cmake build-essential
+```
+
+**CentOS/RHEL:**
+```bash
+sudo yum groupinstall "Development Tools" && sudo yum install cmake
+```
+
+**Fedora:**
+```bash
+sudo dnf groupinstall "Development Tools" && sudo dnf install cmake
+```
+
+**macOS:**
+```bash
+brew install cmake
+```
+
+**Windows:**
+- Download CMake from [cmake.org](https://cmake.org/download/)
+- Install Visual Studio Build Tools or Visual Studio Community
+
+**Automated Installation (Linux/macOS):**
+```bash
+slinger-setup-agent
+```
+
+### Verify Agent Setup
+```bash
+slinger agent info
+slinger agent build --dry-run
+```
+
+### Development Installation
 ```bash
 git clone https://github.com/ghost-ng/slinger.git
 cd slinger
 pipx install .
 ```
+
+## Cooperative Agent Features
+
+The cooperative agent system provides advanced capabilities for secure command execution:
+
+### 🔍 Check System Status
+```bash
+slinger agent info
+```
+
+### 🏗️ Build Agents
+```bash
+# Check build readiness
+slinger agent build --dry-run --arch x64
+
+# Build for specific architecture with encryption
+slinger agent build --arch x64 --encryption --debug
+
+# Build for both architectures
+slinger agent build --arch both --encryption
+```
+
+### 🛠️ Agent Capabilities
+- ✅ **Named pipe command execution** - Secure communication channel
+- ✅ **Polymorphic encryption** - Unique binary signatures per build
+- ✅ **Function name obfuscation** - Advanced C++ obfuscation
+- ✅ **String literal obfuscation** - Compile-time encryption
+- ✅ **Control flow obfuscation** - Anti-analysis techniques
+- ✅ **Cross-platform support** - Windows x86/x64 architectures
+- ✅ **No detection mechanisms** - Focus on command execution only
 
 
 ## TODO

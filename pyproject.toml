@@ -7,6 +7,21 @@ name = "slinger"
 version = "1.9.0"
 description = "An impacket swiss army knife (sort of)"
 readme = "README.md"
+keywords = ["smb", "impacket", "penetration-testing", "windows", "agent", "cooperative"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+]
 dependencies = [ "impacket==0.11.0", "prompt_toolkit==3.0.41", "pycryptodome==3.20.0", "setuptools==70.0.0", "tabulate==0.8.9", "toml", "passlib", "dotenv", "openai", "pexpect",]
 requires-python = ">=3.10"
 [[project.authors]]
@@ -21,9 +36,29 @@ file = "LICENSE"
 
 [project.scripts]
 slinger = "slingerpkg.slinger:main"
+slinger-setup-agent = "slingerpkg.scripts.install_agent_deps:main"
 
 [project.urls]
 Homepage = "https://github.com/ghost-ng/slinger"
+Repository = "https://github.com/ghost-ng/slinger"
+Documentation = "https://github.com/ghost-ng/slinger#readme"
+"Bug Tracker" = "https://github.com/ghost-ng/slinger/issues"
+
+# System requirements for cooperative agent features
+# NOTE: These cannot be automatically installed by pip/pipx
+# Users must install manually before using agent build commands:
+#
+# Ubuntu/Debian:
+#   sudo apt update && sudo apt install cmake build-essential
+#
+# CentOS/RHEL:
+#   sudo yum groupinstall "Development Tools" && sudo yum install cmake
+#
+# macOS:
+#   brew install cmake
+#
+# Windows:
+#   Install Visual Studio Build Tools or download CMake from cmake.org
 
 [tool.setuptools.package-data]
 slingerpkg = [ "plugins/*",]

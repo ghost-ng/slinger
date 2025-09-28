@@ -2107,6 +2107,11 @@ Examples:
         type=str,
         help="Custom output directory for built agents",
     )
+    parser_agent_build.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Check build readiness without actually building",
+    )
 
     # Agent info subcommand
     parser_agent_info = agent_subparsers.add_parser(

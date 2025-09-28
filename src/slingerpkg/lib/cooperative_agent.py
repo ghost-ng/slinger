@@ -190,16 +190,36 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
         deps = self.check_build_dependencies()
         if not deps.get("cmake", False):
             print("ERROR: CMake not found. Please install CMake.")
-            print("  Ubuntu/Debian: sudo apt install cmake")
-            print("  CentOS/RHEL: sudo yum install cmake")
-            print("  Windows: Download from https://cmake.org/download/")
+            print()
+            print("📦 Quick Install Commands:")
+            print("  Ubuntu/Debian: sudo apt update && sudo apt install cmake build-essential")
+            print(
+                "  CentOS/RHEL:   sudo yum groupinstall 'Development Tools' && sudo yum install cmake"
+            )
+            print(
+                "  Fedora:        sudo dnf groupinstall 'Development Tools' && sudo dnf install cmake"
+            )
+            print("  macOS:         brew install cmake")
+            print("  Windows:       Download from https://cmake.org/download/")
+            print()
+            print("🚀 Or use the automated installer:")
+            print("  slinger-setup-agent")
+            print()
             return None
 
         if not deps.get("cpp_compiler", False):
             print("ERROR: No C++ compiler found.")
+            print()
+            print("📦 Quick Install Commands:")
             print("  Ubuntu/Debian: sudo apt install build-essential")
-            print("  CentOS/RHEL: sudo yum groupinstall 'Development Tools'")
-            print("  Windows: Install Visual Studio or MinGW-w64")
+            print("  CentOS/RHEL:   sudo yum groupinstall 'Development Tools'")
+            print("  Fedora:        sudo dnf groupinstall 'Development Tools'")
+            print("  macOS:         Xcode Command Line Tools (auto-installed with brew)")
+            print("  Windows:       Install Visual Studio Build Tools")
+            print()
+            print("🚀 Or use the automated installer:")
+            print("  slinger-setup-agent")
+            print()
             return None
 
         if debug:
