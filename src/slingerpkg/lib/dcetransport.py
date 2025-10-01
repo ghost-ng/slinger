@@ -137,7 +137,11 @@ class DCETransport:
                 self.dce._disconnect()
 
     def _connect(self, named_pipe):
+        # All named pipes use the same format: \pipe_name
+        # The "pipe\" prefix visible in IPC$ listings is just for display
+        # Actual connection path is always \pipe_name
         self.pipe = "\\" + named_pipe
+
         if self.conn is None:
             raise Exception("SMB connection is not initialized")
         rpctransport = transport.SMBTransport(
@@ -201,7 +205,7 @@ class DCETransport:
                 print_debug("Registry service cleanup error:", sys.exc_info())
         elif self.rrpstarted and not self.rrpshouldStop:
             print_info("Remote Registry state: no changes made (was already RUNNING)")
-            
+
         if self.rrpshouldDisable:
             try:
                 self._connect("svcctl")
@@ -210,12 +214,12 @@ class DCETransport:
             except Exception as e:
                 print_warning(f"Remote Registry disable failed: {str(e)}")
                 print_debug("Registry service disable error:", sys.exc_info())
-        
+
         try:
             self.dce.disconnect()
         except Exception as e:
             print_debug(f"DCE disconnect error: {e}")
-        
+
         self.is_connected = False
 
     def _who(self):
@@ -501,14 +505,14 @@ class DCETransport:
     def _stop_service(self, service_name, timeout=10):
         """Stop service with timeout and dependency error handling"""
         import time
-        
+
         if not self.is_connected:
             raise Exception("Not connected to remote host")
         self.bind_override = True
         self._bind(scmr.MSRPC_UUID_SCMR)
         ans = scmr.hROpenSCManagerW(self.dce)
         self.scManagerHandle = ans["lpScHandle"]
-        
+
         try:
             ans = scmr.hROpenServiceW(self.dce, self.scManagerHandle, service_name + "\x00")
         except Exception as e:
@@ -518,9 +522,9 @@ class DCETransport:
                 print_bad("An error occurred: " + str(e))
                 print_debug("", sys.exc_info())
             return False
-        
+
         serviceHandle = ans["lpServiceHandle"]
-        
+
         try:
             # Attempt to stop the service with proper error handling
             raw = scmr.hRControlService(self.dce, serviceHandle, scmr.SERVICE_CONTROL_STOP)
@@ -529,10 +533,10 @@ class DCETransport:
             if service_name == "RemoteRegistry":
                 self.rrpstarted = False
             return unpacked
-            
+
         except Exception as e:
             error_msg = str(e)
-            
+
             # Handle specific service stop errors gracefully
             if "ERROR_DEPENDENT_SERVICES_RUNNING" in error_msg or "0x41b" in error_msg:
                 print_warning(f"Cannot stop {service_name}: other services depend on it")
@@ -544,17 +548,17 @@ class DCETransport:
             else:
                 print_warning(f"Could not stop {service_name}: {error_msg}")
                 print_debug("Service stop error details:", sys.exc_info())
-            
+
             # Always cleanup handle
             try:
                 self._close_scm_handle(serviceHandle)
             except:
                 pass
-            
+
             # Update internal state even if stop failed to prevent retry loops
             if service_name == "RemoteRegistry":
                 self.rrpstarted = False
-                
+
             return False
 
     def _checkServiceStatus(self, serviceName):
@@ -1604,4 +1608,46 @@ class DCETransport:
 
         except Exception as e:
             print_debug(f"WMI DCE/RPC query failed: {e}")
+            return None
+
+    def send_raw_data(self, data):
+        """Send raw data over the DCE transport for agent communication"""
+        try:
+            if not self.is_connected or not self.dce:
+                return False
+
+            # Access the underlying transport to send raw data
+            transport = self.dce.get_transport()
+            if hasattr(transport, "send"):
+                transport.send(data)
+                return True
+            elif hasattr(transport, "_transport") and hasattr(transport._transport, "send"):
+                transport._transport.send(data)
+                return True
+            else:
+                print_debug("No raw send method available on transport")
+                return False
+
+        except Exception as e:
+            print_debug(f"Failed to send raw data: {e}")
+            return False
+
+    def recv_raw_data(self, size):
+        """Receive raw data over the DCE transport for agent communication"""
+        try:
+            if not self.is_connected or not self.dce:
+                return None
+
+            # Access the underlying transport to receive raw data
+            transport = self.dce.get_transport()
+            if hasattr(transport, "recv"):
+                return transport.recv(size)
+            elif hasattr(transport, "_transport") and hasattr(transport._transport, "recv"):
+                return transport._transport.recv(size)
+            else:
+                print_debug("No raw recv method available on transport")
+                return None
+
+        except Exception as e:
+            print_debug(f"Failed to receive raw data: {e}")
             return None

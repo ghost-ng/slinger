@@ -53,7 +53,7 @@ class smblib:
     # SYSTEM\CurrentControlSet\Services\LanmanServer\Shares
     def list_shares(self, args=None, echo=True, ret=False):
         shares = self.conn.listShares()
-        #print_debug(f"Shares: {shares}")
+        # print_debug(f"Shares: {shares}")
 
         share_info_list = []
         for share in shares:
@@ -147,28 +147,41 @@ class smblib:
     def rm_handler(self, args):
         if not self.check_if_connected():
             return
-        if args.remote_path == "." or args.remote_path == "" or args.remote_path is None:
+
+        # Determine which files to delete
+        files_to_delete = []
+
+        if args.file_list:
+            # Use -n flag with shlex to parse space-separated list
+            import shlex
+
+            files_to_delete = shlex.split(args.file_list)
+        elif args.remote_path:
+            # Single file deletion
+            if args.remote_path == "." or args.remote_path == "":
+                print_warning("Please specify a file to remove.")
+                return
+            elif args.remote_path == "*":
+                # get file listing for wildcard deletion
+                list_path = self.relative_path + "\\*" if self.relative_path else "*"
+                files = self.conn.listPath(self.share, list_path)
+                for f in files:
+                    if f.is_directory() and f.get_longname() in [".", ".."]:
+                        continue
+                    path = ntpath.normpath(ntpath.join(self.relative_path, f.get_longname()))
+                    print_verbose(f"Removing file {path}")
+                    self.conn.deleteFile(self.share, path)
+                    print_info(f"File Removed {path}")
+                return
+            else:
+                files_to_delete = [args.remote_path]
+        else:
             print_warning("Please specify a file to remove.")
             return
-        if args.remote_path == "*":
-            # get file listing
-            list_path = self.relative_path + "\\*" if self.relative_path else "*"
-            files = self.conn.listPath(self.share, list_path)
-            for f in files:
-                if f.is_directory() and f.get_longname() in [".", ".."]:
-                    continue
-                path = ntpath.normpath(ntpath.join(self.relative_path, f.get_longname()))
-                print_verbose(f"Removing file {path}")
-                self.conn.deleteFile(self.share, path)
-                print_info(f"File Removed {path}")
-            return
-        path = ntpath.normpath(ntpath.join(self.relative_path, args.remote_path))
 
-        if self.check_if_connected():
-            # if self.file_exists(path):
-            #    self.delete(path)
-            # else:
-            #    print_warning(f"Remote file {path} does not exist.")
+        # Delete each file in the list
+        for remote_file in files_to_delete:
+            path = ntpath.normpath(ntpath.join(self.relative_path, remote_file))
             try:
                 self.delete(path)
             except Exception as e:

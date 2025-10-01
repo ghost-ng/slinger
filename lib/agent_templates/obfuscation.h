@@ -1,5 +1,14 @@
 #pragma once
-#include <windows.h>
+
+// Cross-platform compatibility layer
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <unistd.h>
+    #include <sys/time.h>
+    #include <cstring>
+#endif
+
 #include <string>
 #include <random>
 #include <chrono>
@@ -90,6 +99,9 @@ private:
 public:
     XOREncoder() : key(static_cast<uint8_t>(random_seed() & 0xFF)) {}
 
+    // Constructor with explicit seed for deterministic key
+    XOREncoder(uint32_t seed) : key(static_cast<uint8_t>(seed & 0xFF)) {}
+
     std::string encode(const std::string& input) {
         std::string result = input;
         for (char& c : result) {
@@ -101,6 +113,8 @@ public:
     std::string decode(const std::string& input) {
         return encode(input); // XOR is symmetric
     }
+
+    uint8_t get_key() const { return key; }
 };
 
 // Stack-based string obfuscation

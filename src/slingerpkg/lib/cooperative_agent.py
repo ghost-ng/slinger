@@ -17,15 +17,18 @@ from typing import Dict, List, Optional, Any
 class AgentBuilder:
     """Builds polymorphic C++ agents with advanced obfuscation"""
 
-    def __init__(self, base_path: str):
+    def __init__(self, base_path: str, debug: bool = False):
         self.base_path = Path(base_path)
         self.template_dir = self.base_path / "lib" / "agent_templates"
         self.build_dir = self.base_path / "build" / "agent"
-        self.output_dir = self.base_path / "dist" / "agents"
+        self.output_dir = Path.home() / ".slinger" / "agents"
 
         # Polymorphic encryption seeds
         self.encryption_seed = random.randint(1, 65535)
         self.layout_seed = random.randint(1000, 9999)
+
+        # Store debug flag for agent compilation
+        self.debug = debug
 
     def generate_random_string(self, length: int = 8) -> str:
         """Generate random string for obfuscation"""
@@ -54,14 +57,18 @@ class AgentBuilder:
             "exit_key": random.randint(100, 999),
         }
 
-        return {
+        build_id = f"{random.randint(10000, 99999)}_{arch}"
+
+        config = {
             "arch": arch,
             "encryption_seed": self.encryption_seed,
             "layout_seed": self.layout_seed,
             "function_mappings": func_mappings,
             "string_keys": string_keys,
-            "build_id": f"{random.randint(10000, 99999)}_{arch}",
+            "build_id": build_id,
         }
+
+        return config
 
     def apply_template_obfuscation(self, template_path: Path, config: Dict[str, Any]) -> str:
         """Apply obfuscation to template files"""
@@ -71,19 +78,16 @@ class AgentBuilder:
 
         # Replace function name mappings
         for original, obfuscated in config["function_mappings"].items():
-            content = content.replace(f"OBF_FUNC_NAME({original})", obfuscated)
+            pattern = f"OBF_FUNC_NAME({original})"
+            content = content.replace(pattern, obfuscated)
 
-        # Replace encryption seeds
-        content = content.replace("BUILD_SEED", str(config["encryption_seed"]))
+        # Replace encryption seeds - be careful not to replace #ifdef BUILD_SEED
+        # Only replace BUILD_SEED when it's used as a value, not in preprocessor directives
+        content = content.replace("return BUILD_SEED;", f"return {config['encryption_seed']};")
         content = content.replace("obf::compile_seed()", str(config["encryption_seed"]))
 
-        # Add architecture-specific optimizations
-        arch_defines = f"""
-#define ARCH_{config['arch'].upper()}
-#define BUILD_ID {config['build_id']}
-#define LAYOUT_SEED {config['layout_seed']}
-"""
-        content = arch_defines + content
+        # NOTE: Don't add #define statements here since CMake already defines these via add_definitions()
+        # This prevents the "redefined" warnings we were seeing
 
         return content
 
@@ -98,56 +102,79 @@ class AgentBuilder:
     def generate_cmake_config(self, build_path: Path, arch: str, config: Dict[str, Any]) -> None:
         """Generate CMake configuration for polymorphic build"""
 
+        # Always cross-compile for Windows targets using MinGW
+        # This produces Windows PE executables regardless of host platform
+
+        if arch == "x86":
+            compiler_prefix = "i686-w64-mingw32"
+        else:  # x64
+            compiler_prefix = "x86_64-w64-mingw32"
+
         cmake_content = f"""
 cmake_minimum_required(VERSION 3.15)
 project(SlingerAgent_{config['build_id']})
 
+# Cross-compilation setup for Windows targets
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_C_COMPILER {compiler_prefix}-gcc)
+set(CMAKE_CXX_COMPILER {compiler_prefix}-g++)
+set(CMAKE_RC_COMPILER {compiler_prefix}-windres)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Force architecture
+# Target architecture definitions
 if("{arch}" STREQUAL "x64")
-    set(CMAKE_GENERATOR_PLATFORM x64)
     add_definitions(-DARCH_X64)
 elseif("{arch}" STREQUAL "x86")
-    set(CMAKE_GENERATOR_PLATFORM Win32)
     add_definitions(-DARCH_X86)
 endif()
 
-# Aggressive optimization and obfuscation
-if(MSVC)
-    set(CMAKE_CXX_FLAGS "${{CMAKE_CXX_FLAGS}} /O2 /Ob2 /GL /LTCG /GS- /Gy /Gw")
-    set(CMAKE_EXE_LINKER_FLAGS
-        "${{CMAKE_EXE_LINKER_FLAGS}} /LTCG /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS")
-elseif(MINGW OR CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS
-        "${{CMAKE_CXX_FLAGS}} -O3 -ffunction-sections -fdata-sections -fno-stack-protector")
-    set(CMAKE_EXE_LINKER_FLAGS "${{CMAKE_EXE_LINKER_FLAGS}} -Wl,--gc-sections -s -mwindows")
-endif()
+# MinGW cross-compilation settings for Windows
+set(CMAKE_CXX_FLAGS "${{CMAKE_CXX_FLAGS}} -O3 -ffunction-sections -fdata-sections -fno-stack-protector")
+set(CMAKE_EXE_LINKER_FLAGS "${{CMAKE_EXE_LINKER_FLAGS}} -Wl,--gc-sections -s -static -static-libgcc -static-libstdc++")
+
+# Windows libraries
+set(PLATFORM_LIBS kernel32 user32 advapi32 shell32 ws2_32)"""
+
+        # Add common sections for both platforms
+        cmake_content += f"""
 
 # Polymorphic definitions
 add_definitions(
     -DENCRYPTION_SEED={config['encryption_seed']}
     -DLAYOUT_SEED={config['layout_seed']}
     -DBUILD_ID="{config['build_id']}"
-)
+)"""
+
+        # Add custom pipe name if specified
+        if config.get("custom_pipe_name"):
+            cmake_content += f"""
+add_definitions(-DCUSTOM_PIPE_NAME="{config['custom_pipe_name']}")"""
+
+        # Add debug mode if enabled
+        if config.get("debug_mode"):
+            cmake_content += f"""
+add_definitions(-DDEBUG_MODE)"""
+
+        build_id = config["build_id"]
+        cmake_section = f"""
 
 # Source files
-add_executable(slinger_agent_{config['build_id']}
+add_executable(slinger_agent_{build_id}
     agent_main.cpp
 )
 
-# Windows libraries
-target_link_libraries(slinger_agent_{config['build_id']} PRIVATE
-    kernel32 user32 advapi32 shell32
-)
+# Link libraries
+target_link_libraries(slinger_agent_{build_id} PRIVATE ${{PLATFORM_LIBS}})
 
 # Output naming
-set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
-    OUTPUT_NAME "agent_{config['build_id']}"
+set_target_properties(slinger_agent_{build_id} PROPERTIES
+    OUTPUT_NAME "agent_{build_id}"
     RUNTIME_OUTPUT_DIRECTORY "${{CMAKE_BINARY_DIR}}/bin"
 )
 """
+        cmake_content += cmake_section
 
         cmake_file = build_path / "CMakeLists.txt"
         with open(cmake_file, "w") as f:
@@ -180,11 +207,17 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
         return dependencies
 
     def build_agent(
-        self, arch: str, encryption: bool = True, debug: bool = False
+        self, arch: str, encryption: bool = True, debug: bool = False, custom_pipe_name: str = None
     ) -> Optional[Path]:
         """Build polymorphic agent for specific architecture"""
 
         print(f"Building {arch} agent with encryption: {encryption}")
+        if custom_pipe_name:
+            print(f"  Pipe name: {custom_pipe_name}")
+        else:
+            print(f"  Pipe name: <time-based random>")
+        if debug:
+            print(f"  Debug mode: ENABLED (agent will log runtime debug info)")
 
         # Check build dependencies first
         deps = self.check_build_dependencies()
@@ -227,6 +260,10 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
 
         # Generate polymorphic configuration
         config = self.create_polymorphic_template(arch)
+        if custom_pipe_name:
+            config["custom_pipe_name"] = custom_pipe_name
+        if debug:
+            config["debug_mode"] = True
 
         # Setup build environment
         build_path = self.setup_build_environment(arch)
@@ -239,6 +276,7 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
                 "pipe_core.h",
                 "command_executor.h",
             ]
+
             for template_file in template_files:
                 template_path = self.template_dir / template_file
                 if template_path.exists():
@@ -260,15 +298,14 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
                 "-DCMAKE_BUILD_TYPE=Release",
             ]
 
-            if arch == "x86":
-                configure_cmd.extend(["-A", "Win32"])
-            elif arch == "x64":
-                configure_cmd.extend(["-A", "x64"])
+            # Cross-compilation doesn't need platform-specific flags
+            # CMake configuration handles all compiler settings
 
             if debug:
                 print(f"Running CMake configure: {' '.join(configure_cmd)}")
 
             result = subprocess.run(configure_cmd, capture_output=True, text=True, cwd=build_path)
+
             if result.returncode != 0:
                 print(f"CMake configure failed:")
                 print(f"STDOUT: {result.stdout}")
@@ -292,6 +329,7 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
                 print(f"Running CMake build: {' '.join(build_cmd)}")
 
             result = subprocess.run(build_cmd, capture_output=True, text=True, cwd=build_path)
+
             if result.returncode != 0:
                 print(f"Build failed:")
                 print(f"STDOUT: {result.stdout}")
@@ -303,15 +341,33 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
 
             # Find output executable
             output_pattern = f"agent_{config['build_id']}"
-            bin_dir = build_path / "build" / "bin" / "Release"
-            if not bin_dir.exists():
-                bin_dir = build_path / "build" / "Release"
+
+            # Try different possible output directories
+            possible_dirs = [
+                build_path / "build" / "bin" / "Release",  # Windows with separate Release folder
+                build_path / "build" / "Release",  # Windows Release folder
+                build_path / "build" / "bin",  # Unix Makefiles
+                build_path / "build",  # Direct build output
+            ]
+
+            bin_dir = None
+            for dir_path in possible_dirs:
+                if dir_path.exists():
+                    bin_dir = dir_path
+                    break
+
+            if bin_dir is None:
+                print("Could not find build output directory")
+                return None
 
             for ext in [".exe", ""]:
                 output_file = bin_dir / f"{output_pattern}{ext}"
+                if debug:
+                    print(f"Checking for executable: {output_file}")
                 if output_file.exists():
                     # Copy to final output directory
                     self.output_dir.mkdir(parents=True, exist_ok=True)
+                    # Always use .exe extension since we're cross-compiling for Windows
                     final_output = self.output_dir / (
                         f"slinger_agent_{arch}_{config['encryption_seed']}.exe"
                     )
@@ -322,13 +378,36 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
                     print(f"  Encryption seed: {config['encryption_seed']}")
                     print(f"  Build ID: {config['build_id']}")
 
+                    # Show pipe name information
+                    if config.get("custom_pipe_name"):
+                        print(f"  Pipe name: {config['custom_pipe_name']} (custom)")
+                    else:
+                        print(f"  Pipe name: <time-based random> (determined at runtime)")
+
+                    # Show debug mode status
+                    if config.get("debug_mode"):
+                        print(f"  Debug mode: ENABLED")
+                        print(f"  Agent will log to: <agent_directory>\\slinger_agent_debug.log")
+
+                    # Save to build registry
+                    self._save_to_build_registry(final_output, arch, config)
+
                     return final_output
 
-            print("Could not find built executable")
+            print(f"Could not find built executable in {bin_dir}")
+            if debug:
+                print(f"Looking for pattern: {output_pattern}")
+                print(f"Files in directory:")
+                for f in bin_dir.iterdir():
+                    print(f"  {f.name}")
             return None
 
         except Exception as e:
             print(f"Build error: {e}")
+            if debug:
+                import traceback
+
+                traceback.print_exc()
             return None
 
     def build_all_architectures(self, encryption: bool = True) -> List[Path]:
@@ -379,9 +458,58 @@ set_target_properties(slinger_agent_{config['build_id']} PROPERTIES
             ],
         }
 
+    def _save_to_build_registry(self, agent_path, arch, config):
+        """Save built agent information to build registry"""
+        try:
+            import os
+            import json
+            from pathlib import Path
+            import datetime
+
+            # Create build registry directory
+            registry_dir = Path.home() / ".slinger" / "builds"
+            registry_dir.mkdir(parents=True, exist_ok=True)
+            registry_path = registry_dir / "built_agents.json"
+
+            # Load existing registry
+            registry = {}
+            if registry_path.exists():
+                try:
+                    with open(registry_path, "r") as f:
+                        registry = json.load(f)
+                except:
+                    pass
+
+            # Agent path as key
+            agent_key = str(agent_path)
+
+            # Store agent build information
+            registry[agent_key] = {
+                "path": str(agent_path),
+                "filename": os.path.basename(agent_path),
+                "architecture": arch,
+                "encryption_seed": config["encryption_seed"],
+                "build_id": config["build_id"],
+                "pipe_name": config.get("custom_pipe_name"),  # None for time-based
+                "pipe_type": "custom" if config.get("custom_pipe_name") else "time-based",
+                "built_at": str(datetime.datetime.now()),
+                "file_size": os.path.getsize(agent_path) if os.path.exists(agent_path) else 0,
+            }
+
+            # Save updated registry
+            with open(registry_path, "w") as f:
+                json.dump(registry, f, indent=2)
+
+        except Exception as e:
+            print(f"Warning: Failed to save to build registry: {e}")
+
 
 def build_cooperative_agent(
-    arch: str = "both", encryption: bool = True, debug: bool = False, base_path: str = None
+    arch: str = "both",
+    encryption: bool = True,
+    debug: bool = False,
+    base_path: str = None,
+    custom_pipe_name: str = None,
 ) -> List[str]:
     """
     Main function to build cooperative agents
@@ -397,8 +525,11 @@ def build_cooperative_agent(
     """
 
     if base_path is None:
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    builder = AgentBuilder(base_path)
+        # Calculate path to project root from src/slingerpkg/lib/cooperative_agent.py
+        # Go up 4 directories: cooperative_agent.py -> lib -> slingerpkg -> src -> project_root
+        file_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(file_dir)))
+    builder = AgentBuilder(base_path, debug=debug)
 
     if debug:
         info = builder.get_build_info()
@@ -410,9 +541,16 @@ def build_cooperative_agent(
     built_agents = []
 
     if arch == "both":
-        built_agents = builder.build_all_architectures(encryption)
+        if custom_pipe_name:
+            # Build both architectures with custom pipe name
+            for target_arch in ["x86", "x64"]:
+                agent_path = builder.build_agent(target_arch, encryption, debug, custom_pipe_name)
+                if agent_path:
+                    built_agents.append(agent_path)
+        else:
+            built_agents = builder.build_all_architectures(encryption)
     else:
-        agent_path = builder.build_agent(arch, encryption, debug)
+        agent_path = builder.build_agent(arch, encryption, debug, custom_pipe_name)
         if agent_path:
             built_agents.append(agent_path)
 

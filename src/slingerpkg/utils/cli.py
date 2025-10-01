@@ -191,10 +191,12 @@ def print_all_commands_verbose(parser):
             "atexec",
             "wmiexec",
             "portfwd",
+            "agent",
         ],
         "💾 Download Management": ["downloads"],
         "🖥️  Session Management": [
             "info",
+            "history",
             "set",
             "config",
             "run",
@@ -1050,11 +1052,14 @@ def setup_cli_parser(slingerClient):
     # Subparser for 'rm' command
     parser_rm = subparsers.add_parser(
         "rm",
-        help="Delete a file",
-        description="Delete a file on the remote server",
-        epilog="Example Usage: rm /path/to/remote/file",
+        help="Delete a file or files",
+        description="Delete one or more files on the remote server",
+        epilog="Example Usage: rm file.txt, rm -n 'file1.txt file2.txt file3.txt'",
     )
-    parser_rm.add_argument("remote_path", help="Specify the remote file path to delete")
+    parser_rm.add_argument("remote_path", nargs="?", help="Specify the remote file path to delete")
+    parser_rm.add_argument(
+        "-n", dest="file_list", help="Space-separated list of files to delete (quoted)"
+    )
     parser_rm.set_defaults(func=slingerClient.rm_handler)
 
     # Subparser for '#shell' command
@@ -1085,6 +1090,22 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: info",
     )
     parser_info.set_defaults(func=slingerClient.info)
+
+    # Subparser for 'history' command
+    parser_history = subparsers.add_parser(
+        "history",
+        help="Show command history",
+        description="Display recent command history from the slinger history file",
+        epilog="Example Usage: history, history -n 20",
+    )
+    parser_history.add_argument(
+        "-n",
+        type=int,
+        default=15,
+        metavar="NUM",
+        help="Number of history lines to display (default: 15)",
+    )
+    parser_history.set_defaults(func=slingerClient.history_handler)
 
     parser_regstart = subparsers.add_parser(
         "reguse",
@@ -2112,6 +2133,12 @@ Examples:
         action="store_true",
         help="Check build readiness without actually building",
     )
+    parser_agent_build.add_argument(
+        "--pipe",
+        type=str,
+        help="Specify custom pipe name for the agent",
+    )
+    parser_agent_build.set_defaults(func=slingerClient.agent_handler)
 
     # Agent info subcommand
     parser_agent_info = agent_subparsers.add_parser(
@@ -2120,6 +2147,164 @@ Examples:
         description="Display configuration and capabilities of the agent builder",
     )
     parser_agent_info.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent deploy subcommand
+    parser_agent_deploy = agent_subparsers.add_parser(
+        "deploy",
+        help="Deploy agent to target system",
+        description="Upload and execute polymorphic agent on target system via SMB",
+        epilog="Example: agent deploy /home/user/slinger_agent_x64.exe --path temp\\ --start",
+    )
+    parser_agent_deploy.add_argument(
+        "agent_path",
+        type=str,
+        help="Path to the agent executable to deploy",
+    )
+    parser_agent_deploy.add_argument(
+        "--path",
+        type=str,
+        required=True,
+        help="Target path relative to current share (e.g., temp\\, Windows\\Temp\\)",
+    )
+    parser_agent_deploy.add_argument(
+        "--name",
+        type=str,
+        help="Custom name for deployed agent (default: random)",
+    )
+    parser_agent_deploy.add_argument(
+        "--start",
+        action="store_true",
+        help="Start the agent after deployment via WMI DCOM",
+    )
+    parser_agent_deploy.add_argument(
+        "--pipe",
+        type=str,
+        help="Specify pipe name for the agent (must match build-time pipe name)",
+    )
+    parser_agent_deploy.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent list subcommand
+    parser_agent_list = agent_subparsers.add_parser(
+        "list",
+        help="List deployed agents",
+        description="Show all deployed agents and their status",
+        epilog="Example: agent list",
+    )
+    parser_agent_list.add_argument(
+        "--host",
+        type=str,
+        help="Filter agents by host",
+    )
+    parser_agent_list.add_argument(
+        "--del",
+        dest="delete_agent",
+        type=str,
+        help="Remove agent from registry by ID (use 'all' to remove all agents)",
+    )
+    parser_agent_list.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent rename subcommand
+    parser_agent_rename = agent_subparsers.add_parser(
+        "rename",
+        help="Rename deployed agent",
+        description="Change the ID of a deployed agent in the registry",
+        epilog="Example: agent rename --old svchost_abc123 --new my_agent",
+    )
+    parser_agent_rename.add_argument(
+        "--old",
+        type=str,
+        required=True,
+        help="Current agent ID",
+    )
+    parser_agent_rename.add_argument(
+        "--new",
+        type=str,
+        required=True,
+        help="New agent ID",
+    )
+    parser_agent_rename.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent check subcommand
+    parser_agent_check = agent_subparsers.add_parser(
+        "check",
+        help="Check agent process status",
+        description="Verify if the agent process is still running via WMI query",
+        epilog="Example: agent check svchost_abc123",
+    )
+    parser_agent_check.add_argument(
+        "agent_id",
+        type=str,
+        help="Agent ID to check",
+    )
+    parser_agent_check.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent use subcommand
+    parser_agent_use = agent_subparsers.add_parser(
+        "use",
+        help="Interact with deployed agent",
+        description="Connect to and interact with a deployed agent via named pipe",
+        epilog="Example: agent use agent_12345",
+    )
+    parser_agent_use.add_argument(
+        "agent_id",
+        type=str,
+        help="Agent ID to connect to",
+    )
+    parser_agent_use.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Connection timeout in seconds (default: 30)",
+    )
+    parser_agent_use.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent kill subcommand
+    parser_agent_kill = agent_subparsers.add_parser(
+        "kill",
+        help="Kill agent process",
+        description="Find and terminate the agent process using WMI and taskkill",
+        epilog="Example: agent kill svchost_abc123",
+    )
+    parser_agent_kill.add_argument(
+        "agent_id",
+        type=str,
+        help="Agent ID to kill",
+    )
+    parser_agent_kill.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent rm subcommand
+    parser_agent_rm = agent_subparsers.add_parser(
+        "rm",
+        help="Remove agent file",
+        description="Delete the agent executable file and update registry status",
+        epilog="Example: agent rm svchost_abc123",
+    )
+    parser_agent_rm.add_argument(
+        "agent_id",
+        type=str,
+        help="Agent ID to remove",
+    )
+    parser_agent_rm.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent update subcommand
+    parser_agent_update = agent_subparsers.add_parser(
+        "update",
+        help="Update agent path",
+        description="Update the agent's file path in the registry",
+        epilog="Example: agent update svchost_abc123 --path c:\\new\\path\\agent.exe",
+    )
+    parser_agent_update.add_argument(
+        "agent_id",
+        type=str,
+        help="Agent ID to update",
+    )
+    parser_agent_update.add_argument(
+        "--path",
+        type=str,
+        required=True,
+        help="New file path for the agent",
+    )
+    parser_agent_update.set_defaults(func=slingerClient.agent_handler)
 
     # Set handler for agent commands
     parser_agent.set_defaults(func=slingerClient.agent_handler)
@@ -2194,7 +2379,7 @@ class CommandCompleter(Completer):
 
 
 def get_prompt(client, nojoy):
-    slinger_emoji = "\U0001f920"
+    slinger_emoji = "\U0001F920"
     fire_emoji = "\U0001f525"
 
     if client.is_connected_to_remote_share():
