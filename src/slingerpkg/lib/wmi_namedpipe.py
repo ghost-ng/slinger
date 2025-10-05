@@ -72,6 +72,7 @@ class WMINamedPipeExec:
                 )
             else:
                 result = self.execute_wmi_command_namedpipe(
+                    args=args,
                     command=getattr(args, "command"),
                     capture_output=not getattr(args, "no_output", False),
                     timeout=getattr(args, "timeout", 30),
@@ -180,12 +181,13 @@ class WMINamedPipeExec:
             return False
 
     def execute_wmi_command_namedpipe(
-        self, command, capture_output=True, timeout=30, interactive=False, output_file=None
+        self, args, command, capture_output=True, timeout=30, interactive=False, output_file=None
     ):
         """
         Execute command via WMI using named pipe transport
 
         Args:
+            args: Command-line arguments with all flags
             command: Command to execute
             capture_output: Whether to capture and return output
             timeout: Execution timeout in seconds
@@ -197,33 +199,66 @@ class WMINamedPipeExec:
         """
         try:
             if interactive:
-                return self._execute_interactive_shell_namedpipe(timeout, output_file)
+                return self._execute_interactive_shell_namedpipe(args, timeout, output_file)
             else:
                 return self._execute_single_command_namedpipe(
-                    command, capture_output, timeout, output_file
+                    args, command, capture_output, timeout, output_file
                 )
 
         except Exception as e:
             print_debug(f"WMI named pipe execution failed: {str(e)}", sys.exc_info())
             return {"success": False, "error": str(e), "process_id": None, "output": None}
 
-    def _execute_single_command_namedpipe(self, command, capture_output, timeout, output_file):
+    def _execute_single_command_namedpipe(
+        self, args, command, capture_output, timeout, output_file
+    ):
         """Execute a single command via WMI named pipe"""
         print_verbose(f"Executing WMI command via named pipe: {command}")
 
-        # For output capture, redirect to temporary file
+        # Extract flags from args
+        save_path = getattr(args, "save_path", getattr(args, "sp", "\\Windows\\Temp\\"))
+        save_name = getattr(args, "save_name", getattr(args, "sn", None))
+        working_dir = getattr(args, "working_dir", "C:\\")
+        shell = getattr(args, "shell", "cmd")
+        raw_command = getattr(args, "raw_command", False)
+
+        # Ensure save_path ends with backslash
+        if not save_path.endswith("\\"):
+            save_path += "\\"
+
+        # Generate output filename if needed
         if capture_output:
-            temp_output_file = f"C:\\Windows\\Temp\\wmi_np_output_{int(time.time())}.tmp"
-            full_command = f'cmd.exe /c "{command}" > "{temp_output_file}" 2>&1'
+            if save_name:
+                output_filename = save_name
+            else:
+                output_filename = f"wmi_np_output_{int(time.time())}.tmp"
+
+            # Build full Windows path for output file
+            temp_output_file = f"C:{save_path}{output_filename}"
+
+            # Build command based on shell and raw_command flag
+            if raw_command:
+                # Execute command directly without wrapper
+                full_command = f'{command} > "{temp_output_file}" 2>&1'
+            elif shell == "powershell":
+                full_command = f'powershell.exe -Command "{command}" > "{temp_output_file}" 2>&1'
+            else:  # cmd
+                full_command = f'cmd.exe /c "{command}" > "{temp_output_file}" 2>&1'
         else:
-            full_command = f'cmd.exe /c "{command}"'
             temp_output_file = None
+            # Build command without output redirection
+            if raw_command:
+                full_command = command
+            elif shell == "powershell":
+                full_command = f'powershell.exe -Command "{command}"'
+            else:  # cmd
+                full_command = f'cmd.exe /c "{command}"'
 
         print_verbose(f"Full command for WMI named pipe: {full_command}")
 
         try:
-            # Execute via traditional WMI DCOM
-            process_id = self._create_wmi_process_traditional(full_command)
+            # Execute via traditional WMI DCOM with working directory
+            process_id = self._create_wmi_process_traditional(full_command, working_dir)
 
             if process_id:
                 print_verbose(f"Process created via WMI named pipe with PID: {process_id}")
@@ -260,7 +295,7 @@ class WMINamedPipeExec:
         except Exception as e:
             return {"success": False, "error": str(e), "process_id": None, "output": None}
 
-    def _execute_interactive_shell_namedpipe(self, timeout, output_file):
+    def _execute_interactive_shell_namedpipe(self, args, timeout, output_file):
         """Execute interactive WMI shell via named pipe"""
         print_info("Starting WMI named pipe interactive shell...")
         print_info("Type 'exit' to quit the WMI shell")
@@ -281,7 +316,9 @@ class WMINamedPipeExec:
                         continue
 
                     # Execute command via named pipe
-                    result = self._execute_single_command_namedpipe(command, True, timeout, None)
+                    result = self._execute_single_command_namedpipe(
+                        args, command, True, timeout, None
+                    )
 
                     if result["success"]:
                         if result["output"]:
@@ -317,10 +354,14 @@ class WMINamedPipeExec:
         except Exception as e:
             return {"success": False, "error": str(e), "process_id": None, "output": None}
 
-    def _create_wmi_process_traditional(self, command):
-        """
+    def _create_wmi_process_traditional(self, command, working_dir=r"C:\\"):
+        r"""
         Create process via traditional WMI using Impacket's approach
         Based on the standard impacket wmiexec.py implementation
+
+        Args:
+            command: Command to execute
+            working_dir: Working directory for process (default: C:\)
         """
         print_debug("WMI process creation via traditional DCOM")
 
@@ -360,12 +401,13 @@ class WMINamedPipeExec:
             iWbemLevel1Login.RemRelease()
 
             print_debug(f"Executing WMI command: {command}")
+            print_debug(f"Working directory: {working_dir}")
             # Get Win32_Process class and call Create method
             win32Process, _ = iWbemServices.GetObject("Win32_Process")
 
             # Call Create method with command line, working dir, and environment
             # Use the same pattern as the working DCOM implementation
-            result = win32Process.Create(command, "C:\\", None)
+            result = win32Process.Create(command, working_dir, None)
 
             # Cleanup
             dcom.disconnect()
@@ -711,7 +753,8 @@ class WMINamedPipeExec:
         # C:\Windows\Temp\file.tmp -> \Windows\Temp\file.tmp
         smb_path = temp_output_file
         if ":" in smb_path:
-            smb_path = "\\" + smb_path.split(":", 1)[1]
+            # Remove drive letter and colon, keep the backslash
+            smb_path = smb_path.split(":", 1)[1]
 
         print_debug(f"Converted path for SMB: {smb_path}")
 
