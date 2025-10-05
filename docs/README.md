@@ -171,33 +171,37 @@ Stop Time: 2023-12-30 23:42:19.886846
 ```bash
 Available commands:
 ------------------------------------------
-!                     get                   regstop               svcdelete
-#shell                hashdump              reguse                svcdisable
-cat                   help                  reload                svcenable
-cd                    hostname              rm                    svcenum
-config                ifconfig              rmdir                 svcshow
-debug-availcounters   info                  run                   svcstart
-debug-counter         ipconfig              secretsdump           svcstop
-disableservice        logoff                serviceadd            taskadd
-disablesvc            logout                servicecreate         taskcreate
-download              ls                    servicedel            taskdel
-enableservice         mget                  servicedelete         taskdelete
-enablesvc             mkdir                 servicedisable        taskenum
-enumdisk              plugincmd             serviceenable         taskexec
-enuminfo              portfwd               servicerun            tasklist
-enuminterfaces        procs                 services              taskrm
-enumlogons            ps                    servicesenum          taskrun
-enumservices          put                   serviceshow           tasksenum
-enumshares            pwd                   servicestart          taskshow
-enumsys               quit                  servicestop           tasksshow
-enumtasks             regcheck              set                   upload
-enumtime              regcreate             shares                use
-enumtransport         regdel                showservice           who
-env                   regquery              showtask
-exit                  regset                svcadd
-fwrules               regstart              svccreate
+!                     env                   regcreate             showtask
+#shell                eventlog              regdel                svcadd
+agent                 exit                  regquery              svccreate
+atexec                find                  regset                svcdelete
+audit                 fwrules               regstart              svcdisable
+cat                   get                   regstop               svcenable
+cd                    hashdump              reguse                svcenum
+clear                 help                  reload                svcshow
+config                history               rm                    svcstart
+debug-availcounters   hostname              rmdir                 svcstop
+debug-counter         ifconfig              run                   taskadd
+disableservice        info                  secretsdump           taskcreate
+disablesvc            ipconfig              servertime            taskdel
+download              logoff                serviceadd            taskdelete
+downloads             logout                servicecreate         taskenum
+enableservice         ls                    servicedel            taskexec
+enablesvc             mget                  servicedelete         tasklist
+enumdisk              mkdir                 servicedisable        taskrm
+enuminfo              network               serviceenable         taskrun
+enuminterfaces        plugins               servicerun            tasksenum
+enumlogons            portfwd               services              taskshow
+enumpipes             procs                 servicesenum          tasksshow
+enumservices          ps                    serviceshow           time
+enumshares            put                   servicestart          upload
+enumsys               pwd                   servicestop           use
+enumtasks             quit                  set                   who
+enumtime              reconnect             shares                wmiexec
+enumtransport         regcheck              showservice
 
 Type help <command> or <command> -h for more information on a specific command
+Type help --verbose for detailed categorized help
 ```
 
 #### Click here to view all the help entries:
