@@ -120,7 +120,7 @@ class wmiexec(WMIQuery):
         """Handle WMI Event Consumer execution"""
         print_bad("WMI Event Consumer method is not implemented yet")
         print_info("This feature is under development and will be available in a future release")
-        print_info("Please use 'wmiexec dcom' or 'wmiexec task' methods instead")
+        print_info("Please use 'wmiexec dcom' methods instead")
 
         return {
             "success": False,
@@ -284,9 +284,6 @@ class wmiexec(WMIQuery):
         print_info("Type 'exit' to quit the Event Consumer shell")
         print_warning(
             "NOTE: Event Consumer method creates temporary WMI persistence for each command"
-        )
-        print_warning(
-            "Use single commands for better performance, or consider 'wmiexec task -i' for faster interactive mode"
         )
 
         # Determine shell prompt prefix
