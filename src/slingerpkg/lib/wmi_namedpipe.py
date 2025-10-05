@@ -9,9 +9,7 @@ Based on research in docs/WMI_NAMED_PIPE_EXECUTION_RESEARCH.md
 """
 
 import sys
-import os
 import time
-import tempfile
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from impacket.dcerpc.v5.dcom import wmi
@@ -709,6 +707,14 @@ class WMINamedPipeExec:
         """
         print_verbose(f"Waiting for output via named pipe from: {temp_output_file}")
 
+        # Convert Windows path to SMB share-root path
+        # C:\Windows\Temp\file.tmp -> \Windows\Temp\file.tmp
+        smb_path = temp_output_file
+        if ":" in smb_path:
+            smb_path = "\\" + smb_path.split(":", 1)[1]
+
+        print_debug(f"Converted path for SMB: {smb_path}")
+
         start_time = time.time()
         output = ""
 
@@ -716,7 +722,7 @@ class WMINamedPipeExec:
         while time.time() - start_time < timeout:
             try:
                 # Try to read the output file via SMB
-                output = self._read_remote_file(temp_output_file)
+                output = self._read_remote_file(smb_path)
                 if output:
                     break
             except:
@@ -726,9 +732,9 @@ class WMINamedPipeExec:
 
         # Clean up temporary file
         try:
-            self._delete_remote_file(temp_output_file)
+            self._delete_remote_file(smb_path)
         except:
-            print_debug(f"Could not clean up temporary file: {temp_output_file}")
+            print_debug(f"Could not clean up temporary file: {smb_path}")
 
         return output
 
@@ -737,14 +743,15 @@ class WMINamedPipeExec:
         try:
             print_debug(f"Reading remote file via SMB: {file_path}")
 
+            # Import SMB constants
+            from impacket.smbconnection import FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE
+
             # Use existing SMB connection to read file
             file_handle = self.conn.openFile(
-                self.share,
+                self.tree_id,
                 file_path,
-                creationOption=0x00000001,  # FILE_OPEN
-                fileAttributes=0x00000000,
-                shareMode=0x00000001,  # FILE_SHARE_READ
-                creationDisposition=0x00000001,  # FILE_OPEN
+                desiredAccess=FILE_READ_DATA,
+                shareMode=FILE_SHARE_READ | FILE_SHARE_WRITE,
             )
 
             # Read file contents
@@ -753,24 +760,26 @@ class WMINamedPipeExec:
             chunk_size = 4096
 
             while True:
-                chunk = self.conn.readFile(self.share, file_handle, offset, chunk_size)
+                chunk = self.conn.readFile(
+                    self.tree_id, file_handle, offset=offset, bytesToRead=chunk_size
+                )
                 if not chunk:
                     break
                 file_content += chunk.decode("utf-8", errors="ignore")
                 offset += len(chunk)
 
-            self.conn.closeFile(self.share, file_handle)
+            self.conn.closeFile(self.tree_id, file_handle)
             return file_content
 
         except Exception as e:
             print_debug(f"Error reading remote file: {e}")
-            return "Output capture via named pipe - enhanced placeholder"
+            return ""
 
     def _delete_remote_file(self, file_path):
         """Delete remote file via SMB"""
         try:
             print_debug(f"Deleting remote file via SMB: {file_path}")
-            self.conn.deleteFile(self.share, file_path)
+            self.conn.deleteFile(self.tree_id, file_path)
         except Exception as e:
             print_debug(f"Error deleting remote file: {e}")
 
