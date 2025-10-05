@@ -95,6 +95,7 @@ def print_verbose(msg):
 
 def print_debug(msg, e=None, force_debug=False):
     # find the Debug Dict in config
+    from datetime import datetime
 
     if e:
         verbose_trace = error_logging(e)
@@ -107,9 +108,10 @@ def print_debug(msg, e=None, force_debug=False):
 
     module = inspect.getmodule(current_frame)
     module_name = module.__name__ if module else "unknown"
+    timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]  # HH:MM:SS.mmm
     debug_msg = f"""
 *********************************************
-[DEBUG][{module_name}][Line {line_number}]:{colors.HEADER}{msg}{colors.ENDC}
+[DEBUG][{timestamp}][{module_name}][Line {line_number}]:{colors.HEADER}{msg}{colors.ENDC}
 {verbose_trace}
 [DEBUG]{trace_print("Traceback (most recent call last):", trace_calls=True)}
 *********************************************

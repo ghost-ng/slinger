@@ -36,6 +36,8 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import to_formatted_text, ANSI
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
 import getpass
 
 
@@ -185,7 +187,19 @@ def main():
 
     hist_file_location = os.path.expanduser(get_config_value("History_File"))
     completer = CommandCompleter(setup_completer(slinger_parser))
-    session = PromptSession(history=FileHistory(hist_file_location), completer=completer)
+
+    # Create custom key bindings
+    kb = KeyBindings()
+
+    # Double ESC to clear the line
+    @kb.add(Keys.Escape, Keys.Escape)
+    def _(event):
+        """Clear the current input line on double ESC"""
+        event.current_buffer.reset()
+
+    session = PromptSession(
+        history=FileHistory(hist_file_location), completer=completer, key_bindings=kb
+    )
 
     try:
         slingerClient.login()
@@ -296,8 +310,18 @@ def main():
 
                 hist_file_location = os.path.expanduser(get_config_value("History_File"))
                 completer = CommandCompleter(setup_completer(slinger_parser))
+
+                # Create custom key bindings
+                kb = KeyBindings()
+
+                # Double ESC to clear the line
+                @kb.add(Keys.Escape, Keys.Escape)
+                def _(event):
+                    """Clear the current input line on double ESC"""
+                    event.current_buffer.reset()
+
                 session = PromptSession(
-                    history=FileHistory(hist_file_location), completer=completer
+                    history=FileHistory(hist_file_location), completer=completer, key_bindings=kb
                 )
                 print_good(f"Loaded {len(plugins)} plugins")
 

