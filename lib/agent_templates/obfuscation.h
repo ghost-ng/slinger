@@ -20,7 +20,7 @@ constexpr uint32_t compile_seed() {
 #ifdef BUILD_SEED
     return BUILD_SEED;
 #else
-    return 12345; // Default fallback
+    #error "BUILD_SEED must be defined at compile time via CMake -DBUILD_SEED=<value>"
 #endif
 }
 

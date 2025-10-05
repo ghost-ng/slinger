@@ -796,10 +796,25 @@ class smblib:
         dirList = []
 
         try:
-            if not self.is_valid_directory(path, print_error=False) and "\\" not in path:
-                list_path = path
-            else:
-                list_path = path + "\\*" if path else "*"
+            # Check if path is a file by trying to list it directly first
+            is_file = False
+            if path and not path.endswith("\\"):
+                try:
+                    # Try to list the path as a file
+                    test_files = self.conn.listPath(self.share, path)
+                    if len(test_files) == 1 and not test_files[0].is_directory():
+                        is_file = True
+                        list_path = path
+                except:
+                    pass
+
+            if not is_file:
+                # It's a directory, append \* for listing
+                if not self.is_valid_directory(path, print_error=False) and "\\" not in path:
+                    list_path = path
+                else:
+                    list_path = path + "\\*" if path else "*"
+
             files = self.conn.listPath(self.share, list_path)
             for f in files:
                 creation_time = (

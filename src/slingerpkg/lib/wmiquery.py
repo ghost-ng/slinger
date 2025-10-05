@@ -146,9 +146,54 @@ class WMIQuery:
 
                 # Create WMI service connection for this namespace
                 print_debug(f"Connecting to WMI namespace: {namespace}")
-                iInterface = self._dcom_connection.CoCreateInstanceEx(
-                    wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
-                )
+
+                try:
+                    iInterface = self._dcom_connection.CoCreateInstanceEx(
+                        wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+                    )
+                except (BrokenPipeError, OSError, Exception) as conn_error:
+                    # DCOM connection is stale/broken - invalidate and reconnect
+                    error_msg = str(conn_error)
+                    if "broken pipe" in error_msg.lower() or "errno 32" in error_msg.lower():
+                        print_debug(f"DCOM connection broken, reconnecting: {conn_error}")
+                        self._dcom_connection = None
+                        self._wmi_services.clear()
+
+                        # Recreate DCOM connection
+                        if not host:
+                            host = getattr(self, "host", None)
+                        if not host:
+                            raise Exception("No host connection available")
+
+                        lm_hash = ""
+                        nt_hash = ""
+                        if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+                            if ":" in self.ntlm_hash:
+                                lm_hash, nt_hash = self.ntlm_hash.split(":")
+                            else:
+                                nt_hash = self.ntlm_hash
+
+                        self._dcom_connection = DCOMConnection(
+                            host,
+                            username,
+                            password,
+                            domain,
+                            lm_hash,
+                            nt_hash,
+                            aesKey="",
+                            oxidResolver=True,
+                            doKerberos=getattr(self, "use_kerberos", False),
+                        )
+                        print_debug("DCOM connection re-established after broken pipe")
+
+                        # Retry the CoCreateInstanceEx
+                        iInterface = self._dcom_connection.CoCreateInstanceEx(
+                            wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+                        )
+                    else:
+                        # Different error, re-raise
+                        raise
+
                 iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
                 # Format namespace correctly for NTLMLogin
                 if namespace.startswith("root/"):

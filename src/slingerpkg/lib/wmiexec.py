@@ -401,6 +401,7 @@ class wmiexec(WMIQuery):
         save_name=None,
         raw_command=False,
         shell="cmd",
+        temp_dir=None,
     ):
         """
         Execute command via WMI using traditional DCOM approach - Optimized Version
@@ -415,6 +416,7 @@ class wmiexec(WMIQuery):
             save_name: Custom filename for output capture (None = auto-generate)
             raw_command: Execute raw command without shell wrapper
             shell: Shell to use ('cmd' or 'powershell')
+            temp_dir: Custom temp directory for output files (None = auto-detect based on share)
 
         Returns:
             dict with 'success', 'process_id', 'output', 'error' keys
@@ -485,11 +487,23 @@ class wmiexec(WMIQuery):
                     print_verbose(f"Output file: {output_filename} (filesystem artifact)")
 
                     # Create proper Windows file system path for output redirection
-                    if share_name.endswith("$"):
-                        # Convert C$ to C:\ for Windows file system path
-                        drive_letter = share_name[0].upper()
-                        output_path = f"{drive_letter}:\\Windows\\Temp\\{output_filename}"
-                        print_verbose(f"Output path: {output_path} (Windows filesystem path)")
+                    if temp_dir:
+                        # Use custom temp directory if provided
+                        output_path = f"{temp_dir}\\{output_filename}"
+                        print_verbose(f"Output path: {output_path} (custom temp dir)")
+                    elif share_name.endswith("$"):
+                        # Check if this is a drive share (C$, D$, etc.) or special share (ADMIN$, IPC$, etc.)
+                        if len(share_name) == 2 and share_name[0].isalpha():
+                            # Drive share like C$, D$ → use drive letter
+                            drive_letter = share_name[0].upper()
+                            output_path = f"{drive_letter}:\\Windows\\Temp\\{output_filename}"
+                            print_verbose(f"Output path: {output_path} (Windows filesystem path)")
+                        else:
+                            # Special share like ADMIN$ (maps to C:\Windows) → always use C:\Windows\Temp
+                            output_path = f"C:\\Windows\\Temp\\{output_filename}"
+                            print_verbose(
+                                f"Output path: {output_path} (default temp for special share)"
+                            )
                     else:
                         # Handle custom shares
                         output_path = f"\\\\127.0.0.1\\{share_name}\\{output_filename}"
@@ -569,9 +583,39 @@ class wmiexec(WMIQuery):
 
                                 try:
                                     # Calculate the correct SMB path for cross-share operations
-                                    if share_name.endswith("$"):
+                                    if temp_dir:
+                                        # Custom temp dir - need to make it relative to TARGET share (share_name)
+                                        # Get the target share's disk path
+                                        target_share_path = None
+                                        try:
+                                            shares = self.list_shares(ret=True, echo=False)
+                                            for s in shares:
+                                                if s["name"].upper() == share_name.upper():
+                                                    target_share_path = s["path"]
+                                                    break
+                                        except:
+                                            pass
+
+                                        if target_share_path and temp_dir.startswith(
+                                            target_share_path
+                                        ):
+                                            # Remove share path prefix to get relative path
+                                            cross_share_path = (
+                                                temp_dir[len(target_share_path) :].lstrip("\\")
+                                                + f"\\{output_filename}"
+                                            )
+                                        elif ":" in temp_dir:
+                                            # Fallback: remove drive letter
+                                            cross_share_path = (
+                                                temp_dir.split(":", 1)[1].lstrip("\\")
+                                                + f"\\{output_filename}"
+                                            )
+                                        else:
+                                            cross_share_path = f"{temp_dir}\\{output_filename}"
+                                    elif share_name.endswith("$"):
                                         # File was written to C:\Windows\Temp\filename.txt
-                                        cross_share_path = f"Windows\\Temp\\{output_filename}"
+                                        # Use share-root path (starts with \) for SMB operations
+                                        cross_share_path = f"\\Windows\\Temp\\{output_filename}"
                                     else:
                                         cross_share_path = output_filename
 
@@ -607,10 +651,50 @@ class wmiexec(WMIQuery):
                                 )
 
                                 # Calculate the correct SMB path for the output file
-                                if share_name.endswith("$"):
+                                if temp_dir:
+                                    # Custom temp dir - need to make it relative to current share
+                                    # Get the share's disk path to calculate relative path
+                                    current_share_path = None
+                                    if hasattr(self, "share"):
+                                        # Try to resolve current share to disk path
+                                        try:
+                                            shares = self.list_shares(ret=True, echo=False)
+                                            for s in shares:
+                                                if s["name"].upper() == self.share.upper():
+                                                    current_share_path = s["path"]
+                                                    break
+                                        except:
+                                            pass
+
+                                    if current_share_path and temp_dir.startswith(
+                                        current_share_path
+                                    ):
+                                        # Remove share path prefix to get relative path
+                                        smb_output_path = (
+                                            temp_dir[len(current_share_path) :].lstrip("\\")
+                                            + f"\\{output_filename}"
+                                        )
+                                        print_verbose(
+                                            f"SMB download path (relative to {self.share}): {smb_output_path}"
+                                        )
+                                    elif ":" in temp_dir:
+                                        # Fallback: remove drive letter
+                                        smb_output_path = (
+                                            temp_dir.split(":", 1)[1].lstrip("\\")
+                                            + f"\\{output_filename}"
+                                        )
+                                        print_verbose(
+                                            f"SMB download path (custom): {smb_output_path}"
+                                        )
+                                    else:
+                                        smb_output_path = f"{temp_dir}\\{output_filename}"
+                                        print_verbose(
+                                            f"SMB download path (custom): {smb_output_path}"
+                                        )
+                                elif share_name.endswith("$"):
                                     # File was written to C:\Windows\Temp\filename.txt
-                                    # SMB path should be Windows\Temp\filename.txt
-                                    smb_output_path = f"Windows\\Temp\\{output_filename}"
+                                    # SMB path should be \Windows\Temp\filename.txt (from share root)
+                                    smb_output_path = f"\\Windows\\Temp\\{output_filename}"
                                     print_verbose(f"SMB download path: {smb_output_path}")
                                 else:
                                     smb_output_path = output_filename

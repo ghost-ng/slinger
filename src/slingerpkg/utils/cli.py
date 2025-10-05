@@ -2091,8 +2091,8 @@ Examples:
         epilog="Example Usage: agent build --arch x64 --encryption | agent build --arch both --no-encryption",
     )
 
-    # Agent subcommands
-    agent_subparsers = parser_agent.add_subparsers(dest="agent_command")
+    # Agent subcommands (agent_handler will display help if no subcommand)
+    agent_subparsers = parser_agent.add_subparsers(dest="agent_command", required=False)
 
     # Agent build subcommand
     parser_agent_build = agent_subparsers.add_parser(
@@ -2136,7 +2136,36 @@ Examples:
     parser_agent_build.add_argument(
         "--pipe",
         type=str,
-        help="Specify custom pipe name for the agent",
+        default="slinger",
+        help="Specify custom pipe name for the agent (default: slinger)",
+    )
+    parser_agent_build.add_argument(
+        "--name",
+        type=str,
+        help="Specify custom name for the output binary file",
+    )
+    parser_agent_build.add_argument(
+        "--pass",
+        dest="passphrase",
+        type=str,
+        help="Passphrase for agent authentication (HMAC-SHA256 with PBKDF2)",
+    )
+    parser_agent_build.add_argument(
+        "--obfuscate",
+        action="store_true",
+        help="""Enable binary obfuscation (anti-analysis, anti-forensics):
+        • Strips all function names and symbol tables
+        • Hides C++ symbol visibility (exports/imports)
+        • Removes debug information and frame pointers
+        • Disables debug logging at compile time
+        • Makes reverse engineering significantly harder
+        Note: Combine with --upx for additional compression obfuscation""",
+    )
+    parser_agent_build.add_argument(
+        "--upx",
+        type=str,
+        metavar="PATH",
+        help="Pack binary with UPX (provide path to upx binary, or use 'upx' for system default)",
     )
     parser_agent_build.set_defaults(func=slingerClient.agent_handler)
 
@@ -2188,7 +2217,7 @@ Examples:
         "list",
         help="List deployed agents",
         description="Show all deployed agents and their status",
-        epilog="Example: agent list",
+        epilog="Example: agent list -f json",
     )
     parser_agent_list.add_argument(
         "--host",
@@ -2200,6 +2229,13 @@ Examples:
         dest="delete_agent",
         type=str,
         help="Remove agent from registry by ID (use 'all' to remove all agents)",
+    )
+    parser_agent_list.add_argument(
+        "-f",
+        "--format",
+        choices=["table", "list", "json"],
+        default="table",
+        help="Output format (default: table)",
     )
     parser_agent_list.set_defaults(func=slingerClient.agent_handler)
 
@@ -2242,8 +2278,29 @@ Examples:
     parser_agent_use = agent_subparsers.add_parser(
         "use",
         help="Interact with deployed agent",
-        description="Connect to and interact with a deployed agent via named pipe",
-        epilog="Example: agent use agent_12345",
+        description="""Connect to and interact with a deployed agent via named pipe.
+
+ENCRYPTION & SESSION SECURITY:
+  Agents built with --pass use AES-256-GCM encryption with HMAC-SHA256
+  authentication. Each session uses unique encryption keys:
+
+  1. Agent generates random 16-byte nonce when you connect
+  2. Client proves knowledge of passphrase via HMAC-SHA256 challenge-response
+  3. Both derive session key using PBKDF2-HMAC-SHA256(passphrase_hash,
+     nonce, 10k iterations)
+  4. All commands in the session are encrypted with AES-256-GCM using this key
+
+  FORWARD SECRECY: Each session gets a new random nonce and unique session
+  key. Compromising one session does NOT affect past or future sessions.
+  To refresh encryption keys, exit and reconnect for a new session.
+
+INTERACTIVE SHELL COMMANDS:
+  help        - Show available commands
+  exit/quit   - Close session and disconnect from agent
+  <command>   - Execute any Windows command on the agent
+""",
+        epilog="Example: agent use agent_12345 --no-colors",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_agent_use.add_argument(
         "agent_id",
@@ -2256,7 +2313,26 @@ Examples:
         default=30,
         help="Connection timeout in seconds (default: 30)",
     )
+    parser_agent_use.add_argument(
+        "--no-colors",
+        action="store_true",
+        help="Disable colored prompt in agent shell",
+    )
     parser_agent_use.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent restart subcommand
+    parser_agent_start = agent_subparsers.add_parser(
+        "start",
+        help="Start agent process",
+        description="Start a stopped or crashed agent using its deployment information",
+        epilog="Example: agent start svcctl_tui0",
+    )
+    parser_agent_start.add_argument(
+        "agent_id",
+        type=str,
+        help="Agent ID to start",
+    )
+    parser_agent_start.set_defaults(func=slingerClient.agent_handler)
 
     # Agent kill subcommand
     parser_agent_kill = agent_subparsers.add_parser(
@@ -2285,6 +2361,15 @@ Examples:
         help="Agent ID to remove",
     )
     parser_agent_rm.set_defaults(func=slingerClient.agent_handler)
+
+    # Agent reset subcommand
+    parser_agent_reset = agent_subparsers.add_parser(
+        "reset",
+        help="Kill and remove all agents",
+        description="Kill all running agent processes and delete all agent files",
+        epilog="Example: agent reset",
+    )
+    parser_agent_reset.set_defaults(func=slingerClient.agent_handler)
 
     # Agent update subcommand
     parser_agent_update = agent_subparsers.add_parser(

