@@ -91,7 +91,7 @@ class SlingerClient(
         """
         if not self.dce_transport or not self.dce_transport.is_connected:
             self.dce_transport = DCETransport(self.host, self.username, self.port, self.conn)
-            self.dce_transport.set_timeout(config.smb_conn_timeout)
+            # Timeout is set on the SMB connection, not DCE transport
         else:
             print_debug("Reusing existing DCE transport.")
 

@@ -121,6 +121,12 @@ def main():
     )
     parser.add_argument("-d", "--domain", default="", help="Domain for authentication")
     parser.add_argument("-p", "--port", type=int, default=445, help="Port to connect to")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=86400,
+        help="Global SMB connection timeout in seconds (default: 86400 = 24 hours)",
+    )
     parser.add_argument("--nojoy", action="store_true", help="Turn off emojis")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
 
@@ -152,6 +158,12 @@ def main():
         set_config_value("debug", True)
     if prgm_args.verbose:
         set_config_value("Verbose", True)
+    # Set global SMB connection timeout
+    if prgm_args.timeout:
+        import slingerpkg.var.config as config
+
+        config.smb_conn_timeout = prgm_args.timeout
+        print_debug(f"Global SMB timeout set to {prgm_args.timeout} seconds")
 
     if prgm_args.password is None and not prgm_args.ntlm and not prgm_args.kerberos:
         password = getpass.getpass(prompt="Password: ")

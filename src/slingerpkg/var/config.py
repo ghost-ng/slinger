@@ -59,4 +59,5 @@ config_vars = [
 logwriter = None
 version = __version__
 program_name = __package__
-smb_conn_timeout = 999999
+# Global timeout in seconds (24 hours by default)
+smb_conn_timeout = 86400  # 24 hours
