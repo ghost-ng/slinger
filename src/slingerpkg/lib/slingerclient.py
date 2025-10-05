@@ -819,7 +819,7 @@ class SlingerClient(
                 print_log(f"Output Directory: {info['output_dir']}")
                 print_log(f"Supported Architectures: {', '.join(info['supported_architectures'])}")
 
-                print_info("\nBuild Dependencies:")
+                print_log("Build Dependencies:")
                 deps = info["dependencies"]
                 cmake_status = "✓" if deps["cmake_available"] else "✗"
                 compiler_status = "✓" if deps["cpp_compiler_available"] else "✗"
@@ -830,16 +830,13 @@ class SlingerClient(
                     f"  {compiler_status} C++ Compiler: {deps['compiler_found'] if deps['cpp_compiler_available'] else 'Not found'}"
                 )
 
-                print_info("\nTemplate Files:")
+                print_log("Template Files:")
                 for template in info["template_files"]:
                     print_log(f"  ✓ {template}")
 
-                print_info("\nCurrent Build Configuration:")
+                print_log("Current Build Configuration:")
                 print_log(f"  Encryption Seed: {info['encryption_seed']}")
                 print_log(f"  Layout Seed: {info['layout_seed']}")
-
-                # Show built agents and deployment status
-                self._show_built_agents_status(info["output_dir"])
 
                 # Show build readiness
                 if deps["cmake_available"] and deps["cpp_compiler_available"]:
