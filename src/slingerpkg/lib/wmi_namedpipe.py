@@ -239,12 +239,12 @@ class WMINamedPipeExec:
             # Build command based on shell and raw_command flag
             if raw_command:
                 # Execute command directly without wrapper
-                full_command = f'{command} > "{temp_output_file}" 2>&1'
+                full_command = f"{command} > {temp_output_file} 2>&1"
             elif shell == "powershell":
-                full_command = f"powershell.exe -Command \"{command} > '{temp_output_file}' 2>&1\""
+                full_command = f'powershell.exe -Command "{command} > {temp_output_file} 2>&1"'
             else:  # cmd
-                # Redirection must be INSIDE the /c quotes for proper execution
-                full_command = f'cmd.exe /c "{command} > \\"{temp_output_file}\\" 2>&1"'
+                # For WMI Win32_Process.Create, use simpler quoting - no escaped quotes
+                full_command = f"cmd.exe /c {command} > {temp_output_file} 2>&1"
         else:
             temp_output_file = None
             # Build command without output redirection
