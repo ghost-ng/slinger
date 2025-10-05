@@ -2,9 +2,7 @@
 
 This video demonstrates the Slinger cooperative agent system in action, showing agent deployment, execution, and management.
 
-[![Agent Demo Video](https://img.shields.io/badge/▶️_Watch_Demo-Agent_System-blue?style=for-the-badge)](../assets/slinger-agent.mp4)
-
-> **Note:** Click the badge above to download and watch the demo video, or view it directly at `assets/slinger-agent.mp4`
+![Slinger Agent Demo](assets/slinger-agent.gif)
 
 ## What You'll See
 
