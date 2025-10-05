@@ -241,9 +241,10 @@ class WMINamedPipeExec:
                 # Execute command directly without wrapper
                 full_command = f'{command} > "{temp_output_file}" 2>&1'
             elif shell == "powershell":
-                full_command = f'powershell.exe -Command "{command}" > "{temp_output_file}" 2>&1'
+                full_command = f"powershell.exe -Command \"{command} > '{temp_output_file}' 2>&1\""
             else:  # cmd
-                full_command = f'cmd.exe /c "{command}" > "{temp_output_file}" 2>&1'
+                # Redirection must be INSIDE the /c quotes for proper execution
+                full_command = f'cmd.exe /c "{command} > \\"{temp_output_file}\\" 2>&1"'
         else:
             temp_output_file = None
             # Build command without output redirection
@@ -265,6 +266,11 @@ class WMINamedPipeExec:
 
                 # Wait for process completion if capturing output
                 if capture_output and temp_output_file:
+                    # Give process time to start and write output
+                    import time
+
+                    time.sleep(2)
+
                     output = self._wait_and_capture_output(temp_output_file, timeout)
 
                     # Save output to file if requested
@@ -785,6 +791,8 @@ class WMINamedPipeExec:
         """Read remote file via SMB"""
         try:
             print_debug(f"Reading remote file via SMB: {file_path}")
+            print_debug(f"Current share: {getattr(self, 'share', 'UNKNOWN')}")
+            print_debug(f"Tree ID: {getattr(self, 'tree_id', 'UNKNOWN')}")
 
             # Import SMB constants
             from impacket.smbconnection import FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE
