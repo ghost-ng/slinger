@@ -19,7 +19,8 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Registry Management** - Query, create, modify, and delete registry keys and values remotely
 - **Service Control** - Full lifecycle management of Windows services (create, start, stop, delete, configure)
 - **Task Scheduling** - Manage scheduled tasks via Task Scheduler
-- **System Enumeration** - Logged-on users, shares, disks, network interfaces, processes, named pipes
+- **Remote Process Lists** - Enumerate running processes with PID, PPID, priority, threads, and handles
+- **System Enumeration** - Logged-on users, shares, disks, network interfaces, named pipes
 - **Event Log Analysis** - Query and analyze Windows Event Logs
 - **Secrets Dumping** - Extract credentials via SAM/SYSTEM hives and LSA secrets
 
