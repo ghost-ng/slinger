@@ -212,89 +212,106 @@ class WMINamedPipeExec:
     def _execute_single_command_namedpipe(
         self, args, command, capture_output, timeout, output_file
     ):
-        """Execute a single command via WMI named pipe"""
-        print_verbose(f"Executing WMI command via named pipe: {command}")
+        """Execute a single command via Task Scheduler (wmiexec task method)"""
+        print_verbose(f"Executing command via Task Scheduler: {command}")
 
         # Extract flags from args
         save_path = getattr(args, "save_path", getattr(args, "sp", "\\Windows\\Temp\\"))
         save_name = getattr(args, "save_name", getattr(args, "sn", None))
-        working_dir = getattr(args, "working_dir", "C:\\")
+        working_dir = getattr(args, "working_dir", None)
         shell = getattr(args, "shell", "cmd")
         raw_command = getattr(args, "raw_command", False)
+        task_name = getattr(
+            args, "task_name", getattr(args, "tn", f"SlingerTask_{int(time.time())}")
+        )
+        folder_path = getattr(args, "folder", "\\")
+        cleanup_delay = getattr(args, "cleanup_delay", 2)
+        no_cleanup = getattr(args, "no_cleanup", False)
 
         # Ensure save_path ends with backslash
         if not save_path.endswith("\\"):
             save_path += "\\"
 
         # Generate output filename if needed
+        temp_output_file = None
         if capture_output:
             if save_name:
                 output_filename = save_name
             else:
-                output_filename = f"wmi_np_output_{int(time.time())}.tmp"
+                output_filename = f"task_output_{int(time.time())}.tmp"
 
             # Build full Windows path for output file
             temp_output_file = f"C:{save_path}{output_filename}"
 
-            # Build command based on shell and raw_command flag
-            if raw_command:
-                # Execute command directly without wrapper
-                full_command = f"{command} > {temp_output_file} 2>&1"
-            elif shell == "powershell":
-                full_command = f'powershell.exe -Command "{command} > {temp_output_file} 2>&1"'
-            else:  # cmd
-                # For WMI Win32_Process.Create, use simpler quoting - no escaped quotes
-                full_command = f"cmd.exe /c {command} > {temp_output_file} 2>&1"
-        else:
-            temp_output_file = None
-            # Build command without output redirection
-            if raw_command:
-                full_command = command
-            elif shell == "powershell":
-                full_command = f'powershell.exe -Command "{command}"'
-            else:  # cmd
-                full_command = f'cmd.exe /c "{command}"'
+        # Build command based on shell and raw_command flag
+        if raw_command:
+            # Execute command directly
+            program = command.split()[0] if " " in command else command
+            arguments = " ".join(command.split()[1:]) if " " in command else ""
+        elif shell == "powershell":
+            program = "powershell.exe"
+            if capture_output and temp_output_file:
+                arguments = f'-Command "{command} > {temp_output_file} 2>&1"'
+            else:
+                arguments = f'-Command "{command}"'
+        else:  # cmd
+            program = "cmd.exe"
+            if capture_output and temp_output_file:
+                arguments = f"/c {command} > {temp_output_file} 2>&1"
+            else:
+                arguments = f'/c "{command}"'
 
-        print_verbose(f"Full command for WMI named pipe: {full_command}")
+        print_verbose(f"Task program: {program}")
+        print_verbose(f"Task arguments: {arguments}")
 
         try:
-            # Execute via traditional WMI DCOM with working directory
-            process_id = self._create_wmi_process_traditional(full_command, working_dir)
+            # Create task using Task Scheduler via DCE/RPC
+            task_created = self._create_task_scheduler_task(
+                task_name, folder_path, program, arguments, working_dir
+            )
 
-            if process_id:
-                print_verbose(f"Process created via WMI named pipe with PID: {process_id}")
-
-                # Wait for process completion if capturing output
-                if capture_output and temp_output_file:
-                    # Give process time to start and write output
-                    time.sleep(2)
-
-                    output = self._wait_and_capture_output(temp_output_file, timeout)
-
-                    # Save output to file if requested
-                    if output_file:
-                        self._save_output_to_file(output, output_file)
-
-                    return {
-                        "success": True,
-                        "process_id": process_id,
-                        "output": output,
-                        "error": None,
-                    }
-                else:
-                    return {
-                        "success": True,
-                        "process_id": process_id,
-                        "output": None,
-                        "error": None,
-                    }
-            else:
+            if not task_created:
                 return {
                     "success": False,
-                    "error": "Failed to create WMI process via named pipe",
+                    "error": "Failed to create scheduled task",
                     "process_id": None,
                     "output": None,
                 }
+
+            # Run the task
+            task_ran = self._run_task_scheduler_task(task_name, folder_path)
+
+            if not task_ran:
+                return {
+                    "success": False,
+                    "error": "Failed to run scheduled task",
+                    "process_id": None,
+                    "output": None,
+                }
+
+            # Wait for task completion and capture output if needed
+            output = None
+            if capture_output and temp_output_file:
+                # Wait for task to execute and write output
+                time.sleep(cleanup_delay)
+
+                output = self._wait_and_capture_output(temp_output_file, timeout)
+
+                # Save output to file if requested
+                if output_file:
+                    self._save_output_to_file(output, output_file)
+
+            # Cleanup task unless --no-cleanup specified
+            if not no_cleanup:
+                time.sleep(cleanup_delay)
+                self._delete_task_scheduler_task(task_name, folder_path)
+
+            return {
+                "success": True,
+                "process_id": None,  # Task Scheduler doesn't return PID
+                "output": output,
+                "error": None,
+            }
 
         except Exception as e:
             return {"success": False, "error": str(e), "process_id": None, "output": None}
@@ -433,6 +450,134 @@ class WMINamedPipeExec:
             except:
                 pass
             return None
+
+    def _create_task_scheduler_task(
+        self, task_name, folder_path, program, arguments, working_dir=None
+    ):
+        """
+        Create a scheduled task using Task Scheduler DCE/RPC interface
+        Reuses existing schtasks implementation
+        """
+        try:
+            from slingerpkg.utils.common import generate_random_date, xml_escape
+
+            print_debug(f"Creating scheduled task: {task_name}")
+
+            # Generate task XML
+            new_date = generate_random_date()
+
+            # Build working directory tag if specified
+            working_dir_tag = (
+                f"<WorkingDirectory>{working_dir}</WorkingDirectory>" if working_dir else ""
+            )
+
+            task_xml = f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Date>{new_date}</Date>
+    <Author>SYSTEM</Author>
+    <URI>{folder_path}\\{task_name}</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>{new_date}</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-18</UserId>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>true</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT72H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>{program}</Command>
+      <Arguments>{xml_escape(arguments)}</Arguments>
+      {working_dir_tag}
+    </Exec>
+  </Actions>
+</Task>
+"""
+
+            # Use existing DCE transport to create task
+            self.setup_dce_transport()
+            self.dce_transport._connect("atsvc")
+
+            print_debug(f"Task XML:\n{task_xml}")
+
+            response = self.dce_transport._create_task(task_name, folder_path, task_xml)
+
+            if response["ErrorCode"] == 0:
+                print_verbose(f"Task '{task_name}' created successfully in folder '{folder_path}'")
+                return True
+            else:
+                print_debug(f"Task creation failed with error code: {response['ErrorCode']}")
+                return False
+
+        except Exception as e:
+            print_debug(f"Task Scheduler task creation failed: {e}")
+            return False
+
+    def _run_task_scheduler_task(self, task_name, folder_path):
+        """Run a scheduled task using Task Scheduler DCE/RPC interface"""
+        try:
+            abs_path = folder_path + "\\" + task_name
+            abs_path = abs_path.replace(r"\\", chr(92))
+
+            print_debug(f"Running scheduled task: {abs_path}")
+
+            response = self.dce_transport._run_task(abs_path)
+
+            if response["ErrorCode"] == 0:
+                print_verbose(f"Task '{task_name}' executed successfully")
+                return True
+            else:
+                print_debug(f"Task execution failed with error code: {response['ErrorCode']}")
+                return False
+
+        except Exception as e:
+            print_debug(f"Task Scheduler task execution failed: {e}")
+            return False
+
+    def _delete_task_scheduler_task(self, task_name, folder_path):
+        """Delete a scheduled task using Task Scheduler DCE/RPC interface"""
+        try:
+            abs_path = folder_path + "\\" + task_name
+            abs_path = abs_path.replace(r"\\", chr(92))
+
+            print_debug(f"Deleting scheduled task: {abs_path}")
+
+            response = self.dce_transport._delete_task(abs_path)
+
+            if response["ErrorCode"] == 0:
+                print_verbose(f"Task '{task_name}' deleted successfully")
+                return True
+            else:
+                print_debug(f"Task deletion failed with error code: {response['ErrorCode']}")
+                return False
+
+        except Exception as e:
+            print_debug(f"Task Scheduler task deletion failed: {e}")
+            return False
 
     def _create_wmi_process_memory_capture(self, command):
         """
