@@ -86,7 +86,7 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v0.1.0
+    /#(-'             v1.10.0
     `-'                    a ghost-ng special
 
 usage: slinger.py [-h] --host HOST -u USERNAME -pass PASSWORD [-d DOMAIN] [-p PORT] [--nojoy] [--ntlm NTLM] [--kerberos] [--debug]
@@ -121,7 +121,7 @@ python3 slinger.py --host 192.168.177.130 --username admin --password admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v0.1.0
+    /#(-'             v1.10.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -147,7 +147,7 @@ python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v0.1.0
+    /#(-'             v1.10.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...
@@ -241,45 +241,6 @@ Example Usage: run -c|-f [script]
 pipx install slinger
 ```
 
-### Install System Dependencies for Cooperative Agent Features
-
-To use the cooperative agent build features, you'll need CMake and a C++ compiler:
-
-**Ubuntu/Debian:**
-```bash
-sudo apt update && sudo apt install cmake build-essential
-```
-
-**CentOS/RHEL:**
-```bash
-sudo yum groupinstall "Development Tools" && sudo yum install cmake
-```
-
-**Fedora:**
-```bash
-sudo dnf groupinstall "Development Tools" && sudo dnf install cmake
-```
-
-**macOS:**
-```bash
-brew install cmake
-```
-
-**Windows:**
-- Download CMake from [cmake.org](https://cmake.org/download/)
-- Install Visual Studio Build Tools or Visual Studio Community
-
-**Automated Installation (Linux/macOS):**
-```bash
-slinger-setup-agent
-```
-
-### Verify Agent Setup
-```bash
-slinger agent info
-slinger agent build --dry-run
-```
-
 ### Development Installation
 ```bash
 git clone https://github.com/ghost-ng/slinger.git
@@ -287,31 +248,17 @@ cd slinger
 pipx install .
 ```
 
-## Cooperative Agent System
+### Agent Build Dependencies
 
-Slinger's cooperative agent system provides advanced C++ agents for secure command execution over named pipes via SMB. Agents are polymorphic, obfuscated, and designed for stealth operations.
+To build cooperative agents, install the following dependencies:
 
-### System Requirements
-
-**Build System (Linux/macOS):**
+**Required:**
 - CMake 3.15+
-- MinGW-w64 cross-compiler (x86_64-w64-mingw32-g++)
-- Python 3.8+
+- MinGW-w64 cross-compiler (`x86_64-w64-mingw32-g++`, `i686-w64-mingw32-g++`)
 
-**Target System (Windows):**
-- Windows 7+ (x86/x64)
-- Named pipe support
-- SMB access (TCP 445)
-
-### Installation
-
-**Automated Setup (Linux/macOS):**
+**Automated Installation (Linux/macOS):**
 ```bash
-# Install via pipx entry point
 slinger-setup-agent
-
-# Or run the install script directly
-python scripts/install_agent_deps.py
 ```
 
 **Manual Installation:**
@@ -323,14 +270,12 @@ sudo apt update && sudo apt install cmake build-essential mingw-w64
 
 *CentOS/RHEL:*
 ```bash
-sudo yum groupinstall "Development Tools"
-sudo yum install cmake mingw64-gcc-c++
+sudo yum groupinstall "Development Tools" && sudo yum install cmake mingw64-gcc-c++
 ```
 
 *Fedora:*
 ```bash
-sudo dnf groupinstall "Development Tools"
-sudo dnf install cmake mingw64-gcc-c++
+sudo dnf groupinstall "Development Tools" && sudo dnf install cmake mingw64-gcc-c++
 ```
 
 *macOS:*
@@ -338,173 +283,44 @@ sudo dnf install cmake mingw64-gcc-c++
 brew install cmake mingw-w64
 ```
 
-### Agent Management Commands
-
-#### Build Agents
+**Verify Installation:**
 ```bash
-# Check system readiness
 slinger agent info
-
-# Dry run (verify templates and toolchain)
 slinger agent build --dry-run --arch x64
+```
 
-# Build with encryption for x64
+## Cooperative Agent System
+
+Slinger includes a polymorphic C++ agent system for secure command execution over named pipes via SMB.
+
+### Key Features
+- **Polymorphic builds** - Unique binary signatures per build with obfuscation
+- **Encrypted communication** - AES-256-GCM with X25519 key exchange
+- **SMB transport** - Named pipes over TCP 445 only
+- **Cross-architecture** - Windows x86/x64 support
+- **Lifecycle management** - Deploy, execute, check, kill, remove agents
+
+### Quick Start
+
+**Build agents:**
+```bash
 slinger agent build --arch x64 --encryption
-
-# Build for both x86 and x64
-slinger agent build --arch both --encryption --debug
-
-# Build with custom passphrase
-slinger agent build --arch x64 --encryption --passphrase "MySecretKey123"
 ```
 
-#### Deploy Agents
+**Deploy and use:**
 ```bash
-# Connect to SMB share first
 🤠 (10.0.0.28):> use C$
-
-# Deploy x64 agent to target
 🤠 (10.0.0.28):\\C$> agent deploy --agent x64 --deploy-method wmi
-
-# Deploy x86 agent via upload (manual execution)
-🤠 (10.0.0.28):\\C$> agent deploy --agent x86 --deploy-method upload
-```
-
-**Deploy Methods:**
-- `wmi` - Execute via WMI over SMB named pipe (stealthy, TCP 445 only)
-- `upload` - Upload only (requires manual execution on target)
-
-#### Connect to Agents
-```bash
-# List deployed agents
-🤠 (10.0.0.28):\\C$> agent list
-
-# Connect to agent
-🤠 (10.0.0.28):\\C$> agent use <agent_id>
-
-# Execute commands
+🤠 (10.0.0.28):\\C$> agent use agent_001
 🤠 (10.0.0.28):\\C$> agent exec whoami
-🤠 (10.0.0.28):\\C$> agent exec ipconfig /all
-
-# Disconnect from agent
-🤠 (10.0.0.28):\\C$> agent disconnect
-```
-
-#### Agent Lifecycle
-```bash
-# Check agent status on disk
-🤠 (10.0.0.28):\\C$> agent check <agent_id>
-
-# Kill running agent process
-🤠 (10.0.0.28):\\C$> agent kill <agent_id>
-
-# Remove agent from disk
-🤠 (10.0.0.28):\\C$> agent rm <agent_id>
-
-# Reset all agents (kill + remove all)
-🤠 (10.0.0.28):\\C$> agent reset
-```
-
-### Agent Architecture
-
-#### Communication Protocol
-- **Transport:** Named pipes over SMB (TCP 445)
-- **Pipe Format:** `\\<target>\pipe\<random_name>`
-- **Pipe Mode:** BYTE mode (consistent framing)
-- **Encryption:** AES-256-GCM with X25519 key exchange
-- **Authentication:** HMAC-SHA256 challenge-response
-
-#### Security Features
-- ✅ **Polymorphic encryption** - Unique binary signatures per build
-- ✅ **Function name obfuscation** - Randomized C++ symbol names
-- ✅ **String literal obfuscation** - Compile-time XOR encryption
-- ✅ **Control flow obfuscation** - Opaque predicates and junk code
-- ✅ **Symbol stripping** - No debug information in binaries
-- ✅ **Cross-architecture** - Windows x86/x64 support
-- ✅ **Passphrase-based auth** - PBKDF2 key derivation
-- ✅ **Session encryption** - Ephemeral X25519 keys per session
-
-#### Agent Capabilities
-- ✅ **Command execution** - Execute arbitrary commands via cmd.exe
-- ✅ **Named pipe server** - Single instance, BYTE mode
-- ✅ **Encryption handshake** - Diffie-Hellman key exchange
-- ✅ **Multi-session** - Reconnect support with session resumption
-- ✅ **Error handling** - Graceful pipe recreation on disconnect
-
-### Agent Registry
-
-Deployed agents are tracked in `~/.slinger/agents/deployed_agents.json`:
-
-```json
-{
-  "agent_001": {
-    "agent_id": "agent_001",
-    "architecture": "x64",
-    "pipe_name": "slinger_abc123",
-    "passphrase": "MySecretKey123",
-    "target_host": "10.0.0.28",
-    "target_path": "\\Windows\\Temp\\svchost.exe",
-    "deploy_method": "wmi",
-    "on_disk": "Present",
-    "status": "Active",
-    "deployed_at": "2025-10-04T10:30:00"
-  }
-}
-```
-
-**Status Values:**
-- `on_disk`: Present | Deleted | Missing | Unknown
-- `status`: Active | Inactive | Unknown
-
-### Troubleshooting
-
-**Agent won't reconnect after exit:**
-- Ensure agent was rebuilt with BYTE mode pipe consistency fix
-- Check pipe instance limit (should be 1, not PIPE_UNLIMITED_INSTANCES)
-- Verify passphrase matches between client and agent
-
-**WMI execution fails:**
-- Ensure SMB share is connected (`use C$`)
-- Use share-root paths (`\Windows\Temp\...` not `Windows\Temp\...`)
-- Check WMI service is running on target
-- Verify file cleanup in `\Windows\Temp\`
-
-**Build failures:**
-- Run `slinger agent info` to verify toolchain
-- Check MinGW-w64 is installed (`x86_64-w64-mingw32-g++ --version`)
-- Ensure CMake version is 3.15+
-- Verify template files exist in `lib/agent_templates/`
-
-### Advanced Usage
-
-**Custom Build Configuration:**
-```bash
-# Build with specific obfuscation seed
-slinger agent build --arch x64 --encryption --debug
-
-# Test agent connectivity
-slinger agent build --dry-run --arch both
-```
-
-**Session Management:**
-```python
-# In Slinger CLI
-agent deploy --agent x64 --deploy-method wmi
-agent use agent_001
-agent exec "powershell -c Get-Process"
-agent disconnect
-agent use agent_001  # Reconnect to same agent
 ```
 
 **Cleanup:**
 ```bash
-# Remove single agent
-agent kill agent_001
-agent rm agent_001
-
-# Remove all agents
-agent reset
+🤠 (10.0.0.28):\\C$> agent reset  # Kill and remove all agents
 ```
+
+For detailed documentation, see [Agent System Guide](agent_guide.md)
 
 
 ## TODO

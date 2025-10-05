@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinger"
-version = "1.9.0"
+version = "1.10.0"
 description = "An impacket swiss army knife (sort of)"
 readme = "README.md"
 keywords = [ "smb", "impacket", "penetration-testing", "windows", "agent", "cooperative",]
