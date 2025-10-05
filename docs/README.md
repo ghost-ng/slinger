@@ -298,6 +298,9 @@ agent:svchost_92qqjcem:C:\>
 🤠 (10.0.0.28):\\C$> agent reset  # Kill and remove all agents
 ```
 
+**See it in action:**
+- [Agent Demo Video](agent_demo.md) - Watch the cooperative agent system in action
+
 For detailed documentation, run:
 ```bash
 🤠 (10.0.0.28):> agent -h
