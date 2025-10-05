@@ -4,18 +4,31 @@
 
 Slinger is a versatile tool designed for advanced network interactions and manipulations, with a focus on the SMB protocol. It offers a range of functionalities for interacting with remote systems, including managing scheduled tasks, handling Windows Registry operations, service management and gathering system information - **all in a single session**.  Slinger is built on the impacket framework and should offer a similar feel to impacket functions.
 
-## Features
+## Key Features
 
-- **Extensible Plugin System**: Easily extend Slinger's functionality with custom plugins.
-- **Network Interaction**: Facilitates various SMB-based operations and DCE/RPC transport setup.
-- **Task Scheduling**: Manage task scheduling such as creating, deleting, and running.
-- **Registry Management**: Manage registry operations such as querying keys, subkeys, and values, deleting, and much more!
-- **Service Control**: Manage windows services through create, delete, and run functions
-- **System Information Gathering**: Gather detailed system information, including server disk information, logged-on users, transport details, and server time/uptime via NetrRemoteTOD RPC.
-- **Wrapper Commands**: Commands to edit port forwarding rules, view the windows firewall, ip information, etc
-- **CLI System**: Slinger offers an exhaustively simple CLI complete with help entries
-- **Query Performance Data**: (Experimental) Remotely query performance data like remote processes
-- **Cooperative Agent System**: Build polymorphic C++ agents with advanced obfuscation for named pipe command execution
+### Core Capabilities
+- **🔌 Structured SMB Client** - Object-oriented SMB operations with intelligent session management
+- **♾️ Persistent Impacket Sessions** - Maintain connections across multiple operations without re-authenticating
+- **⚡ Multiple Command Execution Methods** - ATExec (Task Scheduler), WMI DCOM, WMI over SMB pipes, and cooperative agents
+- **🎯 User-Friendly Custom CLI** - Interactive shell with tab completion, command history, and intuitive syntax
+- **📚 Verbose Help Documentation** - Comprehensive help system with `help --verbose` for categorized command reference
+- **🔧 Consolidated Impacket Features** - Unified interface for SMB, RPC, WMI, registry, services, secrets dumping, and more
+- **🧩 Extensible Plugin System** - Easy-to-develop plugins for custom functionality
+
+### Windows Administration
+- **Registry Management** - Query, create, modify, and delete registry keys and values remotely
+- **Service Control** - Full lifecycle management of Windows services (create, start, stop, delete, configure)
+- **Task Scheduling** - Manage scheduled tasks via Task Scheduler
+- **System Enumeration** - Logged-on users, shares, disks, network interfaces, processes, named pipes
+- **Event Log Analysis** - Query and analyze Windows Event Logs
+- **Secrets Dumping** - Extract credentials via SAM/SYSTEM hives and LSA secrets
+
+### Advanced Features
+- **Cooperative Agent System** - Build polymorphic C++ agents with AES-256-GCM encryption and X25519 key exchange
+- **Resumable Downloads** - Large file transfers with automatic checkpoint recovery
+- **Command Chaining** - Execute command sequences from scripts or inline with semicolon separation
+- **Network Utilities** - Port forwarding rules, firewall enumeration, IP configuration
+- **Performance Monitoring** - Remote process enumeration and system metrics (experimental)
 
 ## Demo
 
@@ -25,59 +38,6 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 
 [![CLI Documentation](assets/clidocs.jpg)](cli_menu.md)
 
-
-```
-🤠 (10.0.0.28):\\> ps
-[*] Retrieving Processes List...
-[!] Performance Data querying is experimental and is still under development
-Name                         PID    PPID    Priority    Threads    Handles
--------------------------  -----  ------  ----------  ---------  ---------
-Idle                           0       0           0          1          0
-System                         4       0           8         81        740
-mmc (uuid:wVWpou)            152    1868           6         19        824
-conhost                      172     248           6          2         54
-cmd                          248    2836           6          1         26
-svchost (uuid:LE9JOF)        428     712           8         14        779
-smss                         440       4          11          2         52
-csrss                        524     516          13          8        231
-csrss (uuid:ZHvV4L)          616     608          13          8        243
-vpnagent                     620     712          10          6        437
-wininit                      624     516          13          1         79
-winlogon                     652     608          13          2        157
-services                     712     624           9          6        258
-lsass                        720     624           9          6        694
-svchost (uuid:HfKmym)        756     712           8         16        535
-svchost                      780     712           8          7        358
-svchost (uuid:1ngQeO)        808     712           8          6        327
-dwm                          896     652          13          7        190
-svchost (uuid:xqconX)        920     712           8         13        444
-svchost (uuid:AwBbeG)        980     712           8         28       1000
-rundll32                    1076     980          10          5        204
-svchost (uuid:a31ADo)       1092     712           8         15        379
-spoolsv                     1228     712           8          8        370
-svchost (uuid:0wxSfV)       1260     712           8          6        118
-svchost (uuid:Fwvb34)       1280     712           8          8        194
-msdtc                       1292     712           8          9        163
-dns                         1296     712           8         10      10224
-svchost (uuid:tQ16ZP)       1392     712           8         10        253
-VGAuthService               1432     712           8          2        114
-vm3dservice                 1480     712           8          2         88
-vmtoolsd                    1532     712          13         10        308
-vm3dservice (uuid:rfz3k2)   1544    1480          13          2         85
-svchost (uuid:i2Waqs)       1568     712           8         15        162
-dllhost                     1976     712           8         10        192
-vmtoolsd (uuid:OXMvuj)      1996    2628           8          9        231
-WmiPrvSE                    2176     780           8         10        316
-WmiPrvSE (uuid:elaPeM)      2312     780           8          7        234
-taskhostex                  2540     980           8          5        201
-vpnui                       2548    2952           8          6        356
-Taskmgr                     2580    2628           8         10        305
-explorer                    2628    2612           8         38       1304
-taskeng                     2836     980           8          3        115
-ServerManager               2988    2548           8          8        430
-mmc                         3004    2628           8         19        403
-[+] Proccesses with '(uuid:<random chars>)' have duplicate names but are unique processes
-```
 
 ## Usage
 
@@ -240,11 +200,6 @@ Example Usage: run -c|-f [script]
 
 ## Installation
 
-### Quick Install with pipx (Recommended)
-```bash
-pipx install slinger
-```
-
 ### Development Installation
 ```bash
 git clone https://github.com/ghost-ng/slinger.git
@@ -262,7 +217,7 @@ To build cooperative agents, install the following dependencies:
 
 **Automated Installation (Linux/macOS):**
 ```bash
-slinger-setup-agent
+python scripts/install_agent_deps.py
 ```
 
 **Manual Installation:**
@@ -287,12 +242,6 @@ sudo dnf groupinstall "Development Tools" && sudo dnf install cmake mingw64-gcc-
 brew install cmake mingw-w64
 ```
 
-**Verify Installation:**
-```bash
-slinger agent info
-slinger agent build --dry-run --arch x64
-```
-
 ## Cooperative Agent System
 
 Slinger includes a polymorphic C++ agent system for secure command execution over named pipes via SMB.
@@ -306,17 +255,41 @@ Slinger includes a polymorphic C++ agent system for secure command execution ove
 
 ### Quick Start
 
-**Build agents:**
-```bash
-slinger agent build --arch x64 --encryption
-```
-
 **Deploy and use:**
 ```bash
 🤠 (10.0.0.28):> use C$
 🤠 (10.0.0.28):\\C$> agent deploy --agent x64 --deploy-method wmi
-🤠 (10.0.0.28):\\C$> agent use agent_001
-🤠 (10.0.0.28):\\C$> agent exec whoami
+🤠🔥 (10.10.10.161):\\c$> agent use svchost_92qqjcem
+[*] Agent Information:
+  ID: svchost_92qqjcem
+  Host: 10.10.10.161
+  Name: svchost_92qqjcem.exe
+  Path: C:\Windows\svchost_92qqjcem.exe
+  Pipe: \\10.10.10.161\pipe\slinger
+  PPID: 3100 (parent process)
+[*] Connecting to agent: svchost_92qqjcem
+[*] Timeout: 30 seconds
+[+] Starting interactive session with agent svchost_92qqjcem
+[*] Pipe Name: slinger
+[*] Connecting to pipe: \\10.10.10.161\pipe\slinger
+[+] Connected to agent pipe
+[*] 🔐 Performing passphrase authentication...
+[+] ✓ Authentication successful - all communications encrypted
+[*] ╔══════════════════════════════════════════╗
+[*] ║        AGENT INTERACTIVE SHELL           ║
+[*] ╚══════════════════════════════════════════╝
+Agent ID: svchost_92qqjcem
+Host: 10.10.10.161
+Pipe: slinger
+
+[*] Type 'exit' to close the connection
+[*] Type 'help' for agent commands
+
+agent:svchost_92qqjcem:C:\> whoami
+htb\administrator
+
+agent:svchost_92qqjcem:C:\>
+
 ```
 
 **Cleanup:**
@@ -324,7 +297,10 @@ slinger agent build --arch x64 --encryption
 🤠 (10.0.0.28):\\C$> agent reset  # Kill and remove all agents
 ```
 
-For detailed documentation, see [Agent System Guide](agent_guide.md)
+For detailed documentation, run:
+```bash
+🤠 (10.0.0.28):> agent -h
+```
 
 
 ## TODO
