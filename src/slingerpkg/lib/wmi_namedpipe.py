@@ -267,8 +267,6 @@ class WMINamedPipeExec:
                 # Wait for process completion if capturing output
                 if capture_output and temp_output_file:
                     # Give process time to start and write output
-                    import time
-
                     time.sleep(2)
 
                     output = self._wait_and_capture_output(temp_output_file, timeout)
