@@ -54,10 +54,14 @@ config_vars = [
         "Description": "Extra prompt to display in CLI",
         "Type": "str",
     },
+    {
+        "Name": "Timeout",
+        "Value": 86400,
+        "Description": "Global SMB connection timeout in seconds (default: 24 hours)",
+        "Type": "int",
+    },
 ]
 
 logwriter = None
 version = __version__
 program_name = __package__
-# Global timeout in seconds (24 hours by default)
-smb_conn_timeout = 86400  # 24 hours

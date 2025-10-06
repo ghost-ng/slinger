@@ -97,9 +97,10 @@ class SlingerClient(
 
     def login(self):
         print_info(f"Connecting to {self.host}:{self.port}...")
+        timeout_val = get_config_value("smb_conn_timeout")
         try:
             self.conn = smbconnection.SMBConnection(
-                self.host, self.host, sess_port=self.port, timeout=config.smb_conn_timeout
+                self.host, self.host, sess_port=self.port, timeout=timeout_val
             )
         except Exception as e:
             print_debug(str(e), sys.exc_info())
@@ -112,7 +113,7 @@ class SlingerClient(
             raise Exception("Failed to create SMB connection.")
 
         # Ensure timeout is set on connection object
-        self.conn._timeout = int(config.smb_conn_timeout)
+        self.conn._timeout = int(timeout_val)
 
         try:
             if self.use_kerberos:
@@ -161,7 +162,7 @@ class SlingerClient(
                 print_log(str(e) + "\n" + str(sys.exc_info()))
             sys.exit()
         # set a large timeout
-        self.conn.timeout = config.smb_conn_timeout
+        self.conn.timeout = get_config_value("smb_conn_timeout")
         self.is_logged_in = True
         self.dialect = self.conn.getDialect()
         self.smb_version = dialect_mapping.get(self.dialect, "Unknown")

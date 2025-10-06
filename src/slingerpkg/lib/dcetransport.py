@@ -148,9 +148,9 @@ class DCETransport:
             self.conn.getRemoteHost(), filename=self.pipe, smb_connection=self.conn
         )
         # Set timeout on RPC transport
-        from slingerpkg.var import config
+        from slingerpkg.utils.common import get_config_value
 
-        rpctransport.set_connect_timeout(config.smb_conn_timeout)
+        rpctransport.set_connect_timeout(get_config_value("smb_conn_timeout"))
 
         self.dce = rpctransport.get_dce_rpc()
         self.dce.connect()

@@ -160,10 +160,7 @@ def main():
         set_config_value("Verbose", True)
     # Set global SMB connection timeout
     if prgm_args.timeout:
-        import slingerpkg.var.config as config
-
-        config.smb_conn_timeout = prgm_args.timeout
-        print_debug(f"Global SMB timeout set to {prgm_args.timeout} seconds")
+        set_config_value("smb_conn_timeout", prgm_args.timeout)
 
     if prgm_args.password is None and not prgm_args.ntlm and not prgm_args.kerberos:
         password = getpass.getpass(prompt="Password: ")
