@@ -99,7 +99,7 @@ class SlingerClient(
         print_info(f"Connecting to {self.host}:{self.port}...")
         try:
             self.conn = smbconnection.SMBConnection(
-                self.host, self.host, sess_port=self.port, timeout=15
+                self.host, self.host, sess_port=self.port, timeout=config.smb_conn_timeout
             )
         except Exception as e:
             print_debug(str(e), sys.exc_info())
@@ -111,6 +111,7 @@ class SlingerClient(
             self.is_logged_in = False
             raise Exception("Failed to create SMB connection.")
 
+        # Ensure timeout is set on connection object
         self.conn._timeout = int(config.smb_conn_timeout)
 
         try:
