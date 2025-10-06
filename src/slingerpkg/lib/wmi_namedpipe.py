@@ -8,10 +8,7 @@ and provides enhanced stealth capabilities.
 Based on research in docs/WMI_NAMED_PIPE_EXECUTION_RESEARCH.md
 """
 
-import sys
-import os
 import time
-import tempfile
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
 from impacket.dcerpc.v5.dcom import wmi
@@ -26,107 +23,6 @@ class WMINamedPipeExec:
         print_debug("WMI Named Pipe Execution Module Loaded!")
         self.wmi_endpoints = []
         self.active_endpoint = None
-
-    def wmiexec_handler(self, args):
-        """Handler for WMI execution commands via named pipes"""
-        print_verbose("WMI Named Pipe Exec handler called")
-
-        if not self.check_if_connected():
-            print_warning("You must be connected to a share to use WMI execution.")
-            return
-
-        # Handle endpoint info request
-        if hasattr(args, "endpoint_info") and args.endpoint_info:
-            self._show_endpoint_info()
-            return
-
-        # Check for memory capture mode
-        memory_capture = hasattr(args, "memory_capture") and args.memory_capture
-
-        # For now, let's test basic WMI first and disable memory capture
-        if memory_capture:
-            print_warning("Memory capture temporarily disabled for debugging - using basic WMI")
-            memory_capture = False
-
-        # Check for interactive mode (with safe fallback)
-        interactive_mode = getattr(args, "interactive", False)
-
-        # Validate command argument
-        if not interactive_mode and (not hasattr(args, "command") or not args.command):
-            print_warning("Command is required unless using --interactive mode")
-            print_info("Use 'help wmiexec' for usage information")
-            return
-
-        try:
-            # Discover and test WMI named pipe endpoints
-            if not self.discover_wmi_endpoints():
-                print_bad("No accessible WMI named pipe endpoints found")
-                print_info("WMI service may be unavailable or access denied")
-                return
-
-            # Execute the command via WMI
-            if memory_capture:
-                print_info("Using memory-based output capture (no disk files)")
-                result = self._execute_wmi_command_memory_capture(
-                    command=getattr(args, "command"),
-                    timeout=getattr(args, "timeout", 30),
-                    output_file=getattr(args, "output", None),
-                )
-            else:
-                result = self.execute_wmi_command_namedpipe(
-                    command=getattr(args, "command"),
-                    capture_output=not getattr(args, "no_output", False),
-                    timeout=getattr(args, "timeout", 30),
-                    interactive=interactive_mode,
-                    output_file=getattr(args, "output", None),
-                )
-
-            if result["success"]:
-                if interactive_mode:
-                    print_good("WMI interactive shell session completed")
-                elif memory_capture:
-                    print_good("WMI memory capture execution completed")
-
-                    # Display stdout if available
-                    if result.get("stdout"):
-                        print_info("Command output:")
-                        print(result["stdout"])
-
-                    # Display stderr if available
-                    if result.get("stderr"):
-                        print_warning("Error output:")
-                        print(result["stderr"])
-
-                    # Show execution metadata
-                    if result.get("return_code") is not None:
-                        print_info(f"Return code: {result['return_code']}")
-                    if result.get("execution_time"):
-                        print_info(f"Execution time: {result['execution_time']} seconds")
-
-                    if getattr(args, "output", None):
-                        print_good(f"Output saved to: {getattr(args, 'output')}")
-                else:
-                    print_good(
-                        f"Command executed via WMI. Process ID: {result.get('process_id', 'Unknown')}"
-                    )
-
-                    if result.get("output"):
-                        print_info("Command output:")
-                        print(result["output"])
-
-                    if getattr(args, "output", None):
-                        print_good(f"Output saved to: {getattr(args, 'output')}")
-            else:
-                if memory_capture:
-                    print_bad(
-                        f"WMI memory capture execution failed: {result.get('error', 'Unknown error')}"
-                    )
-                else:
-                    print_bad(f"WMI execution failed: {result.get('error', 'Unknown error')}")
-
-        except Exception as e:
-            print_debug(str(e), sys.exc_info())
-            print_bad(f"WMI named pipe execution error: {e}")
 
     def discover_wmi_endpoints(self):
         """
@@ -181,148 +77,14 @@ class WMINamedPipeExec:
             print_debug(f"WMI endpoint {pipe_name} test failed: {e}")
             return False
 
-    def execute_wmi_command_namedpipe(
-        self, command, capture_output=True, timeout=30, interactive=False, output_file=None
-    ):
-        """
-        Execute command via WMI using named pipe transport
+    def _create_wmi_process_traditional(self, command, working_dir=r"C:\\"):
+        r"""
+        Create process via traditional WMI using Impacket's approach
+        Based on the standard impacket wmiexec.py implementation
 
         Args:
             command: Command to execute
-            capture_output: Whether to capture and return output
-            timeout: Execution timeout in seconds
-            interactive: Whether to run in interactive mode
-            output_file: Optional file to save output to
-
-        Returns:
-            dict with 'success', 'process_id', 'output', 'error' keys
-        """
-        try:
-            if interactive:
-                return self._execute_interactive_shell_namedpipe(timeout, output_file)
-            else:
-                return self._execute_single_command_namedpipe(
-                    command, capture_output, timeout, output_file
-                )
-
-        except Exception as e:
-            print_debug(f"WMI named pipe execution failed: {str(e)}", sys.exc_info())
-            return {"success": False, "error": str(e), "process_id": None, "output": None}
-
-    def _execute_single_command_namedpipe(self, command, capture_output, timeout, output_file):
-        """Execute a single command via WMI named pipe"""
-        print_verbose(f"Executing WMI command via named pipe: {command}")
-
-        # For output capture, redirect to temporary file
-        if capture_output:
-            temp_output_file = f"C:\\Windows\\Temp\\wmi_np_output_{int(time.time())}.tmp"
-            full_command = f'cmd.exe /c "{command}" > "{temp_output_file}" 2>&1'
-        else:
-            full_command = f'cmd.exe /c "{command}"'
-            temp_output_file = None
-
-        print_verbose(f"Full command for WMI named pipe: {full_command}")
-
-        try:
-            # Execute via traditional WMI DCOM
-            process_id = self._create_wmi_process_traditional(full_command)
-
-            if process_id:
-                print_verbose(f"Process created via WMI named pipe with PID: {process_id}")
-
-                # Wait for process completion if capturing output
-                if capture_output and temp_output_file:
-                    output = self._wait_and_capture_output(temp_output_file, timeout)
-
-                    # Save output to file if requested
-                    if output_file:
-                        self._save_output_to_file(output, output_file)
-
-                    return {
-                        "success": True,
-                        "process_id": process_id,
-                        "output": output,
-                        "error": None,
-                    }
-                else:
-                    return {
-                        "success": True,
-                        "process_id": process_id,
-                        "output": None,
-                        "error": None,
-                    }
-            else:
-                return {
-                    "success": False,
-                    "error": "Failed to create WMI process via named pipe",
-                    "process_id": None,
-                    "output": None,
-                }
-
-        except Exception as e:
-            return {"success": False, "error": str(e), "process_id": None, "output": None}
-
-    def _execute_interactive_shell_namedpipe(self, timeout, output_file):
-        """Execute interactive WMI shell via named pipe"""
-        print_info("Starting WMI named pipe interactive shell...")
-        print_info("Type 'exit' to quit the WMI shell")
-        print()
-
-        session_output = []
-
-        try:
-            while True:
-                try:
-                    # Get command from user
-                    command = input("WMI-NP> ").strip()
-
-                    if command.lower() in ["exit", "quit"]:
-                        break
-
-                    if not command:
-                        continue
-
-                    # Execute command via named pipe
-                    result = self._execute_single_command_namedpipe(command, True, timeout, None)
-
-                    if result["success"]:
-                        if result["output"]:
-                            print(result["output"])
-                            session_output.append(f"WMI-NP> {command}")
-                            session_output.append(result["output"])
-                        else:
-                            print_info("Command executed via named pipe (no output captured)")
-                    else:
-                        print_bad(f"Command failed: {result.get('error', 'Unknown error')}")
-                        session_output.append(f"WMI-NP> {command}")
-                        session_output.append(f"ERROR: {result.get('error', 'Unknown error')}")
-
-                except KeyboardInterrupt:
-                    print()
-                    print_info("Use 'exit' to quit WMI named pipe shell")
-                    continue
-                except EOFError:
-                    break
-
-            # Save session output if requested
-            if output_file and session_output:
-                full_output = "\n".join(session_output)
-                self._save_output_to_file(full_output, output_file)
-
-            return {
-                "success": True,
-                "process_id": None,
-                "output": "\n".join(session_output) if session_output else None,
-                "error": None,
-            }
-
-        except Exception as e:
-            return {"success": False, "error": str(e), "process_id": None, "output": None}
-
-    def _create_wmi_process_traditional(self, command):
-        """
-        Create process via traditional WMI using Impacket's approach
-        Based on the standard impacket wmiexec.py implementation
+            working_dir: Working directory for process (default: C:\)
         """
         print_debug("WMI process creation via traditional DCOM")
 
@@ -362,12 +124,13 @@ class WMINamedPipeExec:
             iWbemLevel1Login.RemRelease()
 
             print_debug(f"Executing WMI command: {command}")
+            print_debug(f"Working directory: {working_dir}")
             # Get Win32_Process class and call Create method
             win32Process, _ = iWbemServices.GetObject("Win32_Process")
 
             # Call Create method with command line, working dir, and environment
             # Use the same pattern as the working DCOM implementation
-            result = win32Process.Create(command, "C:\\", None)
+            result = win32Process.Create(command, working_dir, None)
 
             # Cleanup
             dcom.disconnect()
@@ -596,56 +359,6 @@ class WMINamedPipeExec:
                 return ""
         return ""
 
-    def _execute_wmi_command_memory_capture(self, command, timeout=30, output_file=None):
-        """
-        Execute WMI command using memory-based output capture
-
-        Returns dict with 'success', 'stdout', 'stderr', 'return_code' keys
-        """
-        try:
-            print_verbose(f"Executing WMI command with memory capture: {command}")
-
-            # Use memory capture method
-            output_data = self._create_wmi_process_memory_capture(command)
-
-            if output_data:
-                stdout = output_data.get("stdout", "")
-                stderr = output_data.get("stderr", "")
-                return_code = output_data.get("return_code", 0)
-                execution_time = output_data.get("execution_time", "0")
-
-                print_verbose(f"Memory capture completed in {execution_time} seconds")
-
-                # Save output to file if requested
-                if output_file:
-                    self._save_output_to_file(stdout, output_file)
-
-                return {
-                    "success": True,
-                    "stdout": stdout,
-                    "stderr": stderr,
-                    "return_code": return_code,
-                    "execution_time": execution_time,
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "Memory capture failed",
-                    "stdout": None,
-                    "stderr": None,
-                    "return_code": None,
-                }
-
-        except Exception as e:
-            print_debug(f"WMI memory capture execution failed: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "stdout": None,
-                "stderr": None,
-                "return_code": None,
-            }
-
     def _connect_wmi_service_namedpipe(self):
         """
         Connect to WMI service via DCE/RPC transport (replaces direct named pipe)
@@ -709,6 +422,15 @@ class WMINamedPipeExec:
         """
         print_verbose(f"Waiting for output via named pipe from: {temp_output_file}")
 
+        # Convert Windows path to SMB share-root path
+        # C:\Windows\Temp\file.tmp -> \Windows\Temp\file.tmp
+        smb_path = temp_output_file
+        if ":" in smb_path:
+            # Remove drive letter and colon, keep the backslash
+            smb_path = smb_path.split(":", 1)[1]
+
+        print_debug(f"Converted path for SMB: {smb_path}")
+
         start_time = time.time()
         output = ""
 
@@ -716,7 +438,7 @@ class WMINamedPipeExec:
         while time.time() - start_time < timeout:
             try:
                 # Try to read the output file via SMB
-                output = self._read_remote_file(temp_output_file)
+                output = self._read_remote_file(smb_path)
                 if output:
                     break
             except:
@@ -726,9 +448,9 @@ class WMINamedPipeExec:
 
         # Clean up temporary file
         try:
-            self._delete_remote_file(temp_output_file)
+            self._delete_remote_file(smb_path)
         except:
-            print_debug(f"Could not clean up temporary file: {temp_output_file}")
+            print_debug(f"Could not clean up temporary file: {smb_path}")
 
         return output
 
@@ -736,15 +458,18 @@ class WMINamedPipeExec:
         """Read remote file via SMB"""
         try:
             print_debug(f"Reading remote file via SMB: {file_path}")
+            print_debug(f"Current share: {getattr(self, 'share', 'UNKNOWN')}")
+            print_debug(f"Tree ID: {getattr(self, 'tree_id', 'UNKNOWN')}")
+
+            # Import SMB constants
+            from impacket.smbconnection import FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE
 
             # Use existing SMB connection to read file
             file_handle = self.conn.openFile(
-                self.share,
+                self.tree_id,
                 file_path,
-                creationOption=0x00000001,  # FILE_OPEN
-                fileAttributes=0x00000000,
-                shareMode=0x00000001,  # FILE_SHARE_READ
-                creationDisposition=0x00000001,  # FILE_OPEN
+                desiredAccess=FILE_READ_DATA,
+                shareMode=FILE_SHARE_READ | FILE_SHARE_WRITE,
             )
 
             # Read file contents
@@ -753,24 +478,26 @@ class WMINamedPipeExec:
             chunk_size = 4096
 
             while True:
-                chunk = self.conn.readFile(self.share, file_handle, offset, chunk_size)
+                chunk = self.conn.readFile(
+                    self.tree_id, file_handle, offset=offset, bytesToRead=chunk_size
+                )
                 if not chunk:
                     break
                 file_content += chunk.decode("utf-8", errors="ignore")
                 offset += len(chunk)
 
-            self.conn.closeFile(self.share, file_handle)
+            self.conn.closeFile(self.tree_id, file_handle)
             return file_content
 
         except Exception as e:
             print_debug(f"Error reading remote file: {e}")
-            return "Output capture via named pipe - enhanced placeholder"
+            return ""
 
     def _delete_remote_file(self, file_path):
         """Delete remote file via SMB"""
         try:
             print_debug(f"Deleting remote file via SMB: {file_path}")
-            self.conn.deleteFile(self.share, file_path)
+            self.conn.deleteFile(self.tree_id, file_path)
         except Exception as e:
             print_debug(f"Error deleting remote file: {e}")
 

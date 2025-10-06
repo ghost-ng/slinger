@@ -1640,111 +1640,19 @@ def setup_cli_parser(slingerClient):
         "Each method has different capabilities, stealth levels, and requirements.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Available Methods:
-  task     - Task Scheduler backend (default, most reliable)
   dcom     - Traditional Win32_Process.Create via DCOM
   event    - WMI Event Consumer (stealthy)
+  query    - Execute WQL queries
 
 Example Usage:
-  wmiexec task 'whoami'                    # Task Scheduler method
-  wmiexec task 'whoami' --tn MyTask        # Custom task name
   wmiexec dcom 'systeminfo'                # Traditional DCOM
-  wmiexec event 'net user' --trigger-delay 5  # Event consumer""",
+  wmiexec event 'net user' --trigger-delay 5  # Event consumer
+  wmiexec query 'SELECT * FROM Win32_Process'  # WQL query""",
     )
 
     # Create subparsers for different WMI methods
     wmiexec_subparsers = parser_wmiexec.add_subparsers(
         dest="wmi_method", help="WMI execution method", metavar="METHOD"
-    )
-
-    # Task Scheduler method (default, most reliable)
-    parser_wmi_task = wmiexec_subparsers.add_parser(
-        "task",
-        help="Execute via Task Scheduler backend",
-        description="Execute commands using Windows Task Scheduler via WMI. Creates, executes, "
-        "and cleans up scheduled tasks through the root\\Microsoft\\Windows\\"
-        "TaskScheduler namespace.",
-        epilog='Example Usage: wmiexec task "whoami"\n'
-        'wmiexec task "dir C:\\" --tn MyTask --cleanup-delay 5\n'
-        "wmiexec task --interactive  # Interactive shell\n"
-        'wmiexec task "ipconfig" --output network.txt',
-    )
-    parser_wmi_task.add_argument(
-        "command",
-        nargs="?",
-        help="Command to execute (not required for --interactive mode)",
-    )
-    parser_wmi_task.add_argument(
-        "--tn",
-        "--task-name",
-        help="Custom scheduled task name (default: auto-generated WMI_Task_XXXXX)",
-        default=None,
-    )
-    parser_wmi_task.add_argument(
-        "--sp",
-        "--save-path",
-        help="Directory to save output file (default: %(default)s)",
-        default="\\Windows\\Temp\\",
-    )
-    parser_wmi_task.add_argument(
-        "--sn",
-        "--save-name",
-        help="Name of output file (default: auto-generated wmi_np_output_XXXXX.tmp)",
-        default=None,
-    )
-    parser_wmi_task.add_argument(
-        "--cleanup-delay",
-        type=int,
-        default=2,
-        help="Seconds to wait before task cleanup (default: %(default)s)",
-    )
-    parser_wmi_task.add_argument(
-        "--no-cleanup",
-        action="store_true",
-        help="Don't automatically delete the scheduled task",
-        default=False,
-    )
-    parser_wmi_task.add_argument(
-        "-i",
-        "--interactive",
-        action="store_true",
-        help="Start interactive WMI shell session",
-        default=False,
-    )
-    parser_wmi_task.add_argument(
-        "--no-output",
-        action="store_true",
-        help="Don't capture command output (faster execution)",
-        default=False,
-    )
-    parser_wmi_task.add_argument(
-        "--timeout",
-        type=int,
-        default=30,
-        help="Command execution timeout in seconds (default: %(default)s)",
-    )
-    parser_wmi_task.add_argument(
-        "--output",
-        metavar="filename",
-        help="Save command output to local file",
-        default=None,
-    )
-    parser_wmi_task.add_argument(
-        "--working-dir",
-        help="Working directory for command execution (default: %(default)s)",
-        default="C:\\",
-    )
-    parser_wmi_task.add_argument(
-        "--shell",
-        choices=["cmd", "powershell"],
-        default="cmd",
-        help="Shell to use for command execution (default: %(default)s)",
-    )
-    parser_wmi_task.add_argument(
-        "--raw-command",
-        action="store_true",
-        help="Execute command directly without cmd.exe wrapper. Use for launching "
-        "executables (calc.exe, notepad.exe) or custom command strings.",
-        default=False,
     )
 
     # Traditional DCOM method
