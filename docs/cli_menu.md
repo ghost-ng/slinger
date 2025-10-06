@@ -71,7 +71,8 @@ ls --type f -r 2        # Recursively list only files to depth 2
 **Help:**
 ```
 find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE] [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex] [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
-                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}] [--reverse] [--format {table,list,paths,json}] [-o OUTPUT] [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
+                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}] [--reverse] [--format {table,list,paths,json}] [-o OUTPUT] [--empty] [--hidden] [--progress]
+                    [--timeout TIMEOUT]
                     pattern
 Search for files and directories across the remote share with advanced filtering options.
 ```
