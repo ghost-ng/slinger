@@ -61,32 +61,13 @@ class wmiexec(WMIQuery):
             # WMI Event Consumer method - implemented
             print_verbose("Routing to WMI Event Consumer execution")
             return self._handle_wmiexec_event(args)
-        elif wmi_method == "task":
-            # Route to the WMI Named Pipe module for task method - requires share connection
-            if not self.check_if_connected():
-                print_warning(
-                    "You must be connected to a share to use WMI Task Scheduler execution."
-                )
-                return
-            print_verbose("Routing to WMI Task Scheduler execution (Named Pipe module)")
-            if hasattr(self, "execute_wmi_command_namedpipe"):
-                # Call the WMI Named Pipe execution directly
-                from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
-
-                return WMINamedPipeExec.wmiexec_handler(self, args)
-            else:
-                print_bad(
-                    f"WMI method '{wmi_method}' not available - WMI Named Pipe module not loaded"
-                )
-                print_info("Available methods: dcom, task, event, query")
-                return
         elif wmi_method == "query":
             # WMI Query method - execute WQL queries
             print_verbose("Routing to WMI Query execution")
             return self.wmi_query_handler(args)
         else:
             print_bad(f"Unknown WMI method: {wmi_method}")
-            print_info("Available methods: dcom, task, event, query")
+            print_info("Available methods: dcom, event, query")
             return
 
     def _handle_wmiexec_dcom(self, args):
@@ -139,7 +120,7 @@ class wmiexec(WMIQuery):
         """Handle WMI Event Consumer execution"""
         print_bad("WMI Event Consumer method is not implemented yet")
         print_info("This feature is under development and will be available in a future release")
-        print_info("Please use 'wmiexec dcom' or 'wmiexec task' methods instead")
+        print_info("Please use 'wmiexec dcom' methods instead")
 
         return {
             "success": False,
@@ -303,9 +284,6 @@ class wmiexec(WMIQuery):
         print_info("Type 'exit' to quit the Event Consumer shell")
         print_warning(
             "NOTE: Event Consumer method creates temporary WMI persistence for each command"
-        )
-        print_warning(
-            "Use single commands for better performance, or consider 'wmiexec task -i' for faster interactive mode"
         )
 
         # Determine shell prompt prefix
