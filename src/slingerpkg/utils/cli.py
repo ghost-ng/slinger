@@ -310,6 +310,79 @@ def show_command_help(parser, command):
         print(f"Command '{command}' not found.")
 
 
+def add_atexec_options(parser, include_command=False):
+    """Add common atexec options to a parser.
+
+    Args:
+        parser: The argparse parser to add options to
+        include_command: If True, add the -c/--command argument (for atexec itself)
+    """
+    if include_command:
+        parser.add_argument(
+            "-c",
+            "--command",
+            help="Specify the command to execute. For commands with spaces, "
+            "wrap in quotes (e.g., 'echo hello world')",
+            required=True,
+        )
+    parser.add_argument(
+        "--sp",
+        "--path",
+        dest="sp",
+        help="Folder to save the output file (default: \\Users\\Public\\Downloads\\)",
+        default="\\Users\\Public\\Downloads\\",
+    )
+    parser.add_argument(
+        "--sn",
+        "--save-name",
+        dest="sn",
+        help="Name of the output file (default: random)",
+        default=None,
+    )
+    parser.add_argument(
+        "--tn",
+        "--task-name",
+        dest="tn",
+        help="Name of the scheduled task (default: auto-generated)",
+        default=None,
+    )
+    parser.add_argument(
+        "--ta",
+        "--author",
+        dest="ta",
+        help="Author of the scheduled task (default: Microsoft Corporation)",
+        default="Microsoft Corporation",
+    )
+    parser.add_argument(
+        "--td",
+        "--description",
+        dest="td",
+        help="Description of the scheduled task (default: Windows Update Service)",
+        default="Windows Update Service",
+    )
+    parser.add_argument(
+        "--tf",
+        "--task-folder",
+        dest="tf",
+        help="Folder to create the task in (default: \\Windows)",
+        default="\\Windows",
+    )
+    parser.add_argument(
+        "--sh",
+        "--share",
+        dest="sh",
+        help="Share name for output file (default: current share or C$)",
+        default=None,
+    )
+    parser.add_argument(
+        "-w",
+        "--wait",
+        help="Seconds to wait for task completion (default: 2)",
+        type=int,
+        default=2,
+    )
+
+
 def setup_cli_parser(slingerClient):
     parser = CustomArgumentParser(
         prog=program_name,
@@ -2103,7 +2176,12 @@ Examples:
         "deploy",
         help="Deploy agent to target system",
         description="Upload and execute polymorphic agent on target system via SMB",
-        epilog="Example: agent deploy /home/user/slinger_agent_x64.exe --path temp\\ --start",
+        epilog="""Examples:
+  agent deploy ./agent.exe --path temp\\ --start                    # Deploy and start with wmiexec
+  agent deploy ./agent.exe --path temp\\ --start --method atexec    # Deploy and start with Task Scheduler
+  agent deploy ./agent.exe --path temp\\ --start --method atexec --ta "SYSTEM"
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_agent_deploy.add_argument(
         "agent_path",
@@ -2138,6 +2216,8 @@ Examples:
         type=str,
         help="Specify pipe name for the agent (must match build-time pipe name)",
     )
+    # Add atexec options (used when --method atexec --start)
+    add_atexec_options(parser_agent_deploy, include_command=False)
     parser_agent_deploy.set_defaults(func=slingerClient.agent_handler)
 
     # Agent list subcommand
@@ -2253,7 +2333,12 @@ INTERACTIVE SHELL COMMANDS:
         "start",
         help="Start agent process",
         description="Start a stopped or crashed agent using its deployment information",
-        epilog="Example: agent start svcctl_tui0 --method atexec",
+        epilog="""Examples:
+  agent start svchost_abc123                        # Start using wmiexec (default)
+  agent start svchost_abc123 --method atexec        # Start using Task Scheduler
+  agent start svchost_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_agent_start.add_argument(
         "agent_id",
@@ -2267,6 +2352,8 @@ INTERACTIVE SHELL COMMANDS:
         default="wmiexec",
         help="Execution method to start agent (default: wmiexec)",
     )
+    # Add atexec options (used when --method atexec)
+    add_atexec_options(parser_agent_start, include_command=False)
     parser_agent_start.set_defaults(func=slingerClient.agent_handler)
 
     # Agent kill subcommand
@@ -2274,7 +2361,13 @@ INTERACTIVE SHELL COMMANDS:
         "kill",
         help="Kill agent process",
         description="Find and terminate the agent process using taskkill via WMI or Task Scheduler",
-        epilog="Example: agent kill svchost_abc123 --method atexec",
+        epilog="""Examples:
+  agent kill svchost_abc123                        # Kill using wmiexec (default)
+  agent kill svchost_abc123 --method atexec        # Kill using Task Scheduler
+  agent kill svchost_abc123 --method atexec -w 3   # Wait 3 seconds for task completion
+  agent kill svchost_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_agent_kill.add_argument(
         "agent_id",
@@ -2288,6 +2381,8 @@ INTERACTIVE SHELL COMMANDS:
         default="wmiexec",
         help="Execution method for taskkill (default: wmiexec)",
     )
+    # Add atexec options (used when --method atexec)
+    add_atexec_options(parser_agent_kill, include_command=False)
     parser_agent_kill.set_defaults(func=slingerClient.agent_handler)
 
     # Agent rm subcommand
@@ -2309,8 +2404,22 @@ INTERACTIVE SHELL COMMANDS:
         "reset",
         help="Kill and remove all agents",
         description="Kill all running agent processes and delete all agent files",
-        epilog="Example: agent reset",
+        epilog="""Examples:
+  agent reset                                      # Reset using wmiexec (default)
+  agent reset --method atexec                      # Reset using Task Scheduler
+  agent reset --method atexec -w 3                 # Wait 3 seconds for task completion
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser_agent_reset.add_argument(
+        "--method",
+        type=str,
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method for kill operations (default: wmiexec)",
+    )
+    # Add atexec options (used when --method atexec)
+    add_atexec_options(parser_agent_reset, include_command=False)
     parser_agent_reset.set_defaults(func=slingerClient.agent_handler)
 
     # Agent update subcommand

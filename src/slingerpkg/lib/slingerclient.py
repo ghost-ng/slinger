@@ -764,8 +764,9 @@ class SlingerClient(
                 passphrase_arg = getattr(args, "passphrase", None)
                 obfuscate_arg = getattr(args, "obfuscate", False)
                 upx_arg = getattr(args, "upx", None)
+                custom_name_arg = getattr(args, "name", None)
                 print_debug(
-                    f"Starting build with arch={args.arch}, encryption={encryption}, debug={args.debug}, passphrase={'<set>' if passphrase_arg else 'None'}, obfuscate={obfuscate_arg}, upx={upx_arg}"
+                    f"Starting build with arch={args.arch}, encryption={encryption}, debug={args.debug}, passphrase={'<set>' if passphrase_arg else 'None'}, obfuscate={obfuscate_arg}, upx={upx_arg}, name={custom_name_arg}"
                 )
                 built_agents = build_cooperative_agent(
                     arch=args.arch,
@@ -773,6 +774,7 @@ class SlingerClient(
                     debug=args.debug,
                     base_path=base_path,
                     custom_pipe_name=getattr(args, "pipe", None),
+                    custom_binary_name=custom_name_arg,
                     passphrase=passphrase_arg,
                     obfuscate=obfuscate_arg,
                     upx_path=upx_arg,
@@ -1014,7 +1016,7 @@ class SlingerClient(
                 agent_status = "uploaded"
                 if args.start:
                     method = getattr(args, "method", "wmiexec")
-                    result = self._start_agent_process(full_path, method=method)
+                    result = self._start_agent_process(full_path, method=method, args=args)
 
                     if result.get("success", False):
                         print_good("✓ Agent started successfully")
@@ -1104,12 +1106,13 @@ class SlingerClient(
             print_debug(f"Failed to resolve share path: {e}")
             return None
 
-    def _start_agent_process(self, full_path, method="wmiexec"):
+    def _start_agent_process(self, full_path, method="wmiexec", args=None):
         """Start an agent process using specified method
 
         Args:
             full_path: Full Windows path to the agent executable (e.g., C:\\agent.exe)
             method: Execution method - 'wmiexec' or 'atexec'
+            args: Optional args object with atexec options (ta, td, tf, tn, etc.)
 
         Returns:
             dict with 'success', 'process_id', 'error' keys
@@ -1131,9 +1134,13 @@ class SlingerClient(
         elif method == "atexec":
             print_info("Starting agent via Task Scheduler (atexec)...")
             try:
-                # Generate random task name
-                task_name = f"SlingerAgent_{generate_random_string(6, 8)}"
-                task_folder = "\\Windows"
+                # Extract atexec options from args or use defaults
+                task_name = (
+                    getattr(args, "tn", None) or f"SlingerAgent_{generate_random_string(6, 8)}"
+                )
+                task_folder = getattr(args, "tf", None) or "\\Windows"
+                task_author = getattr(args, "ta", None) or "Microsoft Corporation"
+                task_description = getattr(args, "td", None) or "Windows Update Service"
 
                 # Create XML for task that just runs the executable (no output capture)
                 from slingerpkg.utils.common import generate_random_date, xml_escape
@@ -1143,8 +1150,8 @@ class SlingerClient(
                 xml = f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
     <RegistrationInfo>
-        <Author>Microsoft Corporation</Author>
-        <Description>Windows Update Service</Description>
+        <Author>{xml_escape(task_author)}</Author>
+        <Description>{xml_escape(task_description)}</Description>
         <URI>\\{xml_escape(task_name)}</URI>
     </RegistrationInfo>
     <Triggers>
@@ -1228,11 +1235,12 @@ class SlingerClient(
         else:
             return {"success": False, "error": f"Unknown method: {method}", "process_id": None}
 
-    def _execute_via_atexec(self, command):
+    def _execute_via_atexec(self, command, args=None):
         """Execute a command via Task Scheduler (atexec) and capture output
 
         Args:
             command: Command to execute
+            args: Optional args object with atexec options (ta, td, tf, sp, sh, wait, etc.)
 
         Returns:
             dict with 'success', 'output', 'error' keys
@@ -1244,26 +1252,42 @@ class SlingerClient(
             xml_escape,
         )
         from time import sleep
+        import io
+        import sys
+
+        # Extract options from args or use defaults
+        task_author = getattr(args, "ta", None) or "Microsoft Corporation"
+        task_description = getattr(args, "td", None) or "Windows Update Service"
+        task_folder = getattr(args, "tf", None) or "\\Windows"
+        save_path = getattr(args, "sp", None) or "\\Users\\Public\\Downloads"
+        save_name = getattr(args, "sn", None)
+        share_name = getattr(args, "sh", None) or self.share
+        wait_time = getattr(args, "wait", None) or 2
 
         try:
             # Generate random task and output file names
-            task_name = f"SlingerTask_{generate_random_string(6, 8)}"
-            task_folder = "\\Windows"
-            output_file = f"{generate_random_string(8, 10)}.txt"
+            task_name = getattr(args, "tn", None) or f"SlingerTask_{generate_random_string(6, 8)}"
+            output_file = save_name or f"{generate_random_string(8, 10)}.txt"
 
             # Get share path for output file
             share_info = self.list_shares(args=None, echo=False, ret=True)
             share_path = None
             for share in share_info or []:
-                if share["name"].upper() == self.share.upper():
+                if share["name"].upper() == share_name.upper():
                     share_path = share["path"].rstrip("\\")
                     break
 
             if not share_path:
                 return {"success": False, "output": "", "error": "Could not resolve share path"}
 
-            # Build output path
-            output_path = f"{share_path}\\{output_file}"
+            # Build output path - combine share disk path with save_path
+            save_path_clean = save_path.strip("\\")
+            if save_path_clean:
+                output_path = f"{share_path}\\{save_path_clean}\\{output_file}"
+                output_file_relative = f"{save_path_clean}\\{output_file}"
+            else:
+                output_path = f"{share_path}\\{output_file}"
+                output_file_relative = output_file
 
             # Create XML for task that captures output
             timestamp = generate_random_date()
@@ -1271,8 +1295,8 @@ class SlingerClient(
             xml = f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
     <RegistrationInfo>
-        <Author>Microsoft Corporation</Author>
-        <Description>Windows Update Service</Description>
+        <Author>{xml_escape(task_author)}</Author>
+        <Description>{xml_escape(task_description)}</Description>
         <URI>\\{xml_escape(task_name)}</URI>
     </RegistrationInfo>
     <Triggers>
@@ -1348,17 +1372,60 @@ class SlingerClient(
             self.dce_transport._delete_task(full_task_path)
 
             # Wait for command to complete and read output
-            sleep(2)
+            sleep(wait_time)
+
+            # Save current share state
+            saved_share = self.share
+            saved_tid = self.tid
 
             try:
-                # Read output file
-                output_content = self._read_file_content(output_file)
+                # Connect to the share where output file was written
+                if share_name.upper() != self.share.upper():
+                    print_debug(f"Switching from {self.share} to {share_name} for file cleanup")
+                    self.tid = self.conn.connectTree(share_name)
+                    self.share = share_name
+
+                # Read output file using cat method
+                # Create a mock args object for cat
+                class MockArgs:
+                    pass
+
+                cat_args = MockArgs()
+                cat_args.remote_path = output_file_relative
+
+                # Capture cat output by redirecting stdout temporarily
+                old_stdout = sys.stdout
+                sys.stdout = captured_output = io.StringIO()
+
+                try:
+                    self.cat(cat_args, echo=False)
+                    output_content = captured_output.getvalue()
+                finally:
+                    sys.stdout = old_stdout
+
                 # Delete output file
-                self.delete(output_file)
+                try:
+                    print_debug(
+                        f"Deleting output file: {output_file_relative} from share {share_name}"
+                    )
+                    self.delete(output_file_relative)
+                    print_debug(f"Successfully deleted: {output_file_relative}")
+                except Exception as del_err:
+                    print_debug(f"Failed to delete output file {output_file_relative}: {del_err}")
+
                 return {"success": True, "output": output_content, "error": None}
             except Exception as read_error:
                 print_debug(f"Failed to read output file: {read_error}")
                 return {"success": True, "output": "", "error": None}
+            finally:
+                # Restore original share state
+                if saved_share.upper() != self.share.upper():
+                    print_debug(f"Restoring share from {self.share} to {saved_share}")
+                    try:
+                        self.tid = self.conn.connectTree(saved_share)
+                        self.share = saved_share
+                    except Exception as restore_err:
+                        print_debug(f"Failed to restore share: {restore_err}")
 
         except Exception as e:
             print_debug(f"atexec exception: {e}", sys.exc_info())
@@ -1752,7 +1819,7 @@ class SlingerClient(
             print_bad(f"Failed to check agent: {e}")
 
     def agent_kill_handler(self, args):
-        """Handle agent process termination via WMI and taskkill"""
+        """Handle agent process termination using specified method"""
         try:
             from slingerpkg.utils.printlib import (
                 print_info,
@@ -1761,18 +1828,18 @@ class SlingerClient(
                 print_warning,
                 print_debug,
             )
+            import re
 
-            # Ensure we're connected to a share (needed for downloading WMI output files)
+            # Ensure we're connected to a share
             if not self.check_if_connected():
-                print_warning("Not connected to a share - connecting to C$ for WMI operations")
+                print_warning("Not connected to a share - connecting to C$")
                 try:
                     self.tid = self.conn.connectTree("C$")
                     self.share = "C$"
                     self.is_connected_to_share = True
-                    print_debug("Connected to C$ share for WMI operations")
+                    print_debug("Connected to C$ share")
                 except Exception as conn_error:
                     print_bad(f"Failed to connect to C$ share: {conn_error}")
-                    print_info("WMI operations require share access to download output files")
                     return
 
             # Load agent registry
@@ -1798,29 +1865,25 @@ class SlingerClient(
                 return
 
             # Extract just the executable name from the path
-            # Handle Windows paths properly even on Linux
             if "\\" in agent_path:
                 exe_name = agent_path.split("\\")[-1]
             else:
-
                 exe_name = os.path.basename(agent_path)
 
-            print_info(f"Looking for agent process: {exe_name}")
+            method = getattr(args, "method", "wmiexec")
+            print_info(f"Using {method} method to find and kill agent process: {exe_name}")
 
-            # Use WMI to find the process by executable name
+            process_ids = []
+
             try:
-                # Query for processes matching the agent's executable name (not full path)
-                process_query = (
-                    f"SELECT ProcessId, Name FROM Win32_Process WHERE Name = '{exe_name}'"
-                )
+                if method == "wmiexec":
+                    # Use WMI DCOM to find processes
+                    process_query = (
+                        f"SELECT ProcessId, Name FROM Win32_Process WHERE Name = '{exe_name}'"
+                    )
+                    print_debug(f"Executing WMI query: {process_query}")
 
-                print_debug(f"Executing WMI query: {process_query}")
-
-                # Use existing WMI infrastructure
-                process_ids = []
-                try:
-                    # Force fresh WMI connection by clearing both service cache AND DCOM connection
-                    # This is needed because pipe operations may corrupt DCOM connection state
+                    # Force fresh WMI connection
                     if hasattr(self, "_wmi_services"):
                         self._wmi_services.clear()
                     if hasattr(self, "_dcom_connection"):
@@ -1832,105 +1895,104 @@ class SlingerClient(
                         self._dcom_connection = None
 
                     iWbemServices = self.setup_wmi(namespace="root/cimv2", operation_type="query")
-
-                    # Execute query
                     iEnumWbemClassObject = iWbemServices.ExecQuery(process_query)
 
-                    # Parse results using the correct enumeration method
                     while True:
                         try:
                             pEnum = iEnumWbemClassObject.Next(0xFFFFFFFF, 1)[0]
                             properties = pEnum.getProperties()
-
-                            # Extract ProcessId from properties
                             if "ProcessId" in properties:
                                 pid = properties["ProcessId"]["value"]
                                 if pid:
                                     process_ids.append(pid)
                         except Exception:
-                            # No more results
                             break
 
-                except Exception as query_error:
-                    print_bad(f"WMI query failed: {query_error}")
-                    print_debug(f"Query error details: {query_error}")
-                    return
+                elif method == "atexec":
+                    # Use tasklist via Task Scheduler to find processes
+                    # Get base name without extension for matching
+                    exe_base = exe_name.rsplit(".", 1)[0] if "." in exe_name else exe_name
 
-                if not process_ids:
-                    print_warning(f"No running processes found for agent '{args.agent_id}'")
-                    print_info("Agent may already be terminated")
+                    # Use findstr to grep for the process name (more reliable than /FI filter)
+                    tasklist_cmd = f'tasklist /FO CSV /NH | findstr /I "{exe_base}"'
+                    print_debug(f"Executing tasklist: {tasklist_cmd}")
 
-                    # Update agent status to dead since no process is running
-                    agents[args.agent_id]["status"] = "dead"
-                    with open(registry_file, "w") as f:
-                        json.dump(agents, f, indent=2)
-                    print_good(f"Updated agent '{args.agent_id}' status to 'dead'")
-                    return
+                    result = self._execute_via_atexec(tasklist_cmd, args)
 
-                print_good(f"Found {len(process_ids)} process(es): {process_ids}")
+                    if result.get("success"):
+                        output = result.get("output", "")
+                        print_debug(f"Tasklist output: {repr(output)}")
 
-                # Kill each found process using taskkill
-                # Use specified method (wmiexec or atexec)
-                method = getattr(args, "method", "wmiexec")
-                print_info(f"Using {method} method to terminate processes")
-
-                for pid in process_ids:
-                    print_info(f"Terminating process {pid}...")
-                    kill_command = f"taskkill /F /PID {pid}"
-
-                    try:
-                        if method == "wmiexec":
-                            # Use WMI DCOM for command execution
-                            result = self.execute_wmi_command(
-                                command=kill_command, capture_output=True, timeout=10, shell="cmd"
-                            )
-
-                            if result.get("success"):
-                                output = result.get("output", "")
-                                print_debug(f"Taskkill output: {output}")
-
-                                if "SUCCESS" in output.upper() or "terminated" in output.lower():
-                                    print_good(f"✓ Successfully terminated process {pid}")
-                                else:
-                                    print_warning(
-                                        f"Process {pid} termination status: {output.strip()}"
-                                    )
+                        # Parse CSV output: "process.exe","1234","Console","1","10,000 K"
+                        for line in output.strip().split("\n"):
+                            line = line.strip()
+                            if not line or "INFO:" in line.upper():
+                                continue
+                            # Match PID from CSV format
+                            match = re.match(r'"[^"]+","(\d+)"', line)
+                            if match:
+                                process_ids.append(int(match.group(1)))
                             else:
-                                print_bad(f"Failed to terminate process {pid}")
-                                print_debug(f"Error: {result.get('error')}")
+                                print_debug(f"Line didn't match CSV pattern: {repr(line)}")
+                    else:
+                        print_bad(f"Failed to get process list: {result.get('error')}")
+                        return
 
-                        elif method == "atexec":
-                            # Use Task Scheduler for command execution
-                            result = self._execute_via_atexec(kill_command)
+            except Exception as query_error:
+                print_bad(f"Failed to find processes: {query_error}")
+                print_debug(f"Query error details: {query_error}")
+                return
 
-                            if result.get("success"):
-                                output = result.get("output", "")
-                                print_debug(f"Taskkill output: {output}")
+            if not process_ids:
+                print_warning(f"No running processes found for agent '{args.agent_id}'")
+                print_info("Agent may already be terminated")
 
-                                if "SUCCESS" in output.upper() or "terminated" in output.lower():
-                                    print_good(f"✓ Successfully terminated process {pid}")
-                                else:
-                                    print_warning(
-                                        f"Process {pid} termination status: {output.strip()}"
-                                    )
-                            else:
-                                print_bad(f"Failed to terminate process {pid}")
-                                print_debug(f"Error: {result.get('error')}")
-
-                    except Exception as kill_error:
-                        print_bad(f"Failed to terminate process {pid}: {kill_error}")
-                        print_debug(f"Kill error details: {kill_error}")
-
-                # Update agent status to dead
                 agents[args.agent_id]["status"] = "dead"
                 with open(registry_file, "w") as f:
                     json.dump(agents, f, indent=2)
+                print_good(f"Updated agent '{args.agent_id}' status to 'dead'")
+                return
 
-                print_info(f"Agent '{args.agent_id}' status updated to 'dead'")
+            print_good(f"Found {len(process_ids)} process(es): {process_ids}")
 
-            except Exception as e:
-                print_bad(f"Failed to kill agent process: {e}")
-                print_debug(f"Exception details: {e}")
+            # Kill each found process using the same method
+            for pid in process_ids:
+                print_info(f"Terminating process {pid}...")
+                kill_command = f"taskkill /F /PID {pid}"
+
+                try:
+                    if method == "wmiexec":
+                        result = self.execute_wmi_command(
+                            command=kill_command,
+                            capture_output=True,
+                            timeout=10,
+                            shell="cmd",
+                        )
+                    elif method == "atexec":
+                        result = self._execute_via_atexec(kill_command, args)
+
+                    if result.get("success"):
+                        output = result.get("output", "")
+                        print_debug(f"Taskkill output: {output}")
+
+                        if "SUCCESS" in output.upper() or "terminated" in output.lower():
+                            print_good(f"✓ Successfully terminated process {pid}")
+                        else:
+                            print_warning(f"Process {pid} termination status: {output.strip()}")
+                    else:
+                        print_bad(f"Failed to terminate process {pid}")
+                        print_debug(f"Error: {result.get('error')}")
+
+                except Exception as kill_error:
+                    print_bad(f"Failed to terminate process {pid}: {kill_error}")
+                    print_debug(f"Kill error details: {kill_error}")
+
+            # Update agent status to dead
+            agents[args.agent_id]["status"] = "dead"
+            with open(registry_file, "w") as f:
+                json.dump(agents, f, indent=2)
+
+            print_info(f"Agent '{args.agent_id}' status updated to 'dead'")
 
         except Exception as e:
             print_bad(f"Failed to kill agent: {e}")
@@ -1972,7 +2034,7 @@ class SlingerClient(
 
             try:
                 # Use the unified start method
-                result = self._start_agent_process(agent_path, method=method)
+                result = self._start_agent_process(agent_path, method=method, args=args)
 
                 if result.get("success", False):
                     process_id = result.get("process_id")
@@ -2144,10 +2206,24 @@ class SlingerClient(
             agent_ids = list(agents.keys())
             print_info(f"Resetting {len(agent_ids)} agent(s)...")
 
-            # Create a mock args object for kill and rm commands
+            # Get method and atexec options from args
+            method = getattr(args, "method", "wmiexec")
+
+            # Create a mock args object for kill and rm commands that includes atexec options
             class MockArgs:
-                def __init__(self, agent_id):
+                def __init__(self, agent_id, parent_args):
                     self.agent_id = agent_id
+                    self.method = getattr(parent_args, "method", "wmiexec")
+                    # Pass through atexec options
+                    self.ta = getattr(parent_args, "ta", None)
+                    self.td = getattr(parent_args, "td", None)
+                    self.tf = getattr(parent_args, "tf", None)
+                    self.sp = getattr(parent_args, "sp", None)
+                    self.sn = getattr(parent_args, "sn", None)
+                    self.sh = getattr(parent_args, "sh", None)
+                    self.wait = getattr(parent_args, "wait", None)
+
+            print_info(f"Using {method} method for kill operations")
 
             for agent_id in agent_ids:
                 print_info(f"\n[*] Processing agent: {agent_id}")
@@ -2155,7 +2231,7 @@ class SlingerClient(
                 # Try to kill the agent process
                 try:
                     print_info(f"  Attempting to kill agent process...")
-                    mock_args = MockArgs(agent_id)
+                    mock_args = MockArgs(agent_id, args)
                     self.agent_kill_handler(mock_args)
                 except Exception as e:
                     print_warning(f"  Kill failed (agent may not be running): {e}")
@@ -2163,7 +2239,7 @@ class SlingerClient(
                 # Try to remove the agent file
                 try:
                     print_info(f"  Attempting to remove agent file...")
-                    mock_args = MockArgs(agent_id)
+                    mock_args = MockArgs(agent_id, args)
                     self.agent_rm_handler(mock_args)
                 except Exception as e:
                     print_warning(f"  Remove failed: {e}")
