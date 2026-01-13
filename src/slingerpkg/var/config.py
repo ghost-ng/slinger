@@ -55,9 +55,15 @@ config_vars = [
         "Type": "str",
     },
     {
-        "Name": "Timeout",
+        "Name": "smb_conn_timeout",
         "Value": 86400,
         "Description": "Global SMB connection timeout in seconds (default: 24 hours)",
+        "Type": "int",
+    },
+    {
+        "Name": "smb_auth_timeout",
+        "Value": 300,
+        "Description": "SMB authentication/connection timeout in seconds (default: 5 minutes)",
         "Type": "int",
     },
 ]

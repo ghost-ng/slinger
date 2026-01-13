@@ -94,7 +94,8 @@ def print_all_commands_simple(parser):
 
     # Print footer
     print("\nType help <command> or <command> -h for more information on a specific command")
-    print("Type help --verbose for detailed categorized help\n")
+    print("Type help --verbose for detailed categorized help")
+    print("\n*experimental\n")
 
 
 def print_all_commands_verbose(parser):
@@ -260,7 +261,8 @@ def print_all_commands_verbose(parser):
     print("   help <command>     - Show detailed help for specific command")
     print("   <command> -h       - Show command arguments and options")
     print("   Type command name or any alias to execute")
-    print("=" * 70 + "\n")
+    print("=" * 70)
+    print("\n*experimental\n")
 
 
 def print_all_commands(parser, verbose=False):
@@ -1994,7 +1996,7 @@ Examples:
     # Subparser for 'agent' command - Cooperative Agent Builder
     parser_agent = subparsers.add_parser(
         "agent",
-        help="Build and manage cooperative agents",
+        help="Build and manage cooperative agents*",
         description="Build polymorphic C++ agents for named pipe command execution",
         epilog="Example Usage: agent build --arch x64 --encryption | agent build --arch both --no-encryption",
     )
@@ -2007,7 +2009,18 @@ Examples:
         "build",
         help="Build polymorphic agents",
         description="Build C++ agents with advanced obfuscation and polymorphic encryption",
-        epilog="Example: agent build --arch x64 --encryption --debug",
+        epilog="""Examples:
+  agent build                                    # Build both x86 and x64 agents with defaults
+  agent build --arch x64                         # Build only x64 agent
+  agent build --pipe myagent                     # Use custom pipe name "myagent"
+  agent build --name svchost                     # Output as svchost_x64.exe/svchost_x86.exe
+  agent build --pass MySecretPass123             # Enable HMAC-SHA256 authentication
+  agent build --obfuscate                        # Strip symbols and anti-debug
+  agent build --obfuscate --upx upx              # Obfuscate and pack with UPX
+  agent build --arch x64 --pipe agent1 --pass P@ss --obfuscate  # Full production build
+  agent build --dry-run                          # Check build prerequisites without building
+  agent build --debug                            # Enable debug logging in agent binary""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_agent_build.add_argument(
         "--arch",
@@ -2111,7 +2124,14 @@ Examples:
     parser_agent_deploy.add_argument(
         "--start",
         action="store_true",
-        help="Start the agent after deployment via WMI DCOM",
+        help="Start the agent after deployment",
+    )
+    parser_agent_deploy.add_argument(
+        "--method",
+        type=str,
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method to start agent (default: wmiexec)",
     )
     parser_agent_deploy.add_argument(
         "--pipe",
@@ -2233,12 +2253,19 @@ INTERACTIVE SHELL COMMANDS:
         "start",
         help="Start agent process",
         description="Start a stopped or crashed agent using its deployment information",
-        epilog="Example: agent start svcctl_tui0",
+        epilog="Example: agent start svcctl_tui0 --method atexec",
     )
     parser_agent_start.add_argument(
         "agent_id",
         type=str,
         help="Agent ID to start",
+    )
+    parser_agent_start.add_argument(
+        "--method",
+        type=str,
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method to start agent (default: wmiexec)",
     )
     parser_agent_start.set_defaults(func=slingerClient.agent_handler)
 
@@ -2246,13 +2273,20 @@ INTERACTIVE SHELL COMMANDS:
     parser_agent_kill = agent_subparsers.add_parser(
         "kill",
         help="Kill agent process",
-        description="Find and terminate the agent process using WMI and taskkill",
-        epilog="Example: agent kill svchost_abc123",
+        description="Find and terminate the agent process using taskkill via WMI or Task Scheduler",
+        epilog="Example: agent kill svchost_abc123 --method atexec",
     )
     parser_agent_kill.add_argument(
         "agent_id",
         type=str,
         help="Agent ID to kill",
+    )
+    parser_agent_kill.add_argument(
+        "--method",
+        type=str,
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method for taskkill (default: wmiexec)",
     )
     parser_agent_kill.set_defaults(func=slingerClient.agent_handler)
 

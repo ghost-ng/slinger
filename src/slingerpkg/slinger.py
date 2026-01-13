@@ -124,7 +124,7 @@ def main():
     parser.add_argument(
         "--timeout",
         type=int,
-        default=86400,
+        default=None,
         help="Global SMB connection timeout in seconds (default: 86400 = 24 hours)",
     )
     parser.add_argument("--nojoy", action="store_true", help="Turn off emojis")
