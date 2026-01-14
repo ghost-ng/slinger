@@ -936,15 +936,10 @@ class SlingerClient(
                 print_info("Use: agent deploy <agent> --path <path> --start --method atexec")
                 return
 
-            # Generate agent name if not provided
-            if args.name:
-                agent_name = args.name
-                if not agent_name.endswith(".exe"):
-                    agent_name += ".exe"
-            else:
-                # Generate random name
-                agent_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
-                agent_name = f"slinger_{agent_id}.exe"
+            # Use provided name (required argument)
+            agent_name = args.name
+            if not agent_name.endswith(".exe"):
+                agent_name += ".exe"
 
             print_info(f"Deploying agent: {os.path.basename(args.agent_path)}")
             print_info(f"Current share: {self.share}")
@@ -2708,8 +2703,42 @@ class SlingerClient(
                 auto_suggest=AutoSuggestFromHistory(),
             )
 
-            # Track current working directory
+            # Track current working directory - query agent for actual directory
             current_dir = "C:\\"
+            xor_key = agent_info.get("xor_key")
+
+            # Query initial working directory from agent
+            try:
+                pwd_command = "cd"
+                if auth and auth.is_authenticated():
+                    pwd_encrypted = auth.encrypt_message(pwd_command)
+                    if self._send_pipe_message(0x1001, pwd_encrypted, xor_key=None):
+                        msg_type, pwd_data = self._receive_pipe_message()
+                        if msg_type == 0x1002:
+                            pwd_str = pwd_data.decode("utf-8", errors="replace")
+                            new_dir = auth.decrypt_message(pwd_str)
+                            if new_dir:
+                                new_dir_stripped = new_dir.strip()
+                                if new_dir_stripped.startswith("[*] Current directory:"):
+                                    current_dir = new_dir_stripped.replace("[*] Current directory:", "").strip()
+                                elif new_dir_stripped.startswith("Current directory:"):
+                                    current_dir = new_dir_stripped.replace("Current directory:", "").strip()
+                                else:
+                                    current_dir = new_dir_stripped
+                else:
+                    if self._send_pipe_message(0x1001, pwd_command, xor_key):
+                        msg_type, pwd_data = self._receive_pipe_message()
+                        if msg_type == 0x1002:
+                            decoded_data = self._xor_decode(pwd_data, xor_key)
+                            new_dir = decoded_data.decode("utf-8", errors="replace").strip()
+                            if new_dir.startswith("[*] Current directory:"):
+                                current_dir = new_dir.replace("[*] Current directory:", "").strip()
+                            elif new_dir.startswith("Current directory:"):
+                                current_dir = new_dir.replace("Current directory:", "").strip()
+                            else:
+                                current_dir = new_dir
+            except Exception as pwd_err:
+                print_debug(f"Failed to get initial directory: {pwd_err}")
 
             try:
                 while True:

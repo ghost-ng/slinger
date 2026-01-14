@@ -2224,7 +2224,8 @@ Examples:
     parser_agent_deploy.add_argument(
         "--name",
         type=str,
-        help="Custom name for deployed agent (default: slinger_<random>.exe)",
+        required=True,
+        help="Name for deployed agent on target (e.g., svchost, winlogon)",
     )
     parser_agent_deploy.add_argument(
         "--start",
