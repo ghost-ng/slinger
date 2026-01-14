@@ -311,74 +311,101 @@ def show_command_help(parser, command):
 
 
 def add_atexec_options(parser, include_command=False):
-    """Add common atexec options to a parser.
+    """Add common atexec options to a parser for --method atexec support.
+
+    These options are used when executing commands via Task Scheduler (atexec method).
+    All options use unique prefixes to avoid conflicts with parent command arguments.
 
     Args:
         parser: The argparse parser to add options to
         include_command: If True, add the -c/--command argument (for atexec itself)
+
+    Options added (all prefixed to avoid conflicts):
+        --sp/--save-path: Output file directory on target
+        --sn/--save-name: Output file name
+        --tn/--task-name: Scheduled task name
+        --ta/--task-author: Task author metadata
+        --td/--task-desc: Task description metadata
+        --tf/--task-folder: Task folder in Task Scheduler
+        --sh/--task-share: SMB share for output file
+        -w/--wait: Seconds to wait for task completion
     """
+    # Create argument group for better help formatting
+    atexec_group = parser.add_argument_group(
+        "atexec options",
+        "Options for Task Scheduler execution (--method atexec). "
+        "These control how scheduled tasks are created and where output is stored."
+    )
+
     if include_command:
-        parser.add_argument(
+        atexec_group.add_argument(
             "-c",
             "--command",
-            help="Specify the command to execute. For commands with spaces, "
-            "wrap in quotes (e.g., 'echo hello world')",
+            help="Command to execute (wrap multi-word commands in quotes)",
             required=True,
         )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--sp",
         "--save-path",
         dest="sp",
-        help="Folder to save the output file (default: \\Users\\Public\\Downloads\\)",
+        metavar="PATH",
+        help="Directory on target to save command output (default: \\Users\\Public\\Downloads\\)",
         default="\\Users\\Public\\Downloads\\",
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--sn",
         "--save-name",
         dest="sn",
-        help="Name of the output file (default: random)",
+        metavar="NAME",
+        help="Filename for command output (default: random)",
         default=None,
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--tn",
         "--task-name",
         dest="tn",
-        help="Name of the scheduled task (default: auto-generated)",
+        metavar="NAME",
+        help="Scheduled task name (default: auto-generated)",
         default=None,
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--ta",
-        "--author",
+        "--task-author",
         dest="ta",
-        help="Author of the scheduled task (default: Microsoft Corporation)",
+        metavar="AUTHOR",
+        help="Task author for OPSEC (default: Microsoft Corporation)",
         default="Microsoft Corporation",
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--td",
-        "--description",
+        "--task-desc",
         dest="td",
-        help="Description of the scheduled task (default: Windows Update Service)",
+        metavar="DESC",
+        help="Task description for OPSEC (default: Windows Update Service)",
         default="Windows Update Service",
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--tf",
         "--task-folder",
         dest="tf",
-        help="Folder to create the task in (default: \\Windows)",
+        metavar="FOLDER",
+        help="Task Scheduler folder (default: \\Windows)",
         default="\\Windows",
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "--sh",
-        "--share",
+        "--task-share",
         dest="sh",
-        help="Share name for output file (default: current share or C$)",
+        metavar="SHARE",
+        help="SMB share for output file (default: current share)",
         default=None,
     )
-    parser.add_argument(
+    atexec_group.add_argument(
         "-w",
         "--wait",
-        help="Seconds to wait for task completion (default: 2)",
         type=int,
+        metavar="SECS",
+        help="Seconds to wait for task completion (default: 2)",
         default=2,
     )
 
