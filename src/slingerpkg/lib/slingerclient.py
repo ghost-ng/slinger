@@ -929,6 +929,13 @@ class SlingerClient(
                 print_bad(f"Agent file not found: {args.agent_path}")
                 return
 
+            # Validate --method requires --start
+            method = getattr(args, "method", "wmiexec")
+            if method != "wmiexec" and not args.start:
+                print_bad("--method requires --start flag")
+                print_info("Use: agent deploy <agent> --path <path> --start --method atexec")
+                return
+
             # Generate agent name if not provided
             if args.name:
                 agent_name = args.name
