@@ -1382,12 +1382,12 @@ class SlingerClient(
             sleep(wait_time)
 
             # Save current share state
-            saved_share = self.share
-            saved_tid = self.tid
+            saved_share = getattr(self, "share", None) or share_name
+            saved_tid = getattr(self, "tid", None)
 
             try:
-                # Connect to the share where output file was written
-                if share_name.upper() != self.share.upper():
+                # Ensure we're connected to the share where output file was written
+                if not hasattr(self, "tid") or self.tid is None or share_name.upper() != self.share.upper():
                     print_debug(f"Switching from {self.share} to {share_name} for file cleanup")
                     self.tid = self.conn.connectTree(share_name)
                     self.share = share_name
@@ -1425,8 +1425,8 @@ class SlingerClient(
                 print_debug(f"Failed to read output file: {read_error}")
                 return {"success": True, "output": "", "error": None}
             finally:
-                # Restore original share state
-                if saved_share.upper() != self.share.upper():
+                # Restore original share state if it was different
+                if saved_share and saved_tid and saved_share.upper() != self.share.upper():
                     print_debug(f"Restoring share from {self.share} to {saved_share}")
                     try:
                         self.tid = self.conn.connectTree(saved_share)
