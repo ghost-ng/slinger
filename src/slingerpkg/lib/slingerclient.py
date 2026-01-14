@@ -935,9 +935,9 @@ class SlingerClient(
                 if not agent_name.endswith(".exe"):
                     agent_name += ".exe"
             else:
-                # Generate random name that looks like a system process
+                # Generate random name
                 agent_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
-                agent_name = f"svchost_{agent_id}.exe"
+                agent_name = f"slinger_{agent_id}.exe"
 
             print_info(f"Deploying agent: {os.path.basename(args.agent_path)}")
             print_info(f"Current share: {self.share}")
