@@ -1139,8 +1139,8 @@ class SlingerClient(
                     getattr(args, "tn", None) or f"SlingerAgent_{generate_random_string(6, 8)}"
                 )
                 task_folder = getattr(args, "tf", None) or "\\Windows"
-                task_author = getattr(args, "ta", None) or "Microsoft Corporation"
-                task_description = getattr(args, "td", None) or "Windows Update Service"
+                task_author = getattr(args, "ta", None) or "Slinger"
+                task_description = getattr(args, "td", None) or "Slinger Task"
 
                 # Create XML for task that just runs the executable (no output capture)
                 from slingerpkg.utils.common import generate_random_date, xml_escape
@@ -1256,8 +1256,8 @@ class SlingerClient(
         import sys
 
         # Extract options from args or use defaults
-        task_author = getattr(args, "ta", None) or "Microsoft Corporation"
-        task_description = getattr(args, "td", None) or "Windows Update Service"
+        task_author = getattr(args, "ta", None) or "Slinger"
+        task_description = getattr(args, "td", None) or "Slinger Task"
         task_folder = getattr(args, "tf", None) or "\\Windows"
         save_path = getattr(args, "sp", None) or "\\Users\\Public\\Downloads"
         save_name = getattr(args, "sn", None)

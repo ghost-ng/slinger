@@ -373,16 +373,16 @@ def add_atexec_options(parser, include_command=False):
         "--task-author",
         dest="ta",
         metavar="AUTHOR",
-        help="Task author for OPSEC (default: Microsoft Corporation)",
-        default="Microsoft Corporation",
+        help="Task author for OPSEC (default: Slinger)",
+        default="Slinger",
     )
     atexec_group.add_argument(
         "--td",
         "--task-desc",
         dest="td",
         metavar="DESC",
-        help="Task description for OPSEC (default: Windows Update Service)",
-        default="Windows Update Service",
+        help="Task description for OPSEC (default: Slinger Task)",
+        default="Slinger Task",
     )
     atexec_group.add_argument(
         "--tf",
