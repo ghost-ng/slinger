@@ -327,7 +327,7 @@ def add_atexec_options(parser, include_command=False):
         )
     parser.add_argument(
         "--sp",
-        "--path",
+        "--save-path",
         dest="sp",
         help="Folder to save the output file (default: \\Users\\Public\\Downloads\\)",
         default="\\Users\\Public\\Downloads\\",
