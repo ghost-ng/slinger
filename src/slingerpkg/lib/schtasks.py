@@ -1,6 +1,6 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
-from slingerpkg.utils.common import enum_struct, generate_random_date, validate_xml, xml_escape
+from slingerpkg.utils.common import generate_random_date, xml_escape
 from tabulate import tabulate
 import os
 import traceback
@@ -265,7 +265,7 @@ class schtasks:
     def task_create(self, args):
         task_name = args.name
         program = args.program
-        arguments = args.arguments
+        arguments = args.arguments or ""
         folder_path = args.folder
         # generate random date in last year using format 2023-01-01T08:00:00
 
