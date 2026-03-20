@@ -1,6 +1,6 @@
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
-from slingerpkg.utils.common import generate_random_date, xml_escape
+from slingerpkg.utils.common import build_task_xml, generate_random_date
 from tabulate import tabulate
 import os
 import traceback
@@ -288,110 +288,21 @@ class schtasks:
                 m = int(args.interval) % 60
                 interval = f"PT{h}H{m}M"
 
-        task_xml_once = f"""<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo>
-    <Date>{new_date}</Date>
-    <Author>SYSTEM</Author>
-    <URI>{folder_path}\\{task_name}</URI>
-  </RegistrationInfo>
-  <Triggers>
-    <CalendarTrigger>
-      <StartBoundary>{new_date}</StartBoundary>
-      <Enabled>true</Enabled>
-      <ScheduleByDay>
-        <DaysInterval>1</DaysInterval>
-      </ScheduleByDay>
-    </CalendarTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <UserId>S-1-5-18</UserId>
-      <RunLevel>HighestAvailable</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-    <DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>
-    <StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>
-    <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>false</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-    <IdleSettings>
-      <StopOnIdleEnd>true</StopOnIdleEnd>
-      <RestartOnIdle>false</RestartOnIdle>
-    </IdleSettings>
-    <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
-    <Hidden>true</Hidden>
-    <RunOnlyIfIdle>false</RunOnlyIfIdle>
-    <WakeToRun>false</WakeToRun>
-    <ExecutionTimeLimit>PT72H</ExecutionTimeLimit>
-    <Priority>7</Priority>
-  </Settings>
-  <Actions Context="Author">
-    <Exec>
-      <Command>{program}</Command>
-      <Arguments>{xml_escape(arguments)}</Arguments>
-    </Exec>
-  </Actions>
-</Task>
-"""
-
-        task_xml_interval = f"""<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo>
-    <Date>{new_date}</Date>
-    <Author>SYSTEM</Author>
-    <URI>{folder_path}\\{task_name}</URI>
-  </RegistrationInfo>
-  <Triggers>
-    <CalendarTrigger>
-      <Repetition>
-        <Interval>{interval}</Interval>
-        <StopAtDurationEnd>false</StopAtDurationEnd>
-      </Repetition>
-      <StartBoundary>{new_date}</StartBoundary>
-      <Enabled>true</Enabled>
-      <ScheduleByDay>
-        <DaysInterval>1</DaysInterval>
-      </ScheduleByDay>
-    </CalendarTrigger>
-  </Triggers>
-  <Principals>
-    <Principal id="Author">
-      <UserId>S-1-5-18</UserId>
-      <RunLevel>HighestAvailable</RunLevel>
-    </Principal>
-  </Principals>
-  <Settings>
-    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-    <DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>
-    <StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>
-    <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>false</StartWhenAvailable>
-    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-    <IdleSettings>
-      <StopOnIdleEnd>true</StopOnIdleEnd>
-      <RestartOnIdle>false</RestartOnIdle>
-    </IdleSettings>
-    <AllowStartOnDemand>true</AllowStartOnDemand>
-    <Enabled>true</Enabled>
-    <Hidden>true</Hidden>
-    <RunOnlyIfIdle>false</RunOnlyIfIdle>
-    <WakeToRun>false</WakeToRun>
-    <ExecutionTimeLimit>PT72H</ExecutionTimeLimit>
-    <Priority>7</Priority>
-  </Settings>
-  <Actions Context="Author">
-    <Exec>
-      <Command>{program}</Command>
-      <Arguments>{xml_escape(arguments)}</Arguments>
-    </Exec>
-  </Actions>
-</Task>
-"""
-        task_xml = task_xml_interval if args.interval else task_xml_once
+        task_xml = build_task_xml(
+            command=program,
+            arguments=arguments,
+            author="SYSTEM",
+            task_name=task_name,
+            folder_path=folder_path,
+            date=new_date,
+            interval=interval,
+            principal_id="Author",
+            execution_time_limit="PT72H",
+            disallow_start_on_batteries=True,
+            stop_on_batteries=True,
+            actions_context="Author",
+            include_date=True,
+        )
         # validate_xml(task_xml)
         self.setup_dce_transport()
         self.dce_transport._connect("atsvc")

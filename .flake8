@@ -1,4 +1,4 @@
 [flake8]
 max-line-length = 100
-ignore = F403,F405,F841,F541,E722,E501
+ignore = F401,F403,F405,F811,F841,F541,E722,E501,W503
 exclude = .git,__pycache__,docs/source/conf.py,old,build,dist

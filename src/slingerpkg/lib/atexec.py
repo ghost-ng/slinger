@@ -2,7 +2,7 @@ import ntpath
 from time import sleep
 from slingerpkg.utils.printlib import *
 from slingerpkg.lib.dcetransport import *
-from slingerpkg.utils.common import enum_struct, generate_random_date, validate_xml, xml_escape
+from slingerpkg.utils.common import build_task_xml
 from tabulate import tabulate
 import os
 import traceback
@@ -36,56 +36,14 @@ class atexec:
         # save_file_path = args.path + f"{share_path}\\{random_save_name}"
         save_file_path = ntpath.join(share_path, random_save_name)
         arguments = f"/C {args.command} > {save_file_path} 2>&1"
-        timestamp = generate_random_date()
-        xml_escaped_args = xml_escape(arguments)
-        xml = f"""<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-	<RegistrationInfo>
-        <Author>{xml_escape(args.ta)}</Author>
-        <Description>{xml_escape(args.td)}</Description>
-        <URI>\\{xml_escape(args.tn)}</URI>
-	</RegistrationInfo>
-	<Triggers>
-        <CalendarTrigger>
-            <StartBoundary>{timestamp}</StartBoundary>
-            <Enabled>true</Enabled>
-            <ScheduleByDay>
-                <DaysInterval>1</DaysInterval>
-            </ScheduleByDay>
-        </CalendarTrigger>
-	</Triggers>
-	<Principals>
-        <Principal id="LocalSystem">
-            <UserId>S-1-5-18</UserId>
-            <RunLevel>HighestAvailable</RunLevel>
-        </Principal>
-	</Principals>
-	<Settings>
-        <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-        <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-        <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-        <AllowHardTerminate>true</AllowHardTerminate>
-        <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-        <IdleSettings>
-            <StopOnIdleEnd>true</StopOnIdleEnd>
-            <RestartOnIdle>false</RestartOnIdle>
-        </IdleSettings>
-        <AllowStartOnDemand>true</AllowStartOnDemand>
-        <Enabled>true</Enabled>
-        <Hidden>true</Hidden>
-        <RunOnlyIfIdle>false</RunOnlyIfIdle>
-        <WakeToRun>false</WakeToRun>
-        <ExecutionTimeLimit>P3D</ExecutionTimeLimit>
-        <Priority>7</Priority>
-	</Settings>
-	<Actions Context="LocalSystem">
-        <Exec>
-            <Command>{xml_escape(cmd)}</Command>
-            <Arguments>{xml_escaped_args}</Arguments>
-        </Exec>
-	</Actions>
-</Task>
-"""
+        xml = build_task_xml(
+            command=cmd,
+            arguments=arguments,
+            author=args.ta,
+            description=args.td,
+            task_name=args.tn,
+            folder_path=args.tf,
+        )
         print_debug(f"Task '{args.tn}' will save output to: {save_file_path}")
         resp = self.dce_transport._create_task(args.tn, args.tf, xml)
         return resp, random_save_name

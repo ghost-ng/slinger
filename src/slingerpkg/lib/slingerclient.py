@@ -1145,57 +1145,15 @@ class SlingerClient(
                 task_description = getattr(args, "td", None) or "Slinger Task"
 
                 # Create XML for task that just runs the executable (no output capture)
-                from slingerpkg.utils.common import generate_random_date, xml_escape
+                from slingerpkg.utils.common import build_task_xml
 
-                timestamp = generate_random_date()
-                # Run the agent directly, no cmd wrapper needed for executables
-                xml = f"""<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-    <RegistrationInfo>
-        <Author>{xml_escape(task_author)}</Author>
-        <Description>{xml_escape(task_description)}</Description>
-        <URI>\\{xml_escape(task_name)}</URI>
-    </RegistrationInfo>
-    <Triggers>
-        <CalendarTrigger>
-            <StartBoundary>{timestamp}</StartBoundary>
-            <Enabled>true</Enabled>
-            <ScheduleByDay>
-                <DaysInterval>1</DaysInterval>
-            </ScheduleByDay>
-        </CalendarTrigger>
-    </Triggers>
-    <Principals>
-        <Principal id="LocalSystem">
-            <UserId>S-1-5-18</UserId>
-            <RunLevel>HighestAvailable</RunLevel>
-        </Principal>
-    </Principals>
-    <Settings>
-        <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-        <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-        <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-        <AllowHardTerminate>true</AllowHardTerminate>
-        <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-        <IdleSettings>
-            <StopOnIdleEnd>true</StopOnIdleEnd>
-            <RestartOnIdle>false</RestartOnIdle>
-        </IdleSettings>
-        <AllowStartOnDemand>true</AllowStartOnDemand>
-        <Enabled>true</Enabled>
-        <Hidden>true</Hidden>
-        <RunOnlyIfIdle>false</RunOnlyIfIdle>
-        <WakeToRun>false</WakeToRun>
-        <ExecutionTimeLimit>P3D</ExecutionTimeLimit>
-        <Priority>7</Priority>
-    </Settings>
-    <Actions Context="LocalSystem">
-        <Exec>
-            <Command>{xml_escape(full_path)}</Command>
-        </Exec>
-    </Actions>
-</Task>
-"""
+                xml = build_task_xml(
+                    command=full_path,
+                    author=task_author,
+                    description=task_description,
+                    task_name=task_name,
+                    folder_path=task_folder,
+                )
                 # Connect to atsvc pipe
                 self.setup_dce_transport()
                 self.dce_transport._connect("atsvc")
@@ -1248,11 +1206,7 @@ class SlingerClient(
             dict with 'success', 'output', 'error' keys
         """
         from slingerpkg.utils.printlib import print_debug, print_verbose
-        from slingerpkg.utils.common import (
-            generate_random_string,
-            generate_random_date,
-            xml_escape,
-        )
+        from slingerpkg.utils.common import generate_random_string
         from time import sleep
         import io
         import sys
@@ -1292,56 +1246,16 @@ class SlingerClient(
                 output_file_relative = output_file
 
             # Create XML for task that captures output
-            timestamp = generate_random_date()
-            escaped_command = xml_escape(f"/C {command} > {output_path} 2>&1")
-            xml = f"""<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-    <RegistrationInfo>
-        <Author>{xml_escape(task_author)}</Author>
-        <Description>{xml_escape(task_description)}</Description>
-        <URI>\\{xml_escape(task_name)}</URI>
-    </RegistrationInfo>
-    <Triggers>
-        <CalendarTrigger>
-            <StartBoundary>{timestamp}</StartBoundary>
-            <Enabled>true</Enabled>
-            <ScheduleByDay>
-                <DaysInterval>1</DaysInterval>
-            </ScheduleByDay>
-        </CalendarTrigger>
-    </Triggers>
-    <Principals>
-        <Principal id="LocalSystem">
-            <UserId>S-1-5-18</UserId>
-            <RunLevel>HighestAvailable</RunLevel>
-        </Principal>
-    </Principals>
-    <Settings>
-        <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
-        <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
-        <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-        <AllowHardTerminate>true</AllowHardTerminate>
-        <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
-        <IdleSettings>
-            <StopOnIdleEnd>true</StopOnIdleEnd>
-            <RestartOnIdle>false</RestartOnIdle>
-        </IdleSettings>
-        <AllowStartOnDemand>true</AllowStartOnDemand>
-        <Enabled>true</Enabled>
-        <Hidden>true</Hidden>
-        <RunOnlyIfIdle>false</RunOnlyIfIdle>
-        <WakeToRun>false</WakeToRun>
-        <ExecutionTimeLimit>P3D</ExecutionTimeLimit>
-        <Priority>7</Priority>
-    </Settings>
-    <Actions Context="LocalSystem">
-        <Exec>
-            <Command>cmd.exe</Command>
-            <Arguments>{escaped_command}</Arguments>
-        </Exec>
-    </Actions>
-</Task>
-"""
+            from slingerpkg.utils.common import build_task_xml
+
+            xml = build_task_xml(
+                command="cmd.exe",
+                arguments=f"/C {command} > {output_path} 2>&1",
+                author=task_author,
+                description=task_description,
+                task_name=task_name,
+                folder_path=task_folder,
+            )
             # Connect to atsvc pipe
             self.setup_dce_transport()
             self.dce_transport._connect("atsvc")
@@ -1382,7 +1296,11 @@ class SlingerClient(
 
             try:
                 # Ensure we're connected to the share where output file was written
-                if not hasattr(self, "tid") or self.tid is None or share_name.upper() != self.share.upper():
+                if (
+                    not hasattr(self, "tid")
+                    or self.tid is None
+                    or share_name.upper() != self.share.upper()
+                ):
                     print_debug(f"Switching from {self.share} to {share_name} for file cleanup")
                     self.tid = self.conn.connectTree(share_name)
                     self.share = share_name
@@ -2720,9 +2638,13 @@ class SlingerClient(
                             if new_dir:
                                 new_dir_stripped = new_dir.strip()
                                 if new_dir_stripped.startswith("[*] Current directory:"):
-                                    current_dir = new_dir_stripped.replace("[*] Current directory:", "").strip()
+                                    current_dir = new_dir_stripped.replace(
+                                        "[*] Current directory:", ""
+                                    ).strip()
                                 elif new_dir_stripped.startswith("Current directory:"):
-                                    current_dir = new_dir_stripped.replace("Current directory:", "").strip()
+                                    current_dir = new_dir_stripped.replace(
+                                        "Current directory:", ""
+                                    ).strip()
                                 else:
                                     current_dir = new_dir_stripped
                 else:

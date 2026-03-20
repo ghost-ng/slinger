@@ -5,7 +5,7 @@ import datetime
 import xml.etree.ElementTree as ET
 import re
 from impacket.dcerpc.v5 import rrp, srvs, wkst, tsch, scmr, even, even6
-from impacket.dcerpc.v5.dcom import wmi  # noqa: F401
+from impacket.dcerpc.v5.dcom import wmi
 from slingerpkg.utils.printlib import *
 from slingerpkg.var.config import config_vars
 from tabulate import tabulate
