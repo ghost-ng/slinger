@@ -5,7 +5,8 @@ from prompt_toolkit.completion import Completer, Completion
 
 from slingerpkg.var.config import version, program_name
 from slingerpkg.utils.common import get_config_value
-from .printlib import print_info, print_log, colors
+import sys
+from .printlib import print_info, print_log, print_warning, colors
 
 
 def extract_commands_and_args(parser):
@@ -293,6 +294,10 @@ class CustomArgumentParser(argparse.ArgumentParser):
         if "invalid choice" in message:
             print_log("Invalid command entered. Type help for a list of commands.")
             raise InvalidParsing("Invalid command entered. Type help for a list of commands.")
+        else:
+            print_warning(message)
+            self.print_usage(sys.stderr)
+            raise SystemExit(2)
 
 
 def show_command_help(parser, command):
@@ -334,7 +339,7 @@ def add_atexec_options(parser, include_command=False):
     atexec_group = parser.add_argument_group(
         "atexec options",
         "Options for Task Scheduler execution (--method atexec). "
-        "These control how scheduled tasks are created and where output is stored."
+        "These control how scheduled tasks are created and where output is stored.",
     )
 
     if include_command:
