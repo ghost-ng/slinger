@@ -145,6 +145,99 @@ def xml_escape(data):
     return "".join(replace_table.get(c, c) for c in data)
 
 
+def build_task_xml(
+    command,
+    arguments="",
+    author="SYSTEM",
+    description="",
+    task_name="",
+    folder_path="",
+    date=None,
+    interval=None,
+    principal_id="LocalSystem",
+    execution_time_limit="P3D",
+    disallow_start_on_batteries=False,
+    stop_on_batteries=False,
+    start_when_available=False,
+    actions_context="LocalSystem",
+    include_date=False,
+):
+    if date is None:
+        date = generate_random_date()
+    arguments = arguments or ""
+
+    date_element = f"\n    <Date>{xml_escape(date)}</Date>" if include_date else ""
+    description_element = (
+        f"\n        <Description>{xml_escape(description)}</Description>" if description else ""
+    )
+
+    uri_path = (
+        xml_escape(folder_path) + "\\\\" + xml_escape(task_name)
+        if folder_path
+        else "\\\\" + xml_escape(task_name)
+    )
+
+    repetition_block = ""
+    if interval:
+        repetition_block = f"""
+      <Repetition>
+        <Interval>{xml_escape(interval)}</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>"""
+
+    arguments_element = (
+        f"\n      <Arguments>{xml_escape(arguments)}</Arguments>" if arguments else ""
+    )
+
+    return f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>{date_element}
+    <Author>{xml_escape(author)}</Author>{description_element}
+    <URI>{uri_path}</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>{repetition_block}
+      <StartBoundary>{xml_escape(date)}</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByDay>
+        <DaysInterval>1</DaysInterval>
+      </ScheduleByDay>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="{xml_escape(principal_id)}">
+      <UserId>S-1-5-18</UserId>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>{"true" if disallow_start_on_batteries else "false"}</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>{"true" if stop_on_batteries else "false"}</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>{"true" if start_when_available else "false"}</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>true</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>true</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>{xml_escape(execution_time_limit)}</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="{xml_escape(actions_context)}">
+    <Exec>
+      <Command>{xml_escape(command)}</Command>{arguments_element}
+    </Exec>
+  </Actions>
+</Task>
+"""
+
+
 def generate_random_string(length=6, end=6):
     random.seed()
     # return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
