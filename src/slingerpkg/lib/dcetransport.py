@@ -595,7 +595,9 @@ class DCETransport:
             print_good("Service %s is running" % serviceName)
             return True
         else:
-            raise Exception("Unknown service state 0x%x - Aborting" % ans["CurrentState"])
+            raise Exception(
+                "Unknown service state 0x%x - Aborting" % ans["lpServiceStatus"]["dwCurrentState"]
+            )
 
     def _delete_service(self, service_name):
         if not self.is_connected:

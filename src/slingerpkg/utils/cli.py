@@ -2103,7 +2103,7 @@ Examples:
         "agent",
         help="Build and manage cooperative agents*",
         description="Build polymorphic C++ agents for named pipe command execution",
-        epilog="Example Usage: agent build --arch x64 --encryption | agent build --arch both --no-encryption",
+        epilog="Example Usage: agent build --arch x64 | agent deploy ./agent.exe --path temp\\\\ --name myagent --start",
     )
 
     # Agent subcommands (agent_handler will display help if no subcommand)
@@ -2118,7 +2118,7 @@ Examples:
   agent build                                    # Build both x86 and x64 agents with defaults
   agent build --arch x64                         # Build only x64 agent
   agent build --pipe myagent                     # Use custom pipe name "myagent"
-  agent build --name svchost                     # Output as svchost_x64.exe/svchost_x86.exe
+  agent build --name slinger                     # Output as slinger_x64.exe/slinger_x86.exe
   agent build --pass MySecretPass123             # Enable HMAC-SHA256 authentication
   agent build --obfuscate                        # Strip symbols and anti-debug
   agent build --obfuscate --upx upx              # Obfuscate and pack with UPX
@@ -2191,7 +2191,7 @@ Examples:
         "--upx",
         type=str,
         metavar="PATH",
-        help="Pack binary with UPX (provide path to upx binary, or use 'upx' for system default)",
+        help="Pack Windows PE binary with UPX after building (e.g., --upx /usr/bin/upx or --upx upx for system PATH)",
     )
     parser_agent_build.set_defaults(func=slingerClient.agent_handler)
 
@@ -2209,9 +2209,9 @@ Examples:
         help="Deploy agent to target system",
         description="Upload and execute polymorphic agent on target system via SMB",
         epilog="""Examples:
-  agent deploy ./agent.exe --path temp\\ --start                    # Deploy and start with wmiexec
-  agent deploy ./agent.exe --path temp\\ --start --method atexec    # Deploy and start with Task Scheduler
-  agent deploy ./agent.exe --path temp\\ --start --method atexec --ta "SYSTEM"
+  agent deploy ./agent.exe --path temp\\ --name myagent --start                    # Deploy and start with wmiexec
+  agent deploy ./agent.exe --path temp\\ --name myagent --start --method atexec    # Deploy and start with Task Scheduler
+  agent deploy ./agent.exe --path temp\\ --name myagent --start --method atexec --ta "SYSTEM"
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2230,7 +2230,7 @@ Examples:
         "--name",
         type=str,
         required=True,
-        help="Name for deployed agent on target (e.g., svchost, winlogon)",
+        help="Name for deployed agent on target (e.g., updater, winlogon)",
     )
     parser_agent_deploy.add_argument(
         "--start",
@@ -2285,7 +2285,7 @@ Examples:
         "rename",
         help="Rename deployed agent",
         description="Change the ID of a deployed agent in the registry",
-        epilog="Example: agent rename --old svchost_abc123 --new my_agent",
+        epilog="Example: agent rename --old slinger_abc123 --new my_agent",
     )
     parser_agent_rename.add_argument(
         "--old",
@@ -2306,7 +2306,7 @@ Examples:
         "check",
         help="Check agent process status",
         description="Verify if the agent process is still running via WMI query",
-        epilog="Example: agent check svchost_abc123",
+        epilog="Example: agent check slinger_abc123",
     )
     parser_agent_check.add_argument(
         "agent_id",
@@ -2367,9 +2367,9 @@ INTERACTIVE SHELL COMMANDS:
         help="Start agent process",
         description="Start a stopped or crashed agent using its deployment information",
         epilog="""Examples:
-  agent start svchost_abc123                        # Start using wmiexec (default)
-  agent start svchost_abc123 --method atexec        # Start using Task Scheduler
-  agent start svchost_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+  agent start slinger_abc123                        # Start using wmiexec (default)
+  agent start slinger_abc123 --method atexec        # Start using Task Scheduler
+  agent start slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2395,10 +2395,10 @@ INTERACTIVE SHELL COMMANDS:
         help="Kill agent process",
         description="Find and terminate the agent process using taskkill via WMI or Task Scheduler",
         epilog="""Examples:
-  agent kill svchost_abc123                        # Kill using wmiexec (default)
-  agent kill svchost_abc123 --method atexec        # Kill using Task Scheduler
-  agent kill svchost_abc123 --method atexec -w 3   # Wait 3 seconds for task completion
-  agent kill svchost_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+  agent kill slinger_abc123                        # Kill using wmiexec (default)
+  agent kill slinger_abc123 --method atexec        # Kill using Task Scheduler
+  agent kill slinger_abc123 --method atexec -w 3   # Wait 3 seconds for task completion
+  agent kill slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2423,7 +2423,7 @@ INTERACTIVE SHELL COMMANDS:
         "rm",
         help="Remove agent file",
         description="Delete the agent executable file and update registry status",
-        epilog="Example: agent rm svchost_abc123",
+        epilog="Example: agent rm slinger_abc123",
     )
     parser_agent_rm.add_argument(
         "agent_id",
@@ -2460,7 +2460,7 @@ INTERACTIVE SHELL COMMANDS:
         "update",
         help="Update agent path",
         description="Update the agent's file path in the registry",
-        epilog="Example: agent update svchost_abc123 --path c:\\new\\path\\agent.exe",
+        epilog="Example: agent update slinger_abc123 --path c:\\new\\path\\agent.exe",
     )
     parser_agent_update.add_argument(
         "agent_id",

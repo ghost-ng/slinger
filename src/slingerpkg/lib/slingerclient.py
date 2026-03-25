@@ -765,6 +765,18 @@ class SlingerClient(
                 obfuscate_arg = getattr(args, "obfuscate", False)
                 upx_arg = getattr(args, "upx", None)
                 custom_name_arg = getattr(args, "name", None)
+
+                # Validate UPX path if specified
+                if upx_arg:
+                    import shutil
+
+                    upx_resolved = shutil.which(upx_arg)
+                    if upx_resolved is None and not os.path.isfile(upx_arg):
+                        print_bad(f"UPX not found: '{upx_arg}'")
+                        print_info("Install UPX or provide the full path: --upx /path/to/upx")
+                        return
+                    print_info(f"UPX path: {upx_resolved or upx_arg}")
+
                 print_debug(
                     f"Starting build with arch={args.arch}, encryption={encryption}, debug={args.debug}, passphrase={'<set>' if passphrase_arg else 'None'}, obfuscate={obfuscate_arg}, upx={upx_arg}, name={custom_name_arg}"
                 )
@@ -790,11 +802,15 @@ class SlingerClient(
                     if getattr(args, "pipe", None):
                         print_info(f"\n💡 Agents built with custom pipe name: {args.pipe}")
                         print_info(f"   Pipe name automatically used during deployment")
-                        print_info(f"   Deploy with: agent deploy <agent.exe> --path \\\\ --start")
+                        print_info(
+                            f"   Deploy with: agent deploy <agent.exe> --path \\\\ --name <name> --start"
+                        )
                     else:
                         print_info("\n💡 These agents use time-based random pipe names")
                         print_info("   The actual pipe name will be determined when the agent runs")
-                        print_info("   Deploy with: agent deploy <agent.exe> --path \\\\ --start")
+                        print_info(
+                            "   Deploy with: agent deploy <agent.exe> --path \\\\ --name <name> --start"
+                        )
 
                     print_info(
                         "   Use 'agent use <id>' to connect (pipe name tracked automatically)"
@@ -933,7 +949,9 @@ class SlingerClient(
             method = getattr(args, "method", "wmiexec")
             if method != "wmiexec" and not args.start:
                 print_bad("--method requires --start flag")
-                print_info("Use: agent deploy <agent> --path <path> --start --method atexec")
+                print_info(
+                    "Use: agent deploy <agent> --path <path> --name <name> --start --method atexec"
+                )
                 return
 
             # Use provided name (required argument)
@@ -941,10 +959,10 @@ class SlingerClient(
             if not agent_name.endswith(".exe"):
                 agent_name += ".exe"
 
-            print_info(f"Deploying agent: {os.path.basename(args.agent_path)}")
+            print_info(f"Deploying agent: {agent_name}")
+            print_info(f"Source file: {os.path.basename(args.agent_path)}")
             print_info(f"Current share: {self.share}")
             print_info(f"Target path: {args.path}")
-            print_info(f"Agent name: {agent_name}")
 
             # Use existing upload functionality - args.path is relative to current share
             target_path = args.path.rstrip("\\")
@@ -1108,6 +1126,32 @@ class SlingerClient(
             print_debug(f"Failed to resolve share path: {e}")
             return None
 
+    def _run_with_timeout(self, func, timeout=30, description="WMI operation"):
+        """Run a function in a thread with a timeout. Returns (result, timed_out)."""
+        import threading
+
+        result_holder = [None]
+        error_holder = [None]
+
+        def _worker():
+            try:
+                result_holder[0] = func()
+            except Exception as e:
+                error_holder[0] = e
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+        thread.join(timeout=timeout)
+
+        if thread.is_alive():
+            print_warning(f"{description} timed out after {timeout}s")
+            return None, True
+
+        if error_holder[0]:
+            raise error_holder[0]
+
+        return result_holder[0], False
+
     def _start_agent_process(self, full_path, method="wmiexec", args=None):
         """Start an agent process using specified method
 
@@ -1128,8 +1172,20 @@ class SlingerClient(
             print_verbose(f"Executing: {command}")
 
             try:
-                result = self.execute_wmi_command(command, capture_output=False, timeout=10)
-                return result
+                result, timed_out = self._run_with_timeout(
+                    lambda: self.execute_wmi_command(command, capture_output=False, timeout=30),
+                    timeout=30,
+                    description="Agent start via WMI",
+                )
+                if timed_out:
+                    print_info("The agent may still be starting on the target")
+                    print_info("Use 'agent check <id>' to verify status")
+                    return {"success": True, "process_id": None, "error": None}
+                return result or {
+                    "success": False,
+                    "error": "No result from WMI",
+                    "process_id": None,
+                }
             except Exception as e:
                 return {"success": False, "error": str(e), "process_id": None}
 
@@ -1651,9 +1707,18 @@ class SlingerClient(
 
                 # Use the WMI query API directly instead of stdout capture
                 try:
-                    results = self._run_wql_query(child_query, namespace="root/cimv2")
-                    result_count = len(results) if results else 0
-                    agent_alive = result_count > 0
+                    results, timed_out = self._run_with_timeout(
+                        lambda: self._run_wql_query(child_query, namespace="root/cimv2"),
+                        timeout=30,
+                        description="Agent process check via WMI",
+                    )
+                    if timed_out:
+                        print_info("Could not verify agent status - check manually")
+                        result_count = 0
+                        agent_alive = False
+                    else:
+                        result_count = len(results) if results else 0
+                        agent_alive = result_count > 0
 
                     print_debug(f"WMI query returned {result_count} result(s)")
                 except Exception as query_error:
@@ -1681,8 +1746,8 @@ class SlingerClient(
                     print_warning(f"Unable to determine agent status from WMI output")
                     print_debug(f"Could not parse WMI results - agent status unchanged")
                     # Show what we actually got for debugging
-                    if stdout_output:
-                        print_debug(f"Raw output: {stdout_output}")
+                    if result.get("output"):
+                        print_debug(f"Raw output: {result['output']}")
 
                 # Check if agent file exists on disk
                 print_info("Verifying agent file on disk...")
@@ -1698,9 +1763,16 @@ class SlingerClient(
 
                         # Use default temp_dir (None) - execute_wmi_command will use current session share
                         # This is share-aware automatically based on where we're currently connected
-                        result = self.execute_wmi_command(
-                            command=dir_command, capture_output=True, timeout=10, shell="cmd"
+                        result, timed_out = self._run_with_timeout(
+                            lambda: self.execute_wmi_command(
+                                command=dir_command, capture_output=True, timeout=10, shell="cmd"
+                            ),
+                            timeout=15,
+                            description="Agent disk check via WMI",
                         )
+                        if timed_out:
+                            print_warning("Could not verify agent file on disk (timed out)")
+                            result = {"success": False}
 
                         if result.get("success"):
                             output = result.get("output", "")
@@ -1803,30 +1875,45 @@ class SlingerClient(
                     )
                     print_debug(f"Executing WMI query: {process_query}")
 
-                    # Force fresh WMI connection
-                    if hasattr(self, "_wmi_services"):
-                        self._wmi_services.clear()
-                    if hasattr(self, "_dcom_connection"):
-                        try:
-                            if self._dcom_connection:
-                                self._dcom_connection.disconnect()
-                        except:
-                            pass
-                        self._dcom_connection = None
+                    def _find_processes():
+                        pids = []
+                        # Force fresh WMI connection
+                        if hasattr(self, "_wmi_services"):
+                            self._wmi_services.clear()
+                        if hasattr(self, "_dcom_connection"):
+                            try:
+                                if self._dcom_connection:
+                                    self._dcom_connection.disconnect()
+                            except:
+                                pass
+                            self._dcom_connection = None
 
-                    iWbemServices = self.setup_wmi(namespace="root/cimv2", operation_type="query")
-                    iEnumWbemClassObject = iWbemServices.ExecQuery(process_query)
+                        iWbemServices = self.setup_wmi(
+                            namespace="root/cimv2", operation_type="query"
+                        )
+                        iEnumWbemClassObject = iWbemServices.ExecQuery(process_query)
 
-                    while True:
-                        try:
-                            pEnum = iEnumWbemClassObject.Next(0xFFFFFFFF, 1)[0]
-                            properties = pEnum.getProperties()
-                            if "ProcessId" in properties:
-                                pid = properties["ProcessId"]["value"]
-                                if pid:
-                                    process_ids.append(pid)
-                        except Exception:
-                            break
+                        while True:
+                            try:
+                                pEnum = iEnumWbemClassObject.Next(0xFFFFFFFF, 1)[0]
+                                properties = pEnum.getProperties()
+                                if "ProcessId" in properties:
+                                    pid = properties["ProcessId"]["value"]
+                                    if pid:
+                                        pids.append(pid)
+                            except Exception:
+                                break
+                        return pids
+
+                    found_pids, timed_out = self._run_with_timeout(
+                        _find_processes,
+                        timeout=30,
+                        description="Agent process search via WMI",
+                    )
+                    if timed_out:
+                        print_info("Could not search for processes - try with --method atexec")
+                        return
+                    process_ids = found_pids or []
 
                 elif method == "atexec":
                     # Use tasklist via Task Scheduler to find processes
@@ -1882,12 +1969,19 @@ class SlingerClient(
 
                 try:
                     if method == "wmiexec":
-                        result = self.execute_wmi_command(
-                            command=kill_command,
-                            capture_output=True,
-                            timeout=10,
-                            shell="cmd",
+                        result, timed_out = self._run_with_timeout(
+                            lambda pid=pid: self.execute_wmi_command(
+                                command=f"taskkill /F /PID {pid}",
+                                capture_output=True,
+                                timeout=10,
+                                shell="cmd",
+                            ),
+                            timeout=15,
+                            description=f"Killing process {pid} via WMI",
                         )
+                        if timed_out:
+                            print_warning(f"Timed out killing process {pid}")
+                            continue
                     elif method == "atexec":
                         result = self._execute_via_atexec(kill_command, args)
 
@@ -2667,10 +2761,10 @@ class SlingerClient(
                     try:
                         # Show agent ID above prompt, directory as part of prompt line
                         if no_colors:
-                            print(f"agent:{agent_info['id']}:")
+                            print(f"## agent:{agent_info['id']} ##")
                             prompt_text = f"{current_dir}> "
                         else:
-                            print_log(f"agent:{agent_info['id']}:")
+                            print_log(f"## agent:{agent_info['id']} ##")
                             prompt_text = HTML(
                                 f"<ansigreen>{current_dir}</ansigreen><ansiblue>> </ansiblue>"
                             )
