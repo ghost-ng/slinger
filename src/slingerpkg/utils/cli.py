@@ -2246,7 +2246,7 @@ Note: --method, --ta, --td, --tf and other atexec options only apply with --meth
         type=str,
         choices=["wmiexec", "atexec"],
         default="wmiexec",
-        help="Execution method to start agent (default: wmiexec). Requires --start",
+        help="Execution method to start agent (default: wmiexec). Only used with --start",
     )
     parser_agent_deploy.add_argument(
         "--pipe",
