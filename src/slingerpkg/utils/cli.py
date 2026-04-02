@@ -337,9 +337,9 @@ def add_atexec_options(parser, include_command=False):
     """
     # Create argument group for better help formatting
     atexec_group = parser.add_argument_group(
-        "atexec options",
-        "Options for Task Scheduler execution (--method atexec). "
-        "These control how scheduled tasks are created and where output is stored.",
+        "atexec options (only used with --method atexec, ignored otherwise)",
+        "These options only apply when using --method atexec. "
+        "They have no effect with the default wmiexec method.",
     )
 
     if include_command:
@@ -2209,9 +2209,13 @@ Examples:
         help="Deploy agent to target system",
         description="Upload and execute polymorphic agent on target system via SMB",
         epilog="""Examples:
-  agent deploy ./agent.exe --path temp\\ --name myagent --start                    # Deploy and start with wmiexec
+  agent deploy ./agent.exe --path temp\\ --name myagent                            # Upload only (no start)
+  agent deploy ./agent.exe --path temp\\ --name myagent --start                    # Deploy and start with wmiexec (default)
   agent deploy ./agent.exe --path temp\\ --name myagent --start --method atexec    # Deploy and start with Task Scheduler
-  agent deploy ./agent.exe --path temp\\ --name myagent --start --method atexec --ta "SYSTEM"
+  agent deploy ./agent.exe --path temp\\ --name myagent --start --method atexec --ta "SYSTEM" --td "Update Service"
+
+Note: --method, --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2242,7 +2246,7 @@ Examples:
         type=str,
         choices=["wmiexec", "atexec"],
         default="wmiexec",
-        help="Execution method to start agent (default: wmiexec)",
+        help="Execution method to start agent (default: wmiexec). Requires --start",
     )
     parser_agent_deploy.add_argument(
         "--pipe",
@@ -2370,6 +2374,9 @@ INTERACTIVE SHELL COMMANDS:
   agent start slinger_abc123                        # Start using wmiexec (default)
   agent start slinger_abc123 --method atexec        # Start using Task Scheduler
   agent start slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2399,6 +2406,9 @@ INTERACTIVE SHELL COMMANDS:
   agent kill slinger_abc123 --method atexec        # Kill using Task Scheduler
   agent kill slinger_abc123 --method atexec -w 3   # Wait 3 seconds for task completion
   agent kill slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2441,6 +2451,9 @@ INTERACTIVE SHELL COMMANDS:
   agent reset                                      # Reset using wmiexec (default)
   agent reset --method atexec                      # Reset using Task Scheduler
   agent reset --method atexec -w 3                 # Wait 3 seconds for task completion
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
