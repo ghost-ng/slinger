@@ -7,12 +7,20 @@ from pathlib import Path
 
 import toml
 
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text):
+    """Remove ANSI color/escape codes from text."""
+    return ANSI_ESCAPE.sub("", text) if text else text
+
+
 # Dynamically add the src directory to the Python path
 current_dir = Path(__file__).resolve().parent
 src_path = current_dir.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from slingerpkg.utils.cli import setup_cli_parser
+from slingerpkg.utils.cli import setup_cli_parser  # noqa: E402
 
 
 def parse_requirements(filename):
@@ -30,14 +38,14 @@ def extract_commands_and_args(parser):
         if isinstance(action, argparse._SubParsersAction):
             for command, subparser in action.choices.items():
                 usage = subparser.format_usage() if hasattr(subparser, "format_usage") else ""
-                usage = usage.replace("usage: slinger ", "").strip()
-                desc = getattr(subparser, "description", "No description provided")
+                usage = strip_ansi(usage.replace("usage: slinger ", "").strip())
+                desc = strip_ansi(getattr(subparser, "description", "No description provided"))
                 help_text = f"{usage}\n{desc}" if usage else desc
 
                 commands[command] = {
                     "description": desc,
                     "help": help_text,
-                    "epilog": getattr(subparser, "epilog", None),
+                    "epilog": strip_ansi(getattr(subparser, "epilog", None)),
                     "arguments": [],
                     "subcommands": {},
                 }
@@ -48,7 +56,7 @@ def extract_commands_and_args(parser):
                         commands[command]["arguments"].append(
                             {
                                 "name": sub_action.dest,
-                                "help": sub_action.help,
+                                "help": strip_ansi(sub_action.help),
                                 "choices": sub_action.choices,
                                 "default": sub_action.default,
                                 "required": (
@@ -66,16 +74,16 @@ def extract_commands_and_args(parser):
                                 if hasattr(sub_subparser, "format_usage")
                                 else ""
                             )
-                            sub_usage = sub_usage.replace("usage: slinger ", "").strip()
-                            sub_desc = getattr(
-                                sub_subparser, "description", "No description provided"
+                            sub_usage = strip_ansi(sub_usage.replace("usage: slinger ", "").strip())
+                            sub_desc = strip_ansi(
+                                getattr(sub_subparser, "description", "No description provided")
                             )
                             sub_help_text = f"{sub_usage}\n{sub_desc}" if sub_usage else sub_desc
 
                             commands[command]["subcommands"][subcommand] = {
                                 "description": sub_desc,
                                 "help": sub_help_text,
-                                "epilog": getattr(sub_subparser, "epilog", None),
+                                "epilog": strip_ansi(getattr(sub_subparser, "epilog", None)),
                                 "arguments": [],
                             }
 
@@ -87,7 +95,7 @@ def extract_commands_and_args(parser):
                                     ].append(
                                         {
                                             "name": sub_sub_action.dest,
-                                            "help": sub_sub_action.help,
+                                            "help": strip_ansi(sub_sub_action.help),
                                             "choices": sub_sub_action.choices,
                                             "default": sub_sub_action.default,
                                             "required": (
