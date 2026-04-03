@@ -1,6 +1,6 @@
 # Slinger
 
-![Slinger](assets/image.png)
+![Slinger](docs/assets/image.png)
 
 Slinger is a versatile tool designed for advanced network interactions and manipulations, with a focus on the SMB protocol. It offers a range of functionalities for interacting with remote systems, including managing scheduled tasks, handling Windows Registry operations, service management and gathering system information - **all in a single session**.  Slinger is built on the impacket framework and should offer a similar feel to impacket functions.
 
@@ -37,7 +37,7 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 
 ## Command Line Documentation
 
-[![CLI Documentation](assets/clidocs.jpg)](cli_menu.md)
+[![CLI Documentation](docs/assets/clidocs.jpg)](docs/cli_menu.md)
 
 
 ## Usage
@@ -47,10 +47,10 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.10.0
+    /#(-'             v1.12.3
     `-'                    a ghost-ng special
 
-usage: slinger.py [-h] --host HOST -u USERNAME -pass PASSWORD [-d DOMAIN] [-p PORT] [--nojoy] [--ntlm NTLM] [--kerberos] [--debug]
+usage: slinger.py [-h] --host HOST -u USERNAME -pass PASSWORD [-d DOMAIN] [-p PORT] [--nojoy] [--ntlm NTLM] [--kerberos] [--debug] [--timeout TIMEOUT]
 
 impacket swiss army knife (sort of)
 
@@ -70,6 +70,7 @@ options:
   -debug                Turn on debug output (default: False)
   -gen-ntlm-hash GEN_NTLM_HASH
                         Generate NTLM hash from password (default: None)
+  --timeout TIMEOUT     Global SMB/RPC connection timeout in seconds
   -v, --version         Show version information
 ```
 
@@ -82,7 +83,7 @@ python3 slinger.py --host 192.168.177.130 --username admin --password admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.10.0
+    /#(-'             v1.12.3
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -108,7 +109,7 @@ python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.10.0
+    /#(-'             v1.12.3
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...
@@ -130,43 +131,43 @@ Stop Time: 2023-12-30 23:42:19.886846
 ### Available Commands
 
 ```bash
-Available commands:
+Available commands (110):
 ------------------------------------------
-!                     env                   regcreate             showtask
-#shell                eventlog              regdel                svcadd
-agent                 exit                  regquery              svccreate
-atexec                find                  regset                svcdelete
-audit                 fwrules               regstart              svcdisable
-cat                   get                   regstop               svcenable
-cd                    hashdump              reguse                svcenum
-clear                 help                  reload                svcshow
-config                history               rm                    svcstart
-debug-availcounters   hostname              rmdir                 svcstop
-debug-counter         ifconfig              run                   taskadd
-disableservice        info                  secretsdump           taskcreate
-disablesvc            ipconfig              servertime            taskdel
-download              logoff                serviceadd            taskdelete
-downloads             logout                servicecreate         taskenum
-enableservice         ls                    servicedel            taskexec
-enablesvc             mget                  servicedelete         tasklist
-enumdisk              mkdir                 servicedisable        taskrm
-enuminfo              network               serviceenable         taskrun
-enuminterfaces        plugins               servicerun            tasksenum
-enumlogons            portfwd               services              taskshow
-enumpipes             procs                 servicesenum          tasksshow
-enumservices          ps                    serviceshow           time
-enumshares            put                   servicestart          upload
-enumsys               pwd                   servicestop           use
-enumtasks             quit                  set                   who
-enumtime              reconnect             shares                wmiexec
-enumtransport         regcheck              showservice
+!                     enumtransport         regcheck              showservice
+#shell                env                   regcreate             showtask
+agent                 eventlog              regdel                svcadd
+atexec                exit                  regquery              svccreate
+cat                   find                  regset                svcdelete
+cd                    fwrules               regstart              svcdisable
+clear                 get                   regstop               svcenable
+config                hashdump              reguse                svcenum
+debug-availcounters   help                  reload                svcshow
+debug-counter         history               rm                    svcstart
+disableservice        hostname              rmdir                 svcstop
+disablesvc            ifconfig              run                   taskadd
+download              info                  secretsdump           taskcreate
+downloads             ipconfig              servertime            taskdel
+enableservice         logoff                serviceadd            taskdelete
+enablesvc             logout                servicecreate         taskenum
+enumdisk              ls                    servicedel            taskexec
+enuminfo              mget                  servicedelete         tasklist
+enuminterfaces        mkdir                 servicedisable        taskrm
+enumlogons            network               serviceenable         taskrun
+enumpipes             plugins               servicerun            tasksenum
+enumservices          portfwd               services              taskshow
+enumshares            procs                 servicesenum          tasksshow
+enumsys               ps                    serviceshow           time
+enumtasks             put                   servicestart          upload
+enumtime              pwd                   servicestop           use
+                      quit                  set                   who
+                      reconnect             shares                wmiexec
 
 Type help <command> or <command> -h for more information on a specific command
 Type help --verbose for detailed categorized help
 ```
 
 #### Click here to view all the help entries:
-[Help Entries](cli_menu.md)
+[Help Entries](docs/cli_menu.md)
 
 
 ### Command Chaining
@@ -256,46 +257,34 @@ Slinger includes a polymorphic C++ agent system for secure command execution ove
 
 ### Quick Start
 
-**Deploy and use:**
+**Build, deploy, and use:**
 ```bash
+🤠 (10.0.0.28):> agent build --arch x64 --pass MySecretPass
 🤠 (10.0.0.28):> use C$
-🤠 (10.0.0.28):\\C$> agent deploy --agent x64 --deploy-method wmi
-🤠🔥 (10.10.10.161):\\c$> agent use svchost_92qqjcem
-[*] Agent Information:
-  ID: svchost_92qqjcem
-  Host: 10.10.10.161
-  Name: svchost_92qqjcem.exe
-  Path: C:\Windows\svchost_92qqjcem.exe
-  Pipe: \\10.10.10.161\pipe\slinger
-  PPID: 3100 (parent process)
-[*] Connecting to agent: svchost_92qqjcem
-[*] Timeout: 30 seconds
-[+] Starting interactive session with agent svchost_92qqjcem
-[*] Pipe Name: slinger
-[*] Connecting to pipe: \\10.10.10.161\pipe\slinger
+🤠🔥 (10.0.0.28):\\C$> agent deploy ./slinger_agent_x64_12345.exe --path \\ --name updater --start
+[*] Deploying agent: updater.exe
+[+] Agent uploaded successfully
+[*] Starting agent via WMI DCOM...
+[+] Agent started successfully
+🤠🔥 (10.0.0.28):\\C$> agent use updater
+[*] Connecting to agent: updater
 [+] Connected to agent pipe
-[*] 🔐 Performing passphrase authentication...
-[+] ✓ Authentication successful - all communications encrypted
-[*] ╔══════════════════════════════════════════╗
-[*] ║        AGENT INTERACTIVE SHELL           ║
-[*] ╚══════════════════════════════════════════╝
-Agent ID: svchost_92qqjcem
-Host: 10.10.10.161
-Pipe: slinger
+[*] Performing passphrase authentication...
+[+] Authentication successful - all communications encrypted
 
-[*] Type 'exit' to close the connection
-[*] Type 'help' for agent commands
-
-agent:svchost_92qqjcem:C:\> whoami
+## agent:updater ## C:\> whoami
 htb\administrator
 
-agent:svchost_92qqjcem:C:\>
-
+## agent:updater ## C:\> exit
 ```
 
-**Cleanup:**
+**Manage agents:**
 ```bash
-🤠 (10.0.0.28):\\C$> agent reset  # Kill and remove all agents
+🤠🔥 (10.0.0.28):\\C$> agent list                    # Show all deployed agents
+🤠🔥 (10.0.0.28):\\C$> agent check updater            # Check if agent process is running
+🤠🔥 (10.0.0.28):\\C$> agent kill updater              # Kill agent process
+🤠🔥 (10.0.0.28):\\C$> agent start updater             # Restart agent (wmiexec or --method atexec)
+🤠🔥 (10.0.0.28):\\C$> agent reset                     # Kill and remove all agents
 ```
 
 **See it in action:**
