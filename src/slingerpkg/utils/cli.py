@@ -1534,7 +1534,6 @@ def setup_cli_parser(slingerClient):
         "--sp",
         "--path",
         help="Specify the folder to save the output file (default: %(default)s)",
-        required=True,
         default="\\Users\\Public\\Downloads\\",
     )
     parser_atexec.add_argument(

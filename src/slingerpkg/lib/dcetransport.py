@@ -156,6 +156,7 @@ class DCETransport:
         self.dce.connect()
 
         self.is_connected = True
+        self.current_bind = None  # new connection requires fresh bind
         # fail safe is case something happened to the RemoteRegistry Service
         if named_pipe == "winreg" and not self.rrpstarted:
             self._enable_remote_registry()
