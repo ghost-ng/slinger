@@ -343,7 +343,7 @@ Contributions to the Slinger project, particularly in the form of plugins, are h
   ```
 
 - Add any additional methods or attributes necessary for your plugin.
-- **View the example plugin for additional help** [System Audit](../src/slingerpkg/plugins/system_audit.py)
+- **View the example plugin for additional help** [System Audit](src/slingerpkg/plugins/system_audit.py)
 
 #### 4. Test Your Plugin
 
