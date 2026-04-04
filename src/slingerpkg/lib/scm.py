@@ -243,11 +243,11 @@ class scm:
     def enum_services(self, args=None):
         try:
             force = args.new
-        except:
+        except (AttributeError, TypeError):
             force = False
         try:
             filtered = args.filter
-        except:
+        except (AttributeError, TypeError):
             filtered = None
         self.setup_dce_transport()
         self.dce_transport._connect("svcctl")

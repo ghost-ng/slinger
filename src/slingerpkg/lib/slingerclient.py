@@ -273,16 +273,20 @@ class SlingerClient(
                 self.dce_transport._connect("srvsvc")
             # Execute the 'who' command
             resp = self.dce_transport._who()
-            for session in resp["InfoStruct"]["SessionInfo"]["Level10"]["Buffer"]:
-                print_log(
-                    "host: %15s, user: %5s, active: %5d, idle: %5d"
-                    % (
+            sessions = resp["InfoStruct"]["SessionInfo"]["Level10"]["Buffer"]
+            table_data = []
+            for session in sessions:
+                table_data.append(
+                    [
                         session["sesi10_cname"][:-1],
                         session["sesi10_username"][:-1],
                         session["sesi10_time"],
                         session["sesi10_idle_time"],
-                    )
+                    ]
                 )
+            headers = ["Host", "User", "Active (s)", "Idle (s)"]
+            print_log(tabulate(table_data, headers=headers, tablefmt="grid"))
+            print_info(f"{len(table_data)} active session(s)")
         except DCERPCException as e:
             print_debug(str(e), sys.exc_info())
             print_bad(f"Failed to list sessions: {e}")
@@ -602,8 +606,8 @@ class SlingerClient(
             try:
                 if hasattr(self, "conn") and self.conn:
                     self.conn.close()
-            except:
-                pass
+            except Exception as e:
+                print_debug(f"Connection close: {e}")
 
             # Create new connection
             self.conn = smbconnection.SMBConnection(host, host, sess_port=445)
@@ -630,7 +634,7 @@ class SlingerClient(
                             print_info(
                                 f"Current directory: {getattr(self, 'current_path', 'Unknown')}"
                             )
-                        except:
+                        except Exception:
                             print_warning(f"Could not change back to original path: {current_path}")
                             print_info(
                                 f"Current directory: {getattr(self, 'current_path', 'Unknown')}"
@@ -1884,8 +1888,8 @@ class SlingerClient(
                             try:
                                 if self._dcom_connection:
                                     self._dcom_connection.disconnect()
-                            except:
-                                pass
+                            except Exception as e:
+                                print_debug(f"DCOM cleanup: {e}")
                             self._dcom_connection = None
 
                         iWbemServices = self.setup_wmi(
@@ -2346,7 +2350,8 @@ class SlingerClient(
                 # Get file size
                 try:
                     size = self.sizeof_fmt(agent_file.stat().st_size)
-                except:
+                except Exception as e:
+                    print_debug(f"Size parse: {e}")
                     size = "Unknown"
 
                 # Check deployment status
@@ -2671,8 +2676,8 @@ class SlingerClient(
             if hasattr(self, "agent_pipe_fid") and hasattr(self, "agent_pipe_tid"):
                 try:
                     self.conn.closeFile(self.agent_pipe_tid, self.agent_pipe_fid)
-                except:
-                    pass
+                except Exception as e:
+                    print_debug(f"Pipe close: {e}")
 
     def _run_pipe_interactive_shell(self, agent_info, auth=None, no_colors=False):
         """Run interactive shell using custom pipe protocol

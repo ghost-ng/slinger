@@ -227,8 +227,8 @@ class wmiexec(WMIQuery):
             # Cleanup connection
             try:
                 dcom.disconnect()
-            except:
-                pass
+            except Exception as e:
+                print_debug(f"DCOM cleanup: {e}")
 
             return {
                 "success": True,
@@ -571,8 +571,8 @@ class wmiexec(WMIQuery):
                                                 if s["name"].upper() == share_name.upper():
                                                     target_share_path = s["path"]
                                                     break
-                                        except:
-                                            pass
+                                        except Exception as e:
+                                            print_warning(f"Share path resolve: {e}")
 
                                         if target_share_path and temp_dir.startswith(
                                             target_share_path
@@ -641,8 +641,8 @@ class wmiexec(WMIQuery):
                                                 if s["name"].upper() == self.share.upper():
                                                     current_share_path = s["path"]
                                                     break
-                                        except:
-                                            pass
+                                        except Exception as e:
+                                            print_warning(f"Share path resolve: {e}")
 
                                     if current_share_path and temp_dir.startswith(
                                         current_share_path
@@ -747,8 +747,8 @@ class wmiexec(WMIQuery):
             finally:
                 try:
                     dcom.disconnect()
-                except:
-                    pass
+                except Exception as e:
+                    print_debug(f"DCOM cleanup: {e}")
 
         except Exception as e:
             print_debug(f"WMI execution failed: {e}")
@@ -1166,8 +1166,8 @@ class wmiexec(WMIQuery):
             if original_share and original_connected:
                 try:
                     self.connect_share_by_name(original_share)
-                except:
-                    pass
+                except Exception as e:
+                    print_debug(f"Share restore: {e}")
             return None
 
     def connect_share_by_name(self, share_name):
@@ -1231,8 +1231,8 @@ class wmiexec(WMIQuery):
             if original_share and original_connected:
                 try:
                     self.connect_share_by_name(original_share)
-                except:
-                    pass
+                except Exception as e:
+                    print_debug(f"Share restore: {e}")
 
     def _handle_interactive_dcom_shell(self, args):
         """Handle interactive DCOM WMI shell session"""

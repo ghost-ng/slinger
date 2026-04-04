@@ -47,7 +47,7 @@ def parse_lp_data(valueType, valueData, hex_dump=True):
                         result += hexdump(valueData, "\t")
                 else:
                     result += " NULL"
-            except:
+            except Exception:
                 result += " NULL"
         elif valueType == rrp.REG_MULTI_SZ:
             result += "%s" % (valueData.decode("utf-16le")[:-2])
@@ -193,8 +193,8 @@ class DCETransport:
     def _close_scm_handle(self, serviceHandle):
         try:
             scmr.hRCloseServiceHandle(self.dce, serviceHandle)
-        except:
-            pass
+        except Exception as e:
+            print_debug(f"Handle close: {e}")
 
     def _disconnect(self):
         """Disconnect with graceful service cleanup and timeout handling"""
@@ -256,7 +256,7 @@ class DCETransport:
         self._bind(srvs.MSRPC_UUID_SRVS)
         try:
             response = srvs.hNetrShareGetInfo(self.dce, share_name, 502)
-        except:
+        except Exception:
             raise Exception(
                 f"Unable to retrieve share info for {share_name}. Check if the share exists or if you have permissions to run hNetrShareGetInfo."
             )
@@ -558,8 +558,8 @@ class DCETransport:
             # Always cleanup handle
             try:
                 self._close_scm_handle(serviceHandle)
-            except:
-                pass
+            except Exception as e:
+                print_debug(f"SCM handle cleanup: {e}")
 
             # Update internal state even if stop failed to prevent retry loops
             if service_name == "RemoteRegistry":
@@ -685,7 +685,7 @@ class DCETransport:
         regHandle = ans["phKey"]
         try:
             ans = rrp.hBaseRegCreateKey(self.dce, regHandle, hiveName)
-        except:
+        except Exception:
             raise Exception("Can't open %s hive" % hiveName)
         keyHandle = ans["phkResult"]
         savePath = ""
@@ -990,8 +990,8 @@ class DCETransport:
         self.bind_override = True
         try:
             self._bind(rrp.MSRPC_UUID_RRP)
-        except:
-            pass
+        except Exception as e:
+            print_debug(f"Perf data bind: {e}")
 
         # Open Performance Data
         openhkpd_result = rrp.hOpenPerformanceData(self.dce)
@@ -1025,8 +1025,8 @@ class DCETransport:
         self.bind_override = True
         try:
             self._bind(rrp.MSRPC_UUID_RRP)
-        except:
-            pass
+        except Exception as e:
+            print_debug(f"Perf data bind: {e}")
 
         # Open Performance Data
         openhkpd_result = rrp.hOpenPerformanceData(self.dce)

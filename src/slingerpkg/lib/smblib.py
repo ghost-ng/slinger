@@ -3,8 +3,12 @@ from slingerpkg.utils.common import *
 from slingerpkg.lib.download_state import DownloadState, DownloadStateManager, parse_chunk_size
 from slingerpkg.lib.error_recovery import SimpleRetryManager, validate_chunk_integrity
 from tabulate import tabulate
-import os, sys, re, ntpath
-import datetime, tempfile
+import os
+import sys
+import re
+import ntpath
+import datetime
+import tempfile
 from datetime import timedelta
 from impacket.smb3structs import FILE_READ_DATA
 
@@ -759,8 +763,8 @@ class smblib:
             )
             try:
                 os.remove(temp_path)
-            except:
-                pass
+            except Exception as e:
+                print_debug(f"Temp cleanup: {e}")
 
     def ls(self, args=None):
         """
@@ -805,8 +809,8 @@ class smblib:
                     if len(test_files) == 1 and not test_files[0].is_directory():
                         is_file = True
                         list_path = path
-                except:
-                    pass
+                except Exception as e:
+                    print_debug(f"Path check: {e}")
 
             if not is_file:
                 # It's a directory, append \* for listing
@@ -1407,8 +1411,9 @@ class smblib:
                             if not is_empty:
                                 subdirs.append(f.get_longname())
                                 continue
-                        except:
+                        except Exception as e:
                             # If we can't check, assume not empty
+                            print_debug(f"Dir check: {e}")
                             subdirs.append(f.get_longname())
                             continue
                     else:
@@ -1488,10 +1493,9 @@ class smblib:
                 mtime = datetime(1601, 1, 1) + timedelta(microseconds=f.get_mtime() / 10)
                 ctime = datetime(1601, 1, 1) + timedelta(microseconds=f.get_ctime() / 10)
                 atime = datetime(1601, 1, 1) + timedelta(microseconds=f.get_atime() / 10)
-            except:
-                # Fallback to current time if timestamp conversion fails
-                now = datetime.now()
-                mtime = ctime = atime = now
+            except Exception as e:
+                print_debug(f"Timestamp parse: {e}")
+                mtime = ctime = atime = None
 
             return {
                 "name": filename,
@@ -1568,19 +1572,31 @@ class smblib:
         """
         Sort find results by specified field.
         """
+
+        def _sort_key_name(x):
+            return x["name"].lower()
+
+        def _sort_key_size(x):
+            return x["size"]
+
+        def _sort_key_mtime(x):
+            return x["mtime"] or datetime.min
+
+        def _sort_key_ctime(x):
+            return x["ctime"] or datetime.min
+
+        def _sort_key_atime(x):
+            return x["atime"] or datetime.min
+
         try:
-            if sort_field == "name":
-                key_func = lambda x: x["name"].lower()
-            elif sort_field == "size":
-                key_func = lambda x: x["size"]
-            elif sort_field == "mtime":
-                key_func = lambda x: x["mtime"]
-            elif sort_field == "ctime":
-                key_func = lambda x: x["ctime"]
-            elif sort_field == "atime":
-                key_func = lambda x: x["atime"]
-            else:
-                key_func = lambda x: x["name"].lower()  # Default to name
+            sort_funcs = {
+                "name": _sort_key_name,
+                "size": _sort_key_size,
+                "mtime": _sort_key_mtime,
+                "ctime": _sort_key_ctime,
+                "atime": _sort_key_atime,
+            }
+            key_func = sort_funcs.get(sort_field, _sort_key_name)
 
             return sorted(results, key=key_func, reverse=reverse_order)
 
@@ -1616,7 +1632,7 @@ class smblib:
         table_data = []
         for item in results:
             size_str = self.sizeof_fmt(item["size"]) if not item["is_directory"] else "<DIR>"
-            mtime_str = item["mtime"].strftime("%Y-%m-%d %H:%M:%S")
+            mtime_str = item["mtime"].strftime("%Y-%m-%d %H:%M:%S") if item["mtime"] else "N/A"
 
             table_data.append([item["attributes"], size_str, mtime_str, item["path"]])
 
@@ -1633,8 +1649,12 @@ class smblib:
             if not item["is_directory"]:
                 print_log(f"  Size: {size_str}")
             print_log(f"  Attributes: {item['attributes']}")
-            print_log(f"  Modified: {item['mtime'].strftime('%Y-%m-%d %H:%M:%S')}")
-            print_log(f"  Created: {item['ctime'].strftime('%Y-%m-%d %H:%M:%S')}")
+            print_log(
+                f"  Modified: {item['mtime'].strftime('%Y-%m-%d %H:%M:%S') if item['mtime'] else 'N/A'}"
+            )
+            print_log(
+                f"  Created: {item['ctime'].strftime('%Y-%m-%d %H:%M:%S') if item['ctime'] else 'N/A'}"
+            )
             print_log("")
 
     def _display_results_paths(self, results):
@@ -1650,9 +1670,9 @@ class smblib:
         json_results = []
         for item in results:
             json_item = item.copy()
-            json_item["mtime"] = item["mtime"].isoformat()
-            json_item["ctime"] = item["ctime"].isoformat()
-            json_item["atime"] = item["atime"].isoformat()
+            json_item["mtime"] = item["mtime"].isoformat() if item["mtime"] else None
+            json_item["ctime"] = item["ctime"].isoformat() if item["ctime"] else None
+            json_item["atime"] = item["atime"].isoformat() if item["atime"] else None
             json_results.append(json_item)
 
         print_log(json.dumps(json_results, indent=2))
