@@ -66,6 +66,12 @@ config_vars = [
         "Description": "SMB authentication/connection timeout in seconds (default: 5 minutes)",
         "Type": "int",
     },
+    {
+        "Name": "keepalive_interval",
+        "Value": 300,
+        "Description": "Keepalive interval in seconds, 0 to disable (default: 5 minutes)",
+        "Type": "int",
+    },
 ]
 
 logwriter = None

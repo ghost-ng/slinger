@@ -176,6 +176,17 @@ class SlingerClient(
         # self.setup_remote_registry(args=None)
 
     # handle exit
+    def keepalive(self):
+        """Send SMB echo to keep connection alive. Returns True on success."""
+        try:
+            if hasattr(self, "conn") and self.conn:
+                self.conn.echo()
+                return True
+        except Exception as e:
+            print_debug(f"Keepalive failed: {e}")
+            return False
+        return False
+
     def exit(self):
         try:
             self.dce_transport._disconnect()

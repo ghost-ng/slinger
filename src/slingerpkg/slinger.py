@@ -40,6 +40,7 @@ import sys
 import os
 import pty
 import termios
+import threading
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import to_formatted_text, ANSI
@@ -84,6 +85,38 @@ def create_ntlm_hash(password):
     except ImportError:
         print_warning("passlib module not found. Cannot create NTLM hash.")
         return None
+
+
+# ---------------------------------------------------------------------------
+# Connection keepalive timer
+# ---------------------------------------------------------------------------
+_keepalive_timer = None
+
+
+def _start_keepalive(client):
+    """Start the keepalive timer if interval > 0."""
+    global _keepalive_timer
+    interval = int(get_config_value("keepalive_interval"))
+    if interval <= 0:
+        return
+    _keepalive_timer = threading.Timer(interval, _keepalive_tick, [client])
+    _keepalive_timer.daemon = True
+    _keepalive_timer.start()
+
+
+def _keepalive_tick(client):
+    """Timer callback — send keepalive and reschedule."""
+    if not client.keepalive():
+        print_warning("\nKeepalive failed — connection may be lost. Try 'reconnect'.")
+    _start_keepalive(client)
+
+
+def _reset_keepalive(client):
+    """Cancel and restart the keepalive timer (call after each command)."""
+    global _keepalive_timer
+    if _keepalive_timer:
+        _keepalive_timer.cancel()
+    _start_keepalive(client)
 
 
 def main():
@@ -263,6 +296,8 @@ def main():
                     prgm_args.port,
                     auth_method,
                 )
+            # Start connection keepalive timer
+            _start_keepalive(slingerClient)
         else:
             print_bad(f"Failed to log in to {prgm_args.host}:{prgm_args.port}")
             print_debug("", sys.exc_info())
@@ -310,7 +345,7 @@ def main():
                 args = slinger_parser.parse_args(split)
                 if hasattr(args, "func"):
                     args.func(args)
-                # print(args)
+                    _reset_keepalive(slingerClient)
             except (argparse.ArgumentError, ValueError):
                 print_debug("", sys.exc_info())
                 print_warning("Failed to parse command. Try quoting your arguments.")
@@ -480,6 +515,8 @@ def main():
             elif args.command == "clear":
                 os.system("clear")
             elif args.command == "exit" or args.command == "logoff":
+                if _keepalive_timer:
+                    _keepalive_timer.cancel()
                 slingerClient.exit()
                 graceful_exit = True
                 break
