@@ -50,36 +50,38 @@ python3 slinger.py -h
     /#(-'             v1.12.3
     `-'                    a ghost-ng special
 
-usage: slinger.py [-h] --host HOST -u USERNAME -pass PASSWORD [-d DOMAIN] [-p PORT] [--nojoy] [--ntlm NTLM] [--kerberos] [--debug] [--timeout TIMEOUT]
+usage: slinger.py [-h] --host HOST -u USERNAME [--pass PASSWORD | --ntlm NTLM | --kerberos]
+                  [-d DOMAIN] [-p PORT] [--timeout TIMEOUT] [--nojoy] [--debug]
 
 impacket swiss army knife (sort of)
 
 options:
   -h, --help            show this help message and exit
-  -host HOST            Host to connect to (default: None)
-  -user USERNAME, --username USERNAME
-                        Username for authentication (default: None)
-  -domain DOMAIN, --domain DOMAIN
-                        Domain for authentication (default: )
-  -port PORT            Port to connect to (default: 445)
-  -nojoy                Turn off emojis (default: False)
-  -pass [PASSWORD], --password [PASSWORD]
-                        Password for authentication (default: None)
-  -ntlm NTLM            NTLM hash for authentication (default: None)
-  -kerberos             Use Kerberos for authentication (default: False)
-  -debug                Turn on debug output (default: False)
-  -gen-ntlm-hash GEN_NTLM_HASH
-                        Generate NTLM hash from password (default: None)
-  --timeout TIMEOUT     Global SMB/RPC connection timeout in seconds
+  --host HOST           Host to connect to
+  -u, --user, --username USERNAME
+                        Username for authentication
+  -d, --domain DOMAIN   Domain for authentication (default: )
+  -p, --port PORT       Port to connect to (default: 445)
+  --timeout TIMEOUT     Global SMB connection timeout in seconds (default: 86400)
+  --nojoy               Turn off emojis
+  --verbose             Enable verbose output
+  --debug               Turn on debug output
+  --gen-ntlm-hash HASH  Generate NTLM hash from password
   -v, --version         Show version information
+
+authentication (mutually exclusive):
+  --pass, --password [PASSWORD]
+                        Password for authentication
+  --ntlm NTLM          NTLM hash for authentication
+  --kerberos            Use Kerberos for authentication
 ```
 
-Slinger offers multiple authentication methods.  All methods are built on impacket functions and should therefore function the same.  *Warnining* at this time kerberos login has not been tested.
+Slinger offers multiple authentication methods. All methods are built on impacket functions and should therefore function the same. *Warning:* Kerberos login has not been fully tested.
 
 ### Login with password
 
 ```bash
-python3 slinger.py --host 192.168.177.130 --username admin --password admin
+python3 slinger.py --host 192.168.177.130 --user admin --pass admin
 
       __,_____
      / __.==--"   SLINGER
@@ -89,23 +91,21 @@ python3 slinger.py --host 192.168.177.130 --username admin --password admin
 [*] Connecting to 192.168.177.130:445...
 [+] Successfully logged in to 192.168.177.130:445
 
-Start Time: 2023-12-30 23:46:00.651408
+Start Time: 2024-01-15 23:46:00.651408
 
 [*] Checking the status of the RemoteRegistry service
-[*] Service RemoteRegistry is in stopped state
+[*] Service RemoteRegistry is in a stopped state
 [*] Trying to start RemoteRegistry service
-[+] Remote Registry service started
+[+] Service RemoteRegistry is running
 [+] Successfully logged in to 192.168.177.130:445
-🤠 (192.168.177.130):> exit
-[*] Remote Registy state restored -> STOPPED
-
-Stop Time: 2023-12-30 23:46:09.633701
+[sl] (192.168.177.130):\> exit
+[*] Remote Registry state restored: RUNNING -> STOPPED
 ```
 
 ### Login with NTLM
 
 ```bash
-python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919CC3B1D7AD859697CFA659
+python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :5E119EC7919CC3B1D7AD859697CFA659
 
       __,_____
      / __.==--"   SLINGER
@@ -115,17 +115,15 @@ python3 slinger.py --host 10.0.0.28 --username Administrator --ntlm :5E119EC7919
 [*] Connecting to 10.0.0.28:445...
 [+] Successfully logged in to 10.0.0.28:445
 
-Start Time: 2023-12-30 23:42:15.410337
+Start Time: 2024-01-15 23:42:15.410337
 
 [*] Checking the status of the RemoteRegistry service
-[*] Service RemoteRegistry is in stopped state
+[*] Service RemoteRegistry is in a stopped state
 [*] Trying to start RemoteRegistry service
-[+] Remote Registry service started
+[+] Service RemoteRegistry is running
 [+] Successfully logged in to 10.0.0.28:445
-🤠 (10.0.0.28):> exit
-[*] Remote Registy state restored -> STOPPED
-
-Stop Time: 2023-12-30 23:42:19.886846
+[sl] (10.0.0.28):\> exit
+[*] Remote Registry state restored: RUNNING -> STOPPED
 ```
 
 ### Available Commands
@@ -181,18 +179,18 @@ Slinger has two ways to execute a sequence of commands.
     cmd3
 
 ```bash
-run -h
+run --help
 usage: slinger run [-h] (-c CMD_CHAIN | -f FILE)
 
 Run a slinger script or command sequence
 
 options:
   -h, --help            show this help message and exit
-  -c CMD_CHAIN, --cmd_chain CMD_CHAIN
+  -c, --cmd-chain CMD_CHAIN
                         Specify a command sequence to run
-  -f FILE, --file FILE  Specify a script file to run
+  -f, --file FILE       Specify a script file to run
 
-Example Usage: run -c|-f [script]
+Example Usage: run -c "cmd1;cmd2;cmd3" | run -f script.txt
 ```
 
 
