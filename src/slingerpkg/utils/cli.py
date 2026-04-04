@@ -1033,7 +1033,12 @@ def setup_cli_parser(slingerClient):
     parser_taskimport.add_argument(
         "--test",
         action="store_true",
-        help="Parse and display XML info without importing",
+        help="Parse, validate, and display XML info without importing",
+    )
+    parser_taskimport.add_argument(
+        "--force",
+        action="store_true",
+        help="Import even if validation fails (missing required elements)",
     )
     parser_taskimport.set_defaults(func=slingerClient.task_import)
 

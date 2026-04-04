@@ -22,22 +22,25 @@ class schtasks:
         self.tasks_list = []  # Store cached task list for filtering
 
     def filter_tasks(self, filtered):
-        # filter format: name=blah, folder=blah
+        # filter format: name=blah, folder=blah, or plain substring
         new_list = []
-        if "folder" in filtered:
-            folder = filtered.split("=")[1]
+        if "=" in filtered and filtered.split("=")[0].lower() == "folder":
+            folder = filtered.split("=", 1)[1]
             for task in self.tasks_list:
                 if folder.lower() in task["Folder"].lower():
                     new_list.append(task)
-            return new_list
-        elif "name" in filtered:
-            name = filtered.split("=")[1]
+        elif "=" in filtered and filtered.split("=")[0].lower() == "name":
+            name = filtered.split("=", 1)[1]
             for task in self.tasks_list:
                 if name.lower() in task["TaskName"].lower():
                     new_list.append(task)
-            return new_list
         else:
-            return self.tasks_list
+            # Plain substring: match against both task name and folder
+            search = filtered.lower()
+            for task in self.tasks_list:
+                if search in task["TaskName"].lower() or search in task["Folder"].lower():
+                    new_list.append(task)
+        return new_list
 
     def enum_folders_old(self, folder_path="\\", start_index=0):
         self.setup_dce_transport()
@@ -351,6 +354,75 @@ class schtasks:
 
         return root, task_xml
 
+    def _validate_task_xml(self, root):
+        """Validate task XML has required elements for Task Scheduler.
+
+        Returns (is_valid, errors) where errors is a list of strings.
+        """
+        ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
+        errors = []
+        warnings = []
+
+        def _find(xpath):
+            ns_xpath = "/".join(f"t:{part}" for part in xpath.split("/"))
+            elem = root.find(f".//{ns_xpath}", ns)
+            if elem is None:
+                elem = root.find(f".//{xpath}")
+            return elem
+
+        # Required: root must be <Task>
+        tag = root.tag.split("}")[-1] if "}" in root.tag else root.tag
+        if tag != "Task":
+            errors.append(f"Root element is '{tag}', expected 'Task'")
+
+        # Required: Actions/Exec/Command
+        if _find("Actions/Exec/Command") is None:
+            errors.append("Missing required element: Actions/Exec/Command")
+
+        # Required: Triggers (at least one)
+        triggers = root.find(".//t:Triggers", ns) or root.find(".//Triggers")
+        if triggers is None or len(triggers) == 0:
+            errors.append("Missing required element: Triggers (need at least one trigger)")
+
+        # Required: Principals
+        if _find("Principals/Principal") is None:
+            errors.append("Missing required element: Principals/Principal")
+
+        # Required: Settings section
+        settings = root.find(".//t:Settings", ns) or root.find(".//Settings")
+        if settings is None:
+            errors.append("Missing required element: Settings")
+        else:
+            # Check critical settings that Windows requires
+            required_settings = [
+                "MultipleInstancesPolicy",
+                "DisallowStartIfOnBatteries",
+                "StopIfGoingOnBatteries",
+                "AllowHardTerminate",
+                "StartWhenAvailable",
+                "RunOnlyIfNetworkAvailable",
+                "IdleSettings",
+                "AllowStartOnDemand",
+                "Enabled",
+                "RunOnlyIfIdle",
+                "WakeToRun",
+                "ExecutionTimeLimit",
+                "Priority",
+            ]
+            for setting_name in required_settings:
+                ns_path = f".//t:Settings/t:{setting_name}"
+                plain_path = f".//Settings/{setting_name}"
+                if root.find(ns_path, ns) is None and root.find(plain_path) is None:
+                    warnings.append(f"Missing Settings/{setting_name}")
+
+        # Warn if no RegistrationInfo/URI
+        if _find("RegistrationInfo/URI") is None:
+            warnings.append(
+                "Missing RegistrationInfo/URI - task name will be derived from filename"
+            )
+
+        return errors, warnings
+
     def _extract_task_info(self, root, file_path, task_name=None, folder_path=""):
         """Extract task metadata from XML. Returns dict with all parsed fields."""
         ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
@@ -401,6 +473,10 @@ class schtasks:
         if root is None:
             return
 
+        # Validate XML structure
+        force = getattr(args, "force", False)
+        errors, warnings = self._validate_task_xml(root)
+
         task_name = getattr(args, "name", None)
         folder_path = getattr(args, "folder", "") or ""
         info = self._extract_task_info(
@@ -437,8 +513,37 @@ class schtasks:
             print_log(f"  Hidden:          {info['hidden'] or 'false'}")
             if info["execution_time_limit"]:
                 print_log(f"  Time Limit:      {info['execution_time_limit']}")
-            print_good("XML is valid and ready for import")
+            # Show validation results
+            if errors:
+                print_bad(f"Validation FAILED ({len(errors)} error(s)):")
+                for err in errors:
+                    print_bad(f"  - {err}")
+            if warnings:
+                print_warning(f"Validation warnings ({len(warnings)}):")
+                for warn in warnings:
+                    print_warning(f"  - {warn}")
+            if not errors:
+                print_good("XML is valid and ready for import")
+            else:
+                print_info("Use --force to import despite validation errors")
             return
+
+        # Block import if validation fails (unless --force)
+        if errors and not force:
+            print_bad(f"Validation FAILED ({len(errors)} error(s)):")
+            for err in errors:
+                print_bad(f"  - {err}")
+            if warnings:
+                print_warning(f"Validation warnings ({len(warnings)}):")
+                for warn in warnings:
+                    print_warning(f"  - {warn}")
+            print_info("Use --force to import despite validation errors")
+            return
+        if warnings and not force:
+            for warn in warnings:
+                print_warning(f"  - {warn}")
+        if force and errors:
+            print_warning(f"Forcing import despite {len(errors)} validation error(s)")
 
         print_info(f"Importing task '{task_name}' to folder '{folder_path or chr(92)}'")
         self.setup_dce_transport()
