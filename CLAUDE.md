@@ -29,6 +29,24 @@ CLI Entry (slinger.py) → SlingerClient → Multiple Inheritance Chain:
 - Resumable downloads with state persistence (`lib/download_state.py`)
 - Complex inheritance chain may create method resolution complexity
 
+## Version Management
+
+**Single source of truth:** `src/slingerpkg/__init__.py` (`__version__`)
+
+When bumping the version, update ALL of these locations:
+1. `src/slingerpkg/__init__.py` — `__version__ = "X.Y.Z"` (primary, imported by config.py)
+2. `pyproject.toml` — `version = "X.Y.Z"` (used by pip/build)
+3. `README.md` — version appears in 3 banner examples (`v1.X.Y` in the ASCII art)
+
+The build script (`scripts/build_script.py`) will sync `pyproject.toml` from `__init__.py` automatically during `python scripts/build_script.py`, but README must be updated manually.
+
+After updating, run:
+```bash
+python scripts/build_script.py   # syncs pyproject.toml, regenerates cli_menu.md
+git tag vX.Y.Z && git push origin vX.Y.Z
+gh release create vX.Y.Z --title "vX.Y.Z" -n "release notes"
+```
+
 ## Development Commands
 
 ### Environment Setup
