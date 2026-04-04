@@ -357,8 +357,11 @@ class schtasks:
 
         def _find(xpath):
             """Find element with or without namespace."""
-            elem = root.find(f".//t:{xpath}", ns)
+            # Try with namespace prefix on each path component
+            ns_xpath = "/".join(f"t:{part}" for part in xpath.split("/"))
+            elem = root.find(f".//{ns_xpath}", ns)
             if elem is None:
+                # Try without namespace (plain XML)
                 elem = root.find(f".//{xpath}")
             return elem.text if elem is not None else None
 
