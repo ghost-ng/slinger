@@ -13,3 +13,4 @@ ai_test_framework/*
 ai_test_framework/test_reports
 .pytest_cache
 .mypy_cache
+CLAUDE.md
