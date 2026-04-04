@@ -331,6 +331,61 @@ class schtasks:
         else:
             print_log(f"Error creating task '{task_name}': {response['ErrorCode']}")
 
+    def task_import(self, args):
+        """Import a scheduled task from a local XML definition file."""
+        import xml.etree.ElementTree as ET
+
+        file_path = os.path.expanduser(args.file)
+        if not os.path.exists(file_path):
+            print_bad(f"File not found: {file_path}")
+            return
+
+        with open(file_path, "r") as f:
+            task_xml = f.read()
+
+        # Basic XML validation
+        try:
+            root = ET.fromstring(task_xml)
+        except ET.ParseError as e:
+            print_bad(f"Invalid XML: {e}")
+            return
+
+        # Extract name/folder from args or URI element in XML
+        task_name = getattr(args, "name", None)
+        folder_path = getattr(args, "folder", "") or ""
+
+        if not task_name:
+            ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
+            uri = root.find(".//t:RegistrationInfo/t:URI", ns)
+            if uri is None:
+                uri = root.find(".//RegistrationInfo/URI")
+            if uri is not None and uri.text:
+                parts = uri.text.rsplit("\\", 1)
+                task_name = parts[-1]
+                if len(parts) > 1 and not folder_path:
+                    folder_path = parts[0]
+            else:
+                task_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        print_info(f"Importing task '{task_name}' to folder '{folder_path or chr(92)}'")
+        self.setup_dce_transport()
+        self.dce_transport._connect("atsvc")
+
+        try:
+            response = self.dce_transport._create_task(task_name, folder_path, task_xml)
+            if response["ErrorCode"] == 0:
+                print_good(f"Task '{task_name}' imported successfully")
+            else:
+                print_bad(f"Error importing task '{task_name}': {response['ErrorCode']}")
+        except Exception as e:
+            error_str = str(e)
+            if "SCHED_S_TASK_DISABLED" in error_str:
+                print_good(f"Task '{task_name}' imported (disabled state)")
+            elif "already exists" in error_str.lower():
+                print_warning(f"Task '{task_name}' already exists in '{folder_path}'")
+            else:
+                print_bad(f"Error importing task: {e}")
+
     def task_delete_handler(self, args):
         if not self.folder_list_dict and args.task_id:
             print_warning("No tasks have been enumerated. Run enumtasks first.")

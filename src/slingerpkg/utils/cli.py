@@ -174,6 +174,7 @@ def print_all_commands_verbose(parser):
             "enumtasks",
             "taskshow",
             "taskcreate",
+            "taskimport",
             "taskrun",
             "taskdelete",
         ],
@@ -1009,6 +1010,27 @@ def setup_cli_parser(slingerClient):
         help="Specify the date to start the task (2099-12-31 14:01:00)",
     )
     parser_taskcreate.set_defaults(func=slingerClient.task_create)
+
+    # Subparser for 'taskimport' command
+    parser_taskimport = subparsers.add_parser(
+        "taskimport",
+        help="Import a scheduled task from XML file",
+        description="Import a scheduled task from a local XML definition file",
+        epilog="Example Usage: taskimport -f task.xml -n MyTask -d \\\\MyFolder",
+    )
+    parser_taskimport.add_argument(
+        "-f", "--file", required=True, help="Path to local XML task definition file"
+    )
+    parser_taskimport.add_argument(
+        "-n", "--name", help="Task name (extracted from XML URI if omitted)"
+    )
+    parser_taskimport.add_argument(
+        "-d",
+        "--folder",
+        default="",
+        help="Task Scheduler folder (default: root)",
+    )
+    parser_taskimport.set_defaults(func=slingerClient.task_import)
 
     # Subparser for 'taskrun' command
     parser_taskrun = subparsers.add_parser(
