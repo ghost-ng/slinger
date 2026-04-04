@@ -86,6 +86,7 @@ class scm:
             response = self.dce_transport._disable_service(service_name)
             if response:
                 print_good("Service disabled successfully")
+                self._track("SERVICE", "disable", service_name)
             else:
                 print_log(f"Error disabling service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
@@ -121,6 +122,7 @@ class scm:
             response = self.dce_transport._enable_service(service_name)
             if response:
                 print_good("Service enabled successfully")
+                self._track("SERVICE", "enable", service_name)
             else:
                 print_log(f"Error enabling service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
@@ -163,6 +165,7 @@ class scm:
                 return
             elif response is True:
                 print_good("Service started successfully")
+                self._track("SERVICE", "start", service_name)
             else:
                 print_log(f"Error starting service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
@@ -224,6 +227,7 @@ class scm:
             print_debug("Stop Service Response:\n" + str(response))
             if response["ErrorCode"] == 0:
                 print_good("Service stopped successfully")
+                self._track("SERVICE", "stop", service_name)
             else:
                 print_log(f"Error stopping service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
@@ -485,6 +489,7 @@ class scm:
             response = self.dce_transport._delete_service(service_name)
             if response["ErrorCode"] == 0:
                 print_good("Service deleted successfully")
+                self._track("SERVICE", "delete", service_name)
             else:
                 print_log(f"Error deleting service '{service_name}': {response['ErrorCode']}")
         except Exception as e:
@@ -508,6 +513,7 @@ class scm:
             )
             if response["ErrorCode"] == 0:
                 print_good("Service created successfully")
+                self._track("SERVICE", "create", args.name, f"binary={args.binary_path}")
             else:
                 print_log(f"Error creating service '{service_name}': {response['ErrorCode']}")
         except Exception as e:

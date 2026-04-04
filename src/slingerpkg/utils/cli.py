@@ -200,6 +200,7 @@ def print_all_commands_verbose(parser):
         "🖥️  Session Management": [
             "info",
             "history",
+            "changes",
             "set",
             "config",
             "run",
@@ -1633,6 +1634,22 @@ def setup_cli_parser(slingerClient):
         description="List available plugins",
         epilog="Example Usage: plugins",
     )
+
+    # Subparser for 'changes' command (audit trail)
+    parser_changes = subparsers.add_parser(
+        "changes",
+        help="Show tracked changes made to remote system",
+        description="Display audit trail of all write operations this session",
+        epilog="Example Usage: changes | changes --category FILE | changes --save",
+    )
+    parser_changes.add_argument(
+        "--category",
+        choices=["FILE", "SERVICE", "TASK", "REGISTRY", "AGENT", "EXEC"],
+        help="Filter by change category",
+    )
+    parser_changes.add_argument("--save", action="store_true", help="Save changes to JSON file")
+    parser_changes.add_argument("--clear", action="store_true", help="Clear change log")
+    parser_changes.set_defaults(func=slingerClient.show_changes)
 
     # Subparser for 'downloads' command (resume download management)
     parser_downloads = subparsers.add_parser(

@@ -320,6 +320,7 @@ class winreg:
             ans = self.dce_transport._reg_add(keyName, valueName, valueData, valueType)
             if ans:
                 print_good(f"Added Value {valueName} to {reduce_slashes(keyName)}")
+                self._track("REGISTRY", "set_value", keyName)
             else:
                 print_bad(f"Failed to Add Value {valueName} to {keyName}")
         except Exception as e:
@@ -414,6 +415,7 @@ class winreg:
         ans = self.dce_transport._reg_create_key(keyName)
         if ans:
             print_good(f"Created Key {keyName}")
+            self._track("REGISTRY", "create_key", keyName)
         else:
             print_bad(f"Failed to Create Key {keyName}")
 
@@ -434,6 +436,7 @@ class winreg:
             ans = self.dce_transport._reg_delete_key(keyName)
             if ans:
                 print_good(f"Deleted Key {keyName}")
+                self._track("REGISTRY", "delete_key", keyName)
             else:
                 print_bad(f"Failed to Delete Key {keyName}")
         except Exception as e:
@@ -479,6 +482,7 @@ class winreg:
                 return
         if ans:
             print_good(f"Deleted Value {keyValue} from {keyName}")
+            self._track("REGISTRY", "delete_value", keyName)
         else:
             print_bad(f"Failed to Delete Value {keyValue} from {keyName}")
 
@@ -717,7 +721,7 @@ class winreg:
         # print_warning("Not yet implemented")
         # return
 
-        if self.check_port_fwd_rules() == False:
+        if not self.check_port_fwd_rules():
             print_warning("No Port Forwarding Rules Found")
             # set the active_portfwd_rules to empty
             self.active_portfwd_rules = []

@@ -128,6 +128,7 @@ class smblib:
         try:
             self.conn.createDirectory(self.share, path)
             print_info(f"Directory created {path}")
+            self._track("FILE", "mkdir", f"{self.share}\\{path}")
         except Exception as e:
             if "STATUS_OBJECT_NAME_COLLISION" in str(e):
                 print_warning(f"Directory already exists {path}")
@@ -143,6 +144,7 @@ class smblib:
             print_debug(f"Removing directory {path}")
             self.conn.deleteDirectory(self.share, path)
             print_info(f"Directory removed {path}")
+            self._track("FILE", "rmdir", f"{self.share}\\{path}")
         except Exception as e:
             print_debug(str(e), sys.exc_info())
             print_bad(f"Failed to remove directory {path}: {e}")
@@ -215,6 +217,11 @@ class smblib:
                     print_verbose(f"Deleting file {os.path.join(remote_path, f.get_longname())}")
                     self.conn.deleteFile(self.share, os.path.join(remote_path, f.get_longname()))
                     print_info(f"File Removed '{os.path.join(remote_path, f.get_longname())}'")
+                    self._track(
+                        "FILE",
+                        "delete",
+                        f"{self.share}\\{os.path.join(remote_path, f.get_longname())}",
+                    )
             else:
                 print_warning(f"Invalid directory: {remote_path}")
                 return
@@ -223,6 +230,7 @@ class smblib:
             try:
                 self.conn.deleteFile(self.share, remote_path)
                 print_info(f"File Removed '{remote_path}'")
+                self._track("FILE", "delete", f"{self.share}\\{remote_path}")
             except Exception as e:
                 print_debug(str(e), sys.exc_info())
                 if "STATUS_OBJECT_NAME_NOT_FOUND" in str(e):
@@ -321,6 +329,7 @@ class smblib:
         try:
             with open(local_path, "rb") as file_obj:
                 self.conn.putFile(self.share, remote_path, file_obj.read)
+            self._track("FILE", "upload", f"{self.share}\\{remote_path}", f"from {local_path}")
         except Exception as e:
             print_debug(str(e), sys.exc_info())
             print_bad(f"Failed to upload file {local_path} to {remote_path}: {e}")

@@ -533,6 +533,12 @@ def main():
             elif args.command == "exit" or args.command == "logoff":
                 if _keepalive_timer:
                     _keepalive_timer.cancel()
+                # Print and save change audit trail
+                if slingerClient.change_tracker and slingerClient.change_tracker.changes:
+                    print_info("Session changes:")
+                    print_log(slingerClient.change_tracker.summary())
+                    path = slingerClient.change_tracker.save()
+                    print_info(f"Change log saved to {path}")
                 slingerClient.exit()
                 graceful_exit = True
                 break

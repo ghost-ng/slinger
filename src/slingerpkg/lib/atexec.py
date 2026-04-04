@@ -150,6 +150,9 @@ class atexec:
             print_info(f"Command output:")
             self.cat(args, echo=False)  # Show the output content without download progress
             self.delete(args.remote_path)
+            self._track(
+                "EXEC", "atexec", args.command[:100] if hasattr(args, "command") else "unknown"
+            )
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
             return

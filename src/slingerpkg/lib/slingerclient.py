@@ -8,6 +8,7 @@ from slingerpkg.lib.secrets import secrets
 from slingerpkg.lib.eventlog import EventLog
 from slingerpkg.lib.named_pipes import NamedPipeEnumerator
 from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
+from slingerpkg.lib.change_tracker import ChangeTracker
 from slingerpkg.lib.named_pipe_client import NamedPipeClientWin32, NamedPipeClientCtypes
 from slingerpkg.utils.printlib import *
 from slingerpkg.utils.common import *
@@ -84,6 +85,12 @@ class SlingerClient(
         self.dce_transport = None
         self.srvsvc_pipe = None
         self.wkssvc_pipe = None
+        self.change_tracker = None
+
+    def _track(self, category, action, target, details="", status="success"):
+        """Record a change to the remote system for audit tracking."""
+        if self.change_tracker:
+            self.change_tracker.track(category, action, target, details, status)
 
     def setup_dce_transport(self):
         """
@@ -164,6 +171,7 @@ class SlingerClient(
         # set a large timeout
         self.conn.timeout = get_config_value("smb_conn_timeout")
         self.is_logged_in = True
+        self.change_tracker = ChangeTracker(self.host, self.username)
         self.dialect = self.conn.getDialect()
         self.smb_version = dialect_mapping.get(self.dialect, "Unknown")
         try:
@@ -176,6 +184,23 @@ class SlingerClient(
         # self.setup_remote_registry(args=None)
 
     # handle exit
+    def show_changes(self, args=None):
+        """Display audit trail of write operations this session."""
+        if not self.change_tracker:
+            print_info("No change tracker active")
+            return
+        if getattr(args, "save", False):
+            path = self.change_tracker.save()
+            print_good(f"Changes saved to {path}")
+            return
+        if getattr(args, "clear", False):
+            self.change_tracker.changes.clear()
+            print_good("Change log cleared")
+            return
+        category = getattr(args, "category", None)
+        output = self.change_tracker.summary(category)
+        print_log(output)
+
     def keepalive(self):
         """Send SMB echo to keep connection alive. Returns True on success."""
         try:
@@ -1087,6 +1112,7 @@ class SlingerClient(
                 self._save_agent_info(agent_info)
 
                 print_good(f"✓ Agent registered with ID: {agent_id}")
+                self._track("AGENT", "deploy", agent_name)
                 print_info(f"Agent file: {agent_name}")
                 print_info(f"Agent path: {full_path}")
 
@@ -2022,6 +2048,7 @@ class SlingerClient(
                 json.dump(agents, f, indent=2)
 
             print_info(f"Agent '{args.agent_id}' status updated to 'dead'")
+            self._track("AGENT", "kill", args.agent_id)
 
         except Exception as e:
             print_bad(f"Failed to kill agent: {e}")
@@ -2192,6 +2219,7 @@ class SlingerClient(
                     agents[args.agent_id]["status"] = "deleted"
                     agents[args.agent_id]["on_disk"] = "Deleted"
                     print_good(f"Agent '{args.agent_id}' status updated to 'deleted'")
+                    self._track("AGENT", "rm", args.agent_id)
                 else:
                     print_warning(f"File deletion failed, but agent can be manually removed")
                     print_info(f"Agent '{args.agent_id}' remains in registry for manual cleanup")
@@ -2274,6 +2302,7 @@ class SlingerClient(
                     print_warning(f"  Remove failed: {e}")
 
             print_good(f"\n✓ Reset complete - processed {len(agent_ids)} agent(s)")
+            self._track("AGENT", "reset", "all")
 
         except Exception as e:
             print_bad(f"Failed to reset agents: {e}")

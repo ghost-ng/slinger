@@ -107,6 +107,7 @@ class wmiexec(WMIQuery):
                     print(result["output"])
                 if getattr(args, "output", None):
                     print_good(f"Output saved to: {args.output}")
+                self._track("EXEC", "wmiexec_dcom", args.command[:100])
             else:
                 print_bad("WMI execution failed")
                 print_info(f"Error: {result.get('error')}")

@@ -262,6 +262,7 @@ class schtasks:
         response = self.dce_transport._run_task(abs_path)
         if response["ErrorCode"] == 0:
             print_good(f"Task '{abs_path}' run successfully.")
+            self._track("TASK", "run", abs_path)
         else:
             print_bad(f"Error running task '{abs_path}': {response['ErrorCode']}")
 
@@ -331,6 +332,7 @@ class schtasks:
 
         if response["ErrorCode"] == 0:
             print_log(f"Task '{task_name}' created successfully.")
+            self._track("TASK", "create", task_name, f"program={program}")
         else:
             print_log(f"Error creating task '{task_name}': {response['ErrorCode']}")
 
@@ -553,12 +555,14 @@ class schtasks:
             response = self.dce_transport._create_task(task_name, folder_path, task_xml)
             if response["ErrorCode"] == 0:
                 print_good(f"Task '{task_name}' imported successfully")
+                self._track("TASK", "import", task_name, f"from {args.file}")
             else:
                 print_bad(f"Error importing task '{task_name}': {response['ErrorCode']}")
         except Exception as e:
             error_str = str(e)
             if "SCHED_S_TASK_DISABLED" in error_str:
                 print_good(f"Task '{task_name}' imported (disabled state)")
+                self._track("TASK", "import", task_name, "imported disabled")
             elif "already exists" in error_str.lower():
                 print_warning(f"Task '{task_name}' already exists in '{folder_path}'")
             else:
@@ -604,6 +608,7 @@ class schtasks:
                     response = self.dce_transport._delete_task(task_abs_path)
                     if response["ErrorCode"] == 0:
                         print_good(f"Task '{task_abs_path}' deleted successfully.")
+                        self._track("TASK", "delete", task_arg)
                     else:
                         print_bad(f"Error deleting task '{task_abs_path}': {response['ErrorCode']}")
                 except Exception as e:
