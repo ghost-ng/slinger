@@ -1,3 +1,5 @@
+import json
+import os
 import string
 import subprocess
 import random
@@ -388,3 +390,55 @@ def tee_output(filename):
         sys.stdout = tee.stdout
         sys.stderr = tee.stderr
         tee.close()
+
+
+# ---------------------------------------------------------------------------
+# Connection profiles
+# ---------------------------------------------------------------------------
+
+PROFILE_DIR = os.path.expanduser("~/.slinger/profiles")
+
+
+def save_profile(name, host, username, domain, port, auth_method):
+    """Save connection settings as a named profile (no secrets stored)."""
+    os.makedirs(PROFILE_DIR, exist_ok=True)
+    profile = {
+        "host": host,
+        "username": username,
+        "domain": domain,
+        "port": port,
+        "auth_method": auth_method,
+    }
+    path = os.path.join(PROFILE_DIR, f"{name}.json")
+    with open(path, "w") as f:
+        json.dump(profile, f, indent=2)
+    print_good(f"Profile '{name}' saved to {path}")
+
+
+def load_profile(name):
+    """Load a named connection profile. Returns dict or None."""
+    path = os.path.join(PROFILE_DIR, f"{name}.json")
+    if not os.path.exists(path):
+        print_bad(f"Profile '{name}' not found in {PROFILE_DIR}")
+        return None
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def list_profiles():
+    """List all saved connection profiles."""
+    if not os.path.exists(PROFILE_DIR):
+        print_info("No profiles saved")
+        return
+    profiles = sorted(f[:-5] for f in os.listdir(PROFILE_DIR) if f.endswith(".json"))
+    if not profiles:
+        print_info("No profiles saved")
+        return
+    print_info(f"Saved profiles ({len(profiles)}):")
+    for name in profiles:
+        data = load_profile(name)
+        if data:
+            print_log(
+                f"  {name}: {data['username']}@{data['host']}:{data['port']}"
+                f" ({data.get('auth_method', 'password')})"
+            )

@@ -17,6 +17,9 @@ from slingerpkg.utils.common import (
     set_config_value,
     run_local_command,
     show_config,
+    save_profile,
+    load_profile,
+    list_profiles,
 )
 from slingerpkg.utils.cli import (
     print_all_commands,
@@ -31,7 +34,12 @@ from slingerpkg.utils.cli import (
 )
 from slingerpkg.lib.plugin_base import load_plugins
 from slingerpkg.var.config import version
-import shlex, argparse, sys, os, pty, termios
+import shlex
+import argparse
+import sys
+import os
+import pty
+import termios
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.formatted_text import to_formatted_text, ANSI
@@ -110,12 +118,11 @@ def main():
             print(f"NTLM hash: :{hash}")
         sys.exit(0)
 
-    parser.add_argument("--host", required=True, help="Host to connect to")
+    parser.add_argument("--host", help="Host to connect to")
     parser.add_argument(
         "-u",
         "--user",
         "--username",
-        required=True,
         help="Username for authentication",
         dest="username",
     )
@@ -148,11 +155,40 @@ def main():
     parser.add_argument("--gen-ntlm-hash", help="Generate NTLM hash from password", nargs=1)
     parser.add_argument("-v", "--version", action="version", help="Show version information")
 
+    # Connection profiles
+    parser.add_argument("--profile", help="Load saved connection profile by name")
+    parser.add_argument("--save-profile", help="Save connection as named profile after login")
+    parser.add_argument(
+        "--list-profiles",
+        action="store_true",
+        help="List saved connection profiles",
+    )
+
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
     prgm_args = parser.parse_args()
+
+    # Handle --list-profiles before anything else
+    if prgm_args.list_profiles:
+        list_profiles()
+        sys.exit(0)
+
+    # Load connection profile if specified
+    if prgm_args.profile:
+        profile = load_profile(prgm_args.profile)
+        if not profile:
+            sys.exit(1)
+        prgm_args.host = prgm_args.host or profile.get("host")
+        prgm_args.username = prgm_args.username or profile.get("username")
+        prgm_args.domain = prgm_args.domain or profile.get("domain", "")
+        prgm_args.port = prgm_args.port or profile.get("port", 445)
+
+    # Validate required args (--host and --user required unless --profile provides them)
+    if not prgm_args.host or not prgm_args.username:
+        parser.error("--host and --user are required (or use --profile)")
+
     password = None
     if prgm_args.debug:
         set_config_value("debug", True)
@@ -214,6 +250,19 @@ def main():
         slingerClient.login()
         if slingerClient.is_logged_in:
             print_good(f"Successfully logged in to {prgm_args.host}:{prgm_args.port}")
+            # Save profile after successful login if requested
+            if prgm_args.save_profile:
+                auth_method = (
+                    "kerberos" if prgm_args.kerberos else ("ntlm" if prgm_args.ntlm else "password")
+                )
+                save_profile(
+                    prgm_args.save_profile,
+                    prgm_args.host,
+                    prgm_args.username,
+                    prgm_args.domain,
+                    prgm_args.port,
+                    auth_method,
+                )
         else:
             print_bad(f"Failed to log in to {prgm_args.host}:{prgm_args.port}")
             print_debug("", sys.exc_info())
