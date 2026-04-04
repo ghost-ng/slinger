@@ -1412,6 +1412,36 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 ---
 
+## `taskimport`
+
+**Description:** Import a scheduled task from a local XML definition file
+
+**Help:**
+```
+taskimport [-h] -f FILE [-n NAME] [-d FOLDER] [--test]
+                          [--force]
+Import a scheduled task from a local XML definition file
+```
+
+**Example Usage:**
+```
+Example Usage: taskimport -f task.xml --test | taskimport -f task.xml -n MyTask -d \\MyFolder
+```
+
+### Arguments
+
+- **`file`**: Path to local XML task definition file
+  - Required: Yes
+
+- **`name`**: Task name (extracted from XML URI if omitted)
+  - Required: No
+
+- **`folder`**: Task Scheduler folder (default: root)
+  - Default: ``
+  - Required: No
+
+---
+
 ## `taskrun`
 
 **Description:** Run a specified task on the remote server
@@ -2401,7 +2431,7 @@ Example Usage: network
 
 **Help:**
 ```
-atexec [-h] -c COMMAND --sp SP [--sn SN] [--tn TN] [--ta TA]
+atexec [-h] -c COMMAND [--sp SP] [--sn SN] [--tn TN] [--ta TA]
                       [--td TD] [--tf TF] [--sh SH] [-i] [-w WAIT]
 Execute a command on the remote server
 ```
@@ -2419,7 +2449,7 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 
 - **`sp`**: Specify the folder to save the output file
   - Default: `\Users\Public\Downloads\`
-  - Required: Yes
+  - Required: No
 
 - **`sn`**: Specify the name of the output file.  Default is <random 8-10 chars>.txt
   - Required: No
@@ -2940,9 +2970,13 @@ Upload and execute polymorphic agent on target system via SMB
 **Example Usage:**
 ```
 Examples:
-  agent deploy ./agent.exe --path temp\ --name myagent --start                    # Deploy and start with wmiexec
+  agent deploy ./agent.exe --path temp\ --name myagent                            # Upload only (no start)
+  agent deploy ./agent.exe --path temp\ --name myagent --start                    # Deploy and start with wmiexec (default)
   agent deploy ./agent.exe --path temp\ --name myagent --start --method atexec    # Deploy and start with Task Scheduler
-  agent deploy ./agent.exe --path temp\ --name myagent --start --method atexec --ta "SYSTEM"
+  agent deploy ./agent.exe --path temp\ --name myagent --start --method atexec --ta "SYSTEM" --td "Update Service"
+
+Note: --method, --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 
 ```
 
@@ -2951,7 +2985,7 @@ Examples:
 - **`agent_path`**: Path to the agent executable to deploy
 - **`path`**: Target path relative to current share (e.g., temp\, Windows\Temp\)
 - **`name`**: Name for deployed agent on target (e.g., updater, winlogon)
-- **`method`**: Execution method to start agent (default: wmiexec)
+- **`method`**: Execution method to start agent (default: wmiexec). Only used with --start
   - Choices: wmiexec, atexec
   - Default: `wmiexec`
 - **`pipe`**: Specify pipe name for the agent (must match build-time pipe name)
@@ -3128,6 +3162,9 @@ Examples:
   agent start slinger_abc123 --method atexec        # Start using Task Scheduler
   agent start slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
 
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
+
 ```
 
 ##### Arguments
@@ -3173,6 +3210,9 @@ Examples:
   agent kill slinger_abc123 --method atexec        # Kill using Task Scheduler
   agent kill slinger_abc123 --method atexec -w 3   # Wait 3 seconds for task completion
   agent kill slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 
 ```
 
@@ -3239,6 +3279,9 @@ Examples:
   agent reset                                      # Reset using wmiexec (default)
   agent reset --method atexec                      # Reset using Task Scheduler
   agent reset --method atexec -w 3                 # Wait 3 seconds for task completion
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
 
 ```
 

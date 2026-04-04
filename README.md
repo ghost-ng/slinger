@@ -47,11 +47,12 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.12.3
+    /#(-'             v1.23.0
     `-'                    a ghost-ng special
 
-usage: slinger.py [-h] --host HOST -u USERNAME [--pass PASSWORD | --ntlm NTLM | --kerberos]
+usage: slinger.py [-h] [--host HOST] [-u USERNAME] [--pass PASSWORD | --ntlm NTLM | --kerberos]
                   [-d DOMAIN] [-p PORT] [--timeout TIMEOUT] [--nojoy] [--debug]
+                  [--profile NAME] [--save-profile NAME] [--list-profiles]
 
 impacket swiss army knife (sort of)
 
@@ -74,6 +75,11 @@ authentication (mutually exclusive):
                         Password for authentication
   --ntlm NTLM          NTLM hash for authentication
   --kerberos            Use Kerberos for authentication
+
+connection profiles:
+  --profile NAME        Load saved connection profile by name
+  --save-profile NAME   Save connection as named profile after login
+  --list-profiles       List saved connection profiles
 ```
 
 Slinger offers multiple authentication methods. All methods are built on impacket functions and should therefore function the same. *Warning:* Kerberos login has not been fully tested.
@@ -85,7 +91,7 @@ python3 slinger.py --host 192.168.177.130 --user admin --pass admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.12.3
+    /#(-'             v1.23.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -109,7 +115,7 @@ python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :5E119EC7919CC3B
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.12.3
+    /#(-'             v1.23.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...
@@ -126,10 +132,27 @@ Start Time: 2024-01-15 23:42:15.410337
 [*] Remote Registry state restored: RUNNING -> STOPPED
 ```
 
+### Login with profiles
+
+```bash
+# Save a profile after successful login
+python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :hash --save-profile lab
+
+# Connect using saved profile (credentials included)
+python3 slinger.py --profile lab
+
+# List saved profiles
+python3 slinger.py --list-profiles
+[*] Saved profiles (1):
+  lab: Administrator@10.0.0.28:445 (ntlm, hash saved)
+```
+
+Profiles are stored in `~/.slinger/profiles/` with `chmod 600` permissions. Credentials (NTLM hash, password) are saved in the profile so you can reconnect with just `--profile <name>`. Command-line auth flags override stored credentials.
+
 ### Available Commands
 
 ```bash
-Available commands (110):
+Available commands (111):
 ------------------------------------------
 !                     enumtransport         regcheck              showservice
 #shell                env                   regcreate             showtask
@@ -148,17 +171,18 @@ downloads             ipconfig              servertime            taskdel
 enableservice         logoff                serviceadd            taskdelete
 enablesvc             logout                servicecreate         taskenum
 enumdisk              ls                    servicedel            taskexec
-enuminfo              mget                  servicedelete         tasklist
-enuminterfaces        mkdir                 servicedisable        taskrm
-enumlogons            network               serviceenable         taskrun
-enumpipes             plugins               servicerun            tasksenum
-enumservices          portfwd               services              taskshow
-enumshares            procs                 servicesenum          tasksshow
-enumsys               ps                    serviceshow           time
-enumtasks             put                   servicestart          upload
-enumtime              pwd                   servicestop           use
-                      quit                  set                   who
-                      reconnect             shares                wmiexec
+enuminfo              mget                  servicedelete         taskimport
+enuminterfaces        mkdir                 servicedisable        tasklist
+enumlogons            network               serviceenable         taskrm
+enumpipes             plugins               servicerun            taskrun
+enumservices          portfwd               services              tasksenum
+enumshares            procs                 servicesenum          taskshow
+enumsys               ps                    serviceshow           tasksshow
+enumtasks             put                   servicestart          time
+enumtime              pwd                   servicestop           upload
+                      quit                  set                   use
+                      reconnect             shares                who
+                      regcheck              showservice           wmiexec
 
 Type help <command> or <command> -h for more information on a specific command
 Type help --verbose for detailed categorized help
