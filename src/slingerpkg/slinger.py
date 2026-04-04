@@ -134,6 +134,11 @@ def main():
         if not os.path.exists(os.path.expanduser(folder)):
             os.makedirs(os.path.expanduser(folder))
 
+    # Handle non-interactive commands before termios (no TTY needed)
+    if "--list-profiles" in sys.argv:
+        list_profiles()
+        sys.exit(0)
+
     original_settings = termios.tcgetattr(0)
 
     parser = argparse.ArgumentParser(
