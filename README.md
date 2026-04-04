@@ -152,7 +152,7 @@ Profiles are stored in `~/.slinger/profiles/` with `chmod 600` permissions. Cred
 ### Available Commands
 
 ```bash
-Available commands (111):
+Available commands (112):
 ------------------------------------------
 !                     enumtransport         regcheck              showservice
 #shell                env                   regcreate             showtask
@@ -160,26 +160,29 @@ agent                 eventlog              regdel                svcadd
 atexec                exit                  regquery              svccreate
 cat                   find                  regset                svcdelete
 cd                    fwrules               regstart              svcdisable
-clear                 get                   regstop               svcenable
-config                hashdump              reguse                svcenum
-debug-availcounters   help                  reload                svcshow
-debug-counter         history               rm                    svcstart
-disableservice        hostname              rmdir                 svcstop
-disablesvc            ifconfig              run                   taskadd
-download              info                  secretsdump           taskcreate
-downloads             ipconfig              servertime            taskdel
-enableservice         logoff                serviceadd            taskdelete
-enablesvc             logout                servicecreate         taskenum
-enumdisk              ls                    servicedel            taskexec
-enuminfo              mget                  servicedelete         taskimport
-enuminterfaces        mkdir                 servicedisable        tasklist
-enumlogons            network               serviceenable         taskrm
-enumpipes             plugins               servicerun            taskrun
-enumservices          portfwd               services              tasksenum
-enumshares            procs                 servicesenum          taskshow
-enumsys               ps                    serviceshow           tasksshow
-enumtasks             put                   servicestart          time
-enumtime              pwd                   servicestop           upload
+changes               get                   regstop               svcenable
+clear                 hashdump              reguse                svcenum
+config                help                  reload                svcshow
+debug-availcounters   history               rm                    svcstart
+debug-counter         hostname              rmdir                 svcstop
+disableservice        ifconfig              run                   taskadd
+disablesvc            info                  secretsdump           taskcreate
+download              ipconfig              servertime            taskdel
+downloads             logoff                serviceadd            taskdelete
+enableservice         logout                servicecreate         taskenum
+enablesvc             ls                    servicedel            taskexec
+enumdisk              mget                  servicedelete         taskimport
+enuminfo              mkdir                 servicedisable        tasklist
+enuminterfaces        network               serviceenable         taskrm
+enumlogons            plugins               servicerun            taskrun
+enumpipes             portfwd               services              tasksenum
+enumservices          procs                 servicesenum          taskshow
+enumshares            ps                    serviceshow           tasksshow
+enumsys               put                   servicestart          time
+enumtasks             pwd                   servicestop           upload
+enumtime              quit                  set                   use
+                      reconnect             shares                who
+                                            wmiexec
                       quit                  set                   use
                       reconnect             shares                who
                       regcheck              showservice           wmiexec
@@ -217,6 +220,44 @@ options:
 Example Usage: run -c "cmd1;cmd2;cmd3" | run -f script.txt
 ```
 
+
+## Change Tracking
+
+Slinger automatically tracks all write operations performed on the remote target. Every file upload, service change, task creation, registry edit, agent deployment, and command execution is logged with timestamp, category, and details.
+
+```bash
+# View all changes made this session
+[sl] (10.0.0.28):\C$> changes
++----------+----------+---------+---------------------------+-----------------+---------+
+| Time     | Category | Action  | Target                    | Details         | Status  |
++==========+==========+=========+===========================+=================+=========+
+| 14:32:01 | FILE     | upload  | C$\Windows\test.exe       | from ./test.exe | success |
+| 14:32:15 | TASK     | create  | SlingerTask               | program=cmd.exe | success |
+| 14:33:02 | EXEC     | atexec  | whoami                    |                 | success |
++----------+----------+---------+---------------------------+-----------------+---------+
+
+Total: 3 change(s) (1 file, 1 task, 1 exec)
+
+# Filter by category
+[sl] (10.0.0.28):\C$> changes --category FILE
+
+# Save to JSON file
+[sl] (10.0.0.28):\C$> changes --save
+[+] Changes saved to ~/.slinger/logs/changes_10.0.0.28_20260404_143500.json
+
+# Clear the log
+[sl] (10.0.0.28):\C$> changes --clear
+```
+
+On exit, if any changes were made, a summary is automatically printed and saved to `~/.slinger/logs/`.
+
+### Adding Change Tracking to New Features
+
+Any new command that modifies the remote target needs one line after its success path:
+```python
+self._track("CATEGORY", "action", target, "optional details")
+```
+Categories: `FILE`, `SERVICE`, `TASK`, `REGISTRY`, `AGENT`, `EXEC` (or any custom string).
 
 ## Plugins
 

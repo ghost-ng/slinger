@@ -2513,6 +2513,31 @@ Example Usage: plugins
 
 ---
 
+## `changes`
+
+**Description:** Display audit trail of all write operations this session
+
+**Help:**
+```
+changes [-h]
+                       [--category {FILE,SERVICE,TASK,REGISTRY,AGENT,EXEC}]
+                       [--save] [--clear]
+Display audit trail of all write operations this session
+```
+
+**Example Usage:**
+```
+Example Usage: changes | changes --category FILE | changes --save
+```
+
+### Arguments
+
+- **`category`**: Filter by change category
+  - Choices: FILE, SERVICE, TASK, REGISTRY, AGENT, EXEC
+  - Required: No
+
+---
+
 ## `downloads`
 
 **Description:** Manage resume download states and cleanup
