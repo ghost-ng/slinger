@@ -399,8 +399,10 @@ def tee_output(filename):
 PROFILE_DIR = os.path.expanduser("~/.slinger/profiles")
 
 
-def save_profile(name, host, username, domain, port, auth_method):
-    """Save connection settings as a named profile (no secrets stored)."""
+def save_profile(
+    name, host, username, domain, port, auth_method, ntlm=None, password=None, kerberos=False
+):
+    """Save connection settings as a named profile including auth credentials."""
     os.makedirs(PROFILE_DIR, exist_ok=True)
     profile = {
         "host": host,
@@ -409,9 +411,17 @@ def save_profile(name, host, username, domain, port, auth_method):
         "port": port,
         "auth_method": auth_method,
     }
+    if auth_method == "ntlm" and ntlm:
+        profile["ntlm"] = ntlm
+    elif auth_method == "password" and password:
+        profile["password"] = password
+    elif auth_method == "kerberos":
+        profile["kerberos"] = True
+
     path = os.path.join(PROFILE_DIR, f"{name}.json")
     with open(path, "w") as f:
         json.dump(profile, f, indent=2)
+    os.chmod(path, 0o600)  # restrict to owner only
     print_good(f"Profile '{name}' saved to {path}")
 
 
@@ -438,7 +448,15 @@ def list_profiles():
     for name in profiles:
         data = load_profile(name)
         if data:
+            auth = data.get("auth_method", "password")
+            has_creds = ""
+            if data.get("ntlm"):
+                has_creds = ", hash saved"
+            elif data.get("password"):
+                has_creds = ", password saved"
+            elif data.get("kerberos"):
+                has_creds = ", kerberos"
             print_log(
                 f"  {name}: {data['username']}@{data['host']}:{data['port']}"
-                f" ({data.get('auth_method', 'password')})"
+                f" ({auth}{has_creds})"
             )

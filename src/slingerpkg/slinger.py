@@ -222,6 +222,14 @@ def main():
         prgm_args.username = prgm_args.username or profile.get("username")
         prgm_args.domain = prgm_args.domain or profile.get("domain", "")
         prgm_args.port = prgm_args.port or profile.get("port", 445)
+        # Load auth credentials from profile if not provided on command line
+        if not prgm_args.ntlm and not prgm_args.password and not prgm_args.kerberos:
+            if profile.get("ntlm"):
+                prgm_args.ntlm = profile["ntlm"]
+            elif profile.get("password"):
+                prgm_args.password = profile["password"]
+            elif profile.get("kerberos"):
+                prgm_args.kerberos = True
 
     # Validate required args (--host and --user required unless --profile provides them)
     if not prgm_args.host or not prgm_args.username:
@@ -300,6 +308,9 @@ def main():
                     prgm_args.domain,
                     prgm_args.port,
                     auth_method,
+                    ntlm=prgm_args.ntlm,
+                    password=password,
+                    kerberos=prgm_args.kerberos,
                 )
             # Start connection keepalive timer
             _start_keepalive(slingerClient)
