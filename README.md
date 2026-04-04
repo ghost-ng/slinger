@@ -47,7 +47,7 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.23.0
+    /#(-'             v1.13.0
     `-'                    a ghost-ng special
 
 usage: slinger.py [-h] [--host HOST] [-u USERNAME] [--pass PASSWORD | --ntlm NTLM | --kerberos]
@@ -91,7 +91,7 @@ python3 slinger.py --host 192.168.177.130 --user admin --pass admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.23.0
+    /#(-'             v1.13.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -115,7 +115,7 @@ python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :5E119EC7919CC3B
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.23.0
+    /#(-'             v1.13.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...

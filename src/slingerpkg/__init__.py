@@ -1,2 +1,2 @@
-__version__ = "1.23.0"
+__version__ = "1.13.0"
 __package__ = "slinger"
