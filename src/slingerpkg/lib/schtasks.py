@@ -331,41 +331,111 @@ class schtasks:
         else:
             print_log(f"Error creating task '{task_name}': {response['ErrorCode']}")
 
-    def task_import(self, args):
-        """Import a scheduled task from a local XML definition file."""
+    def _parse_task_xml(self, file_path):
+        """Parse a task XML file and return (root, task_xml_str) or (None, None)."""
         import xml.etree.ElementTree as ET
 
-        file_path = os.path.expanduser(args.file)
+        file_path = os.path.expanduser(file_path)
         if not os.path.exists(file_path):
             print_bad(f"File not found: {file_path}")
-            return
+            return None, None
 
         with open(file_path, "r") as f:
             task_xml = f.read()
 
-        # Basic XML validation
         try:
             root = ET.fromstring(task_xml)
         except ET.ParseError as e:
             print_bad(f"Invalid XML: {e}")
-            return
+            return None, None
 
-        # Extract name/folder from args or URI element in XML
-        task_name = getattr(args, "name", None)
-        folder_path = getattr(args, "folder", "") or ""
+        return root, task_xml
 
+    def _extract_task_info(self, root, file_path, task_name=None, folder_path=""):
+        """Extract task metadata from XML. Returns dict with all parsed fields."""
+        ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
+
+        def _find(xpath):
+            """Find element with or without namespace."""
+            elem = root.find(f".//t:{xpath}", ns)
+            if elem is None:
+                elem = root.find(f".//{xpath}")
+            return elem.text if elem is not None else None
+
+        # Extract name/folder from URI if not provided
         if not task_name:
-            ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
-            uri = root.find(".//t:RegistrationInfo/t:URI", ns)
-            if uri is None:
-                uri = root.find(".//RegistrationInfo/URI")
-            if uri is not None and uri.text:
-                parts = uri.text.rsplit("\\", 1)
+            uri_text = _find("RegistrationInfo/URI")
+            if uri_text:
+                parts = uri_text.rsplit("\\", 1)
                 task_name = parts[-1]
                 if len(parts) > 1 and not folder_path:
                     folder_path = parts[0]
             else:
                 task_name = os.path.splitext(os.path.basename(file_path))[0]
+
+        return {
+            "task_name": task_name,
+            "folder_path": folder_path,
+            "uri": _find("RegistrationInfo/URI"),
+            "author": _find("RegistrationInfo/Author"),
+            "description": _find("RegistrationInfo/Description"),
+            "date": _find("RegistrationInfo/Date"),
+            "command": _find("Actions/Exec/Command"),
+            "arguments": _find("Actions/Exec/Arguments"),
+            "working_dir": _find("Actions/Exec/WorkingDirectory"),
+            "user_id": _find("Principals/Principal/UserId"),
+            "run_level": _find("Principals/Principal/RunLevel"),
+            "start_boundary": _find("Triggers/CalendarTrigger/StartBoundary")
+            or _find("Triggers/TimeTrigger/StartBoundary"),
+            "enabled": _find("Settings/Enabled"),
+            "hidden": _find("Settings/Hidden"),
+            "execution_time_limit": _find("Settings/ExecutionTimeLimit"),
+        }
+
+    def task_import(self, args):
+        """Import a scheduled task from a local XML definition file."""
+        root, task_xml = self._parse_task_xml(args.file)
+        if root is None:
+            return
+
+        task_name = getattr(args, "name", None)
+        folder_path = getattr(args, "folder", "") or ""
+        info = self._extract_task_info(
+            root, args.file, task_name=task_name, folder_path=folder_path
+        )
+        task_name = info["task_name"]
+        folder_path = info["folder_path"]
+
+        # --test flag: parse and display without deploying
+        if getattr(args, "test", False):
+            print_info(f"Task XML Analysis: {os.path.expanduser(args.file)}")
+            print_log(f"  Task Name:       {task_name}")
+            print_log(f"  Folder:          {folder_path or chr(92)}")
+            if info["uri"]:
+                print_log(f"  URI:             {info['uri']}")
+            if info["author"]:
+                print_log(f"  Author:          {info['author']}")
+            if info["description"]:
+                print_log(f"  Description:     {info['description']}")
+            if info["date"]:
+                print_log(f"  Date:            {info['date']}")
+            print_log(f"  Command:         {info['command'] or 'N/A'}")
+            if info["arguments"]:
+                print_log(f"  Arguments:       {info['arguments']}")
+            if info["working_dir"]:
+                print_log(f"  Working Dir:     {info['working_dir']}")
+            if info["user_id"]:
+                print_log(f"  User ID:         {info['user_id']}")
+            if info["run_level"]:
+                print_log(f"  Run Level:       {info['run_level']}")
+            if info["start_boundary"]:
+                print_log(f"  Start Boundary:  {info['start_boundary']}")
+            print_log(f"  Enabled:         {info['enabled'] or 'true'}")
+            print_log(f"  Hidden:          {info['hidden'] or 'false'}")
+            if info["execution_time_limit"]:
+                print_log(f"  Time Limit:      {info['execution_time_limit']}")
+            print_good("XML is valid and ready for import")
+            return
 
         print_info(f"Importing task '{task_name}' to folder '{folder_path or chr(92)}'")
         self.setup_dce_transport()

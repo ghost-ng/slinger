@@ -1016,7 +1016,7 @@ def setup_cli_parser(slingerClient):
         "taskimport",
         help="Import a scheduled task from XML file",
         description="Import a scheduled task from a local XML definition file",
-        epilog="Example Usage: taskimport -f task.xml -n MyTask -d \\\\MyFolder",
+        epilog="Example Usage: taskimport -f task.xml --test | taskimport -f task.xml -n MyTask -d \\\\MyFolder",
     )
     parser_taskimport.add_argument(
         "-f", "--file", required=True, help="Path to local XML task definition file"
@@ -1029,6 +1029,11 @@ def setup_cli_parser(slingerClient):
         "--folder",
         default="",
         help="Task Scheduler folder (default: root)",
+    )
+    parser_taskimport.add_argument(
+        "--test",
+        action="store_true",
+        help="Parse and display XML info without importing",
     )
     parser_taskimport.set_defaults(func=slingerClient.task_import)
 
