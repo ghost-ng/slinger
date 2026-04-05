@@ -65,7 +65,7 @@ class atexec:
             return
         # check if the share exists
         for share_info in share_info_dict:
-            if share_info["name"] == (args.sh).upper():
+            if share_info["name"].upper() == (args.sh).upper():
                 share_exists = True
                 # Ensure proper path construction with backslashes
                 share_root = share_info["path"].rstrip("\\")  # Remove trailing backslash
@@ -140,16 +140,26 @@ class atexec:
             args.remote_path = f"{relative_path}\\{save_file_name}"
             # Ensure we're connected to the share for file operations
             print_debug(f"Current share: {getattr(self, 'share', 'None')}, needed: {args.sh}")
-            if not hasattr(self, "share") or self.share != args.sh:
+            if not hasattr(self, "share") or (self.share or "").upper() != (args.sh or "").upper():
                 print_debug(f"Connecting to share: {args.sh}")
                 self.connect_share(args)
             else:
                 print_debug(f"Already on correct share: {self.share}")
             print_debug(f"Retrieving output from: {args.remote_path}")
             sleep(args.wait)
-            print_info(f"Command output:")
+            print_info("Command output:")
             self.cat(args, echo=False)  # Show the output content without download progress
-            self.delete(args.remote_path)
+            # Retry delete on sharing violation (file may still be locked)
+            for attempt in range(3):
+                try:
+                    self.delete(args.remote_path)
+                    break
+                except Exception as del_err:
+                    if "SHARING_VIOLATION" in str(del_err) and attempt < 2:
+                        sleep(1)
+                    else:
+                        print_warning(f"Failed to delete output file: {del_err}")
+                        break
             self._track(
                 "EXEC", "atexec", args.command[:100] if hasattr(args, "command") else "unknown"
             )
