@@ -44,6 +44,7 @@ class smblib:
             self.is_connected_to_share = True
             self.relative_path = ""
             self.update_current_path()
+            self._sync_wmi_dir()
             self.dce_transport.share = share
         except Exception as e:
             print_debug(str(e), sys.exc_info())
@@ -280,6 +281,7 @@ class smblib:
         if path == "/" or path == "\\" or path == self.share:
             self.relative_path = ""
             self.update_current_path()
+            self._sync_wmi_dir()
             self.print_current_path()
             return
 
@@ -294,9 +296,26 @@ class smblib:
         if self.is_valid_directory(resolved_path):
             self.relative_path = resolved_path
             self.update_current_path()
+            self._sync_wmi_dir()
             self.print_current_path()
         else:
             print_warning(f"Directory does not exist or access denied: {resolved_path}")
+
+    def _sync_wmi_dir(self):
+        """Sync WMI working directory with current SMB path."""
+        if not hasattr(self, "wmi_working_dir") or not self.share:
+            return
+        # Map admin shares to local paths
+        share_upper = self.share.upper()
+        if share_upper.endswith("$") and len(share_upper) == 2:
+            # Drive share like C$, D$
+            drive = share_upper[0] + ":\\"
+        elif share_upper == "ADMIN$":
+            drive = "C:\\Windows"
+        else:
+            return  # Can't map non-admin shares
+        self.wmi_working_dir = ntpath.normpath(ntpath.join(drive, self.relative_path))
+        print_debug(f"WMI working dir synced to: {self.wmi_working_dir}")
 
     # handle file uploads
     def upload_handler(self, args):

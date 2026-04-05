@@ -430,6 +430,61 @@ class DCETransport:
                 print_bad("An error occurred: " + str(e))
             return False
 
+    def _modify_service(
+        self,
+        service_name,
+        binary_path=None,
+        display_name=None,
+        start_type=None,
+        account=None,
+        password=None,
+    ):
+        """Modify service configuration via hRChangeServiceConfigW."""
+        if not self.is_connected:
+            raise Exception("Not connected to remote host")
+
+        start_type_map = {
+            "auto": scmr.SERVICE_AUTO_START,
+            "demand": scmr.SERVICE_DEMAND_START,
+            "disabled": scmr.SERVICE_DISABLED,
+            "system": scmr.SERVICE_SYSTEM_START,
+            "boot": scmr.SERVICE_BOOT_START,
+        }
+
+        self.bind_override = True
+        self._bind(scmr.MSRPC_UUID_SCMR)
+        ans = scmr.hROpenSCManagerW(self.dce)
+        self.scManagerHandle = ans["lpScHandle"]
+        ans = scmr.hROpenServiceW(self.dce, self.scManagerHandle, service_name + "\x00")
+        self.serviceHandle = ans["lpServiceHandle"]
+
+        # Build kwargs — only pass non-None values
+        kwargs = {}
+        if start_type is not None:
+            kwargs["dwStartType"] = start_type_map.get(start_type.lower(), scmr.SERVICE_NO_CHANGE)
+        if binary_path is not None:
+            kwargs["lpBinaryPathName"] = binary_path + "\x00"
+        if display_name is not None:
+            kwargs["lpDisplayName"] = display_name + "\x00"
+        if account is not None:
+            kwargs["lpServiceStartName"] = account + "\x00"
+        if password is not None:
+            kwargs["lpPassword"] = password + "\x00"
+            kwargs["dwPwSize"] = len(password) * 2 + 2
+
+        try:
+            response = scmr.hRChangeServiceConfigW(self.dce, self.serviceHandle, **kwargs)
+            print_debug(f"Modify Service Response:\n{response}")
+            self._close_scm_handle(self.serviceHandle)
+            return response["ErrorCode"] == 0
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            if "ERROR_ACCESS_DENIED" in str(e):
+                print_bad("Unable to modify service configuration, access denied")
+            else:
+                print_bad(f"An error occurred: {e}")
+            return False
+
     def _enable_service(self, service_name):
         if not self.is_connected:
             raise Exception("Not connected to remote host")

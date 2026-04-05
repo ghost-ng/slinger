@@ -22,6 +22,7 @@ class wmiexec(WMIQuery):
 
     def __init__(self):
         super().__init__()  # Initialize WMIQuery
+        self.wmi_working_dir = "C:\\"
         print_debug("WMIExec Module Loaded!")
 
     def wmiexec_handler(self, args):
@@ -89,12 +90,14 @@ class wmiexec(WMIQuery):
 
         try:
             # Execute command via WMI DCOM with optimized parameters
+            # Use persisted WMI dir unless --working-dir explicitly set
+            effective_dir = getattr(args, "working_dir", None) or self.wmi_working_dir
             result = self.execute_wmi_command(
                 command=args.command,
                 capture_output=not getattr(args, "no_output", False),
                 timeout=getattr(args, "timeout", 30),
                 output_file=getattr(args, "output", None),
-                working_dir=getattr(args, "working_dir", "C:\\"),
+                working_dir=effective_dir,
                 sleep_time=getattr(args, "sleep_time", 1.0),
                 save_name=getattr(args, "save_name", None),
                 raw_command=getattr(args, "raw_command", False),
@@ -1248,9 +1251,11 @@ class wmiexec(WMIQuery):
         else:
             prompt_prefix = "WMI"
 
-        # Initialize current working directory
-        current_working_dir = getattr(args, "working_dir", "C:\\")
-        print_info(f"Starting directory: {current_working_dir}")
+        # Initialize current working directory from persisted state or args
+        if getattr(args, "working_dir", None) and args.working_dir != "C:\\":
+            # Explicit --working-dir overrides persisted state
+            self.wmi_working_dir = args.working_dir
+        print_info(f"Starting directory: {self.wmi_working_dir}")
 
         print()
         session_output = []
@@ -1259,7 +1264,7 @@ class wmiexec(WMIQuery):
             while True:
                 try:
                     # Display prompt with current directory
-                    prompt = f"{prompt_prefix} {current_working_dir}> "
+                    prompt = f"{prompt_prefix} {self.wmi_working_dir}> "
                     command = input(prompt).strip()
 
                     if command.lower() in ["exit", "quit"]:
@@ -1270,12 +1275,12 @@ class wmiexec(WMIQuery):
 
                     # Handle cd command locally
                     if command.lower().startswith("cd ") or command.lower() == "cd":
-                        new_dir = self._handle_cd_command(command, current_working_dir)
+                        new_dir = self._handle_cd_command(command, self.wmi_working_dir)
                         if new_dir:
-                            current_working_dir = new_dir
-                            print_info(f"Changed directory to: {current_working_dir}")
+                            self.wmi_working_dir = new_dir
+                            print_info(f"Changed directory to: {self.wmi_working_dir}")
                             session_output.append(f"{prompt}{command}")
-                            session_output.append(f"Directory changed to: {current_working_dir}")
+                            session_output.append(f"Directory changed to: {self.wmi_working_dir}")
                         else:
                             print_warning("Failed to change directory")
                             session_output.append(f"{prompt}{command}")
@@ -1284,9 +1289,9 @@ class wmiexec(WMIQuery):
 
                     # Handle pwd command
                     if command.lower() == "pwd":
-                        print(current_working_dir)
+                        print(self.wmi_working_dir)
                         session_output.append(f"{prompt}{command}")
-                        session_output.append(current_working_dir)
+                        session_output.append(self.wmi_working_dir)
                         continue
 
                     # Execute command via DCOM WMI using current directory
@@ -1295,7 +1300,7 @@ class wmiexec(WMIQuery):
                         capture_output=not args.no_output,
                         timeout=args.timeout,
                         output_file=None,  # Don't save individual commands to file
-                        working_dir=current_working_dir,  # Use current working directory
+                        working_dir=self.wmi_working_dir,  # Use persisted working directory
                         sleep_time=getattr(args, "sleep_time", 1.0),
                         save_name=getattr(args, "save_name", None),
                         raw_command=getattr(args, "raw_command", False),

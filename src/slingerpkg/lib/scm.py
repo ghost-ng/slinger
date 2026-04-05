@@ -58,6 +58,67 @@ class scm:
             service_arg = args.serviceid if args.serviceid else args.service_name
             self.disable_service(service_arg)
 
+    def modify_service_handler(self, args):
+        if not self.services_list and args.serviceid:
+            print_warning("No services have been enumerated. Run enumservices first.")
+            return
+        service_arg = args.serviceid if args.serviceid else args.service_name
+
+        # Collect modification parameters
+        mods = {}
+        if args.binary_path:
+            mods["binary_path"] = args.binary_path
+        if args.display_name:
+            mods["display_name"] = args.display_name
+        if args.start_type:
+            mods["start_type"] = args.start_type
+        if args.account:
+            mods["account"] = args.account
+        if args.password:
+            mods["password"] = args.password
+
+        if not mods:
+            print_warning(
+                "No modifications specified. Use --binary-path, --display-name, --start-type, --account, or --password"
+            )
+            return
+
+        self.modify_service(service_arg, **mods)
+
+    def modify_service(self, service_arg, **kwargs):
+        self.setup_dce_transport()
+        self.dce_transport._connect("svcctl")
+
+        service_name = None
+        if type(service_arg) is int:
+            print_info("Looking up service ID...")
+            count = 1
+            for service in self.services_list:
+                if count == service_arg:
+                    service_name = service[1]
+                    break
+                count += 1
+        else:
+            service_name = service_arg
+
+        if service_name is None:
+            print_warning("Service name not found")
+            return
+
+        details = ", ".join(f"{k}={v}" for k, v in kwargs.items())
+        print_info(f"Modifying service '{service_name}': {details}")
+
+        try:
+            result = self.dce_transport._modify_service(service_name, **kwargs)
+            if result:
+                print_good(f"Service '{service_name}' modified successfully")
+                self._track("SERVICE", "modify", service_name, details)
+            else:
+                print_bad(f"Failed to modify service '{service_name}'")
+        except Exception as e:
+            print_debug(str(e), sys.exc_info())
+            print_bad(f"Error modifying service: {e}")
+
     def disable_service(self, service_arg):
         self.setup_dce_transport()
         self.dce_transport._connect("svcctl")

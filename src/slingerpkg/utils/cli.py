@@ -169,6 +169,7 @@ def print_all_commands_verbose(parser):
             "servicedisable",
             "servicedel",
             "serviceadd",
+            "servicemodify",
         ],
         "📅 Task Management": [
             "enumtasks",
@@ -929,6 +930,35 @@ def setup_cli_parser(slingerClient):
         help="Specify the start type of the new service (default: %(default)s)",
     )
     parser_svccreate.set_defaults(func=slingerClient.create_service)
+
+    # Subparser for 'servicemodify' command
+    parser_svcmodify = subparsers.add_parser(
+        "servicemodify",
+        help="Modify an existing service configuration",
+        description="Modify service binary path, display name, start type, or account",
+        epilog="""Examples:
+  servicemodify Spooler --start-type demand
+  servicemodify Spooler --binary-path "C:\\\\new\\\\path.exe" --display-name "New Name"
+  servicemodify -i 5 --account "NT AUTHORITY\\\\LocalService"
+""",
+        aliases=["svcmodify", "modifyservice"],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    svcmod_target = parser_svcmodify.add_mutually_exclusive_group(required=False)
+    svcmod_target.add_argument("-i", "--serviceid", type=int, help="Specify the service ID")
+    svcmod_target.add_argument("service_name", nargs="?", type=str, help="Specify the service name")
+    parser_svcmodify.add_argument("--binary-path", help="New binary path for the service")
+    parser_svcmodify.add_argument("--display-name", help="New display name for the service")
+    parser_svcmodify.add_argument(
+        "--start-type",
+        choices=["auto", "demand", "disabled", "system"],
+        help="New start type for the service",
+    )
+    parser_svcmodify.add_argument(
+        "--account", help="Service account (e.g., LocalSystem, NT AUTHORITY\\\\NetworkService)"
+    )
+    parser_svcmodify.add_argument("--password", help="Password for the service account")
+    parser_svcmodify.set_defaults(func=slingerClient.modify_service_handler)
 
     # Subparser for 'enumtasks' command
     parser_taskenum = subparsers.add_parser(
