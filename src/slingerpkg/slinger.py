@@ -91,6 +91,7 @@ def create_ntlm_hash(password):
 # Connection keepalive timer
 # ---------------------------------------------------------------------------
 _keepalive_timer = None
+_keepalive_warned = False
 
 
 def _start_keepalive(client):
@@ -106,16 +107,22 @@ def _start_keepalive(client):
 
 def _keepalive_tick(client):
     """Timer callback — send keepalive and reschedule."""
+    global _keepalive_warned
     if not client.keepalive():
-        print_warning("\nKeepalive failed — connection may be lost. Try 'reconnect'.")
+        if not _keepalive_warned:
+            print_warning("Keepalive failed — connection may be lost. Try 'reconnect'.")
+            _keepalive_warned = True
+    else:
+        _keepalive_warned = False
     _start_keepalive(client)
 
 
 def _reset_keepalive(client):
     """Cancel and restart the keepalive timer (call after each command)."""
-    global _keepalive_timer
+    global _keepalive_timer, _keepalive_warned
     if _keepalive_timer:
         _keepalive_timer.cancel()
+    _keepalive_warned = False
     _start_keepalive(client)
 
 

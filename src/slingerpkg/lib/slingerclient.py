@@ -205,7 +205,12 @@ class SlingerClient(
         """Send SMB echo to keep connection alive. Returns True on success."""
         try:
             if hasattr(self, "conn") and self.conn:
-                self.conn.echo()
+                # Try echo first, fall back to listing shares as a lighter check
+                try:
+                    self.conn.echo()
+                except Exception:
+                    # echo() may not be supported; try a lightweight SMB op
+                    self.conn.listShares()
                 return True
         except Exception as e:
             print_debug(f"Keepalive failed: {e}")
