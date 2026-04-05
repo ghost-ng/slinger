@@ -24,18 +24,19 @@ class atexec:
         # Don't call setup_dce_transport() or _connect() here
 
         cmd = "cmd.exe"
-        # arguments = "/C %s > %%windir%%\\Temp\\%s 2>&1" % (self.__command, tmpFileName)
-        share_path = args.share_path
-        # remove trailing backslash
-        share_path = share_path.rstrip("\\")
-        cmd = "cmd.exe"
-        if not args.sn:
-            random_save_name = generate_random_string(8, 10) + ".txt"
+        no_output = getattr(args, "no_output", False)
+        if no_output:
+            arguments = f"/C {args.command}"
+            random_save_name = None
         else:
-            random_save_name = args.sn
-        # save_file_path = args.path + f"{share_path}\\{random_save_name}"
-        save_file_path = ntpath.join(share_path, random_save_name)
-        arguments = f"/C {args.command} > {save_file_path} 2>&1"
+            share_path = args.share_path.rstrip("\\")
+            if not args.sn:
+                random_save_name = generate_random_string(8, 10) + ".txt"
+            else:
+                random_save_name = args.sn
+            save_file_path = ntpath.join(share_path, random_save_name)
+            arguments = f"/C {args.command} > {save_file_path} 2>&1"
+            print_debug(f"Task '{args.tn}' will save output to: {save_file_path}")
         xml = build_task_xml(
             command=cmd,
             arguments=arguments,
@@ -44,7 +45,6 @@ class atexec:
             task_name=args.tn,
             folder_path=args.tf,
         )
-        print_debug(f"Task '{args.tn}' will save output to: {save_file_path}")
         resp = self.dce_transport._create_task(args.tn, args.tf, xml)
         return resp, random_save_name
 
@@ -56,29 +56,27 @@ class atexec:
         task_command = args.command
         task_folder = args.tf
 
-        # get a list of shares
-        share_info_dict = self.list_shares(args=None, echo=False, ret=True)
-        # print(share_info_dict)
-        share_exists = False
-        if share_info_dict is None or len(share_info_dict) == 0:
-            print_bad("Failed to list shares")
-            return
-        # check if the share exists
-        for share_info in share_info_dict:
-            if share_info["name"].upper() == (args.sh).upper():
-                share_exists = True
-                # Ensure proper path construction with backslashes
-                share_root = share_info["path"].rstrip("\\")  # Remove trailing backslash
-                user_path = args.sp.lstrip("\\").rstrip(
-                    "\\"
-                )  # Remove only leading/trailing backslashes
-                args.share_path = f"{share_root}\\{user_path}"
-                print_debug(f"Using share path: {args.share_path}")
-                break
+        no_output = getattr(args, "no_output", False)
 
-        if not share_exists:
-            print_bad(f"Share '{args.sh}' does not exist")
-            return
+        # Share path only needed when capturing output
+        if not no_output:
+            share_info_dict = self.list_shares(args=None, echo=False, ret=True)
+            share_exists = False
+            if share_info_dict is None or len(share_info_dict) == 0:
+                print_bad("Failed to list shares")
+                return
+            for share_info in share_info_dict:
+                if share_info["name"].upper() == (args.sh).upper():
+                    share_exists = True
+                    share_root = share_info["path"].rstrip("\\")
+                    user_path = args.sp.lstrip("\\").rstrip("\\")
+                    args.share_path = f"{share_root}\\{user_path}"
+                    print_debug(f"Using share path: {args.share_path}")
+                    break
+
+            if not share_exists:
+                print_bad(f"Share '{args.sh}' does not exist")
+                return
 
         # Connect to the pipe
         self.setup_dce_transport()
@@ -130,13 +128,19 @@ class atexec:
             print_debug(f"Exception: {e}", sys.exc_info())
             return
 
-        # Retrieve the output
+        # Retrieve the output (skip if --no-output)
+        if getattr(args, "no_output", False) or save_file_name is None:
+            print_info("Command executed (no output capture)")
+            self._track(
+                "EXEC",
+                "atexec",
+                args.command[:100] if hasattr(args, "command") else "unknown",
+            )
+            return
+
         try:
             # Create relative path from share root (no leading backslashes)
-            # Ensure proper path construction with backslashes
-            relative_path = args.sp.lstrip("\\").rstrip(
-                "\\"
-            )  # Remove only leading/trailing backslashes
+            relative_path = args.sp.lstrip("\\").rstrip("\\")
             args.remote_path = f"{relative_path}\\{save_file_name}"
             # Ensure we're connected to the share for file operations
             print_debug(f"Current share: {getattr(self, 'share', 'None')}, needed: {args.sh}")
@@ -148,7 +152,7 @@ class atexec:
             print_debug(f"Retrieving output from: {args.remote_path}")
             sleep(args.wait)
             print_info("Command output:")
-            self.cat(args, echo=False)  # Show the output content without download progress
+            self.cat(args, echo=False)
             # Retry delete on sharing violation (file may still be locked)
             for attempt in range(3):
                 try:
@@ -161,7 +165,9 @@ class atexec:
                         print_warning(f"Failed to delete output file: {del_err}")
                         break
             self._track(
-                "EXEC", "atexec", args.command[:100] if hasattr(args, "command") else "unknown"
+                "EXEC",
+                "atexec",
+                args.command[:100] if hasattr(args, "command") else "unknown",
             )
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())

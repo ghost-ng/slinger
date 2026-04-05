@@ -1642,6 +1642,12 @@ def setup_cli_parser(slingerClient):
         default="C$",
     )
     parser_atexec.add_argument(
+        "--no-output",
+        action="store_true",
+        help="Execute without capturing command output (no temp file created on target)",
+        default=False,
+    )
+    parser_atexec.add_argument(
         "-i",
         "--shell",
         help="Start a semi-interactive shell",
@@ -1862,23 +1868,31 @@ Raw Command Usage:
   Use --raw-command when you want to execute commands WITHOUT the cmd.exe wrapper:
 
   Standard (with cmd.exe wrapper):
-    wmiexec dcom "whoami"              # Executes: cmd.exe /Q /c whoami
-    wmiexec dcom "dir C:\\"            # Executes: cmd.exe /Q /c dir C:\
+    wmiexec dcom -c "whoami"              # Executes: cmd.exe /Q /c whoami
+    wmiexec dcom -c "dir C:\\"            # Executes: cmd.exe /Q /c dir C:\
 
   Raw (no wrapper):
-    wmiexec dcom "whoami" --raw-command              # Executes: whoami (directly)
-    wmiexec dcom "calc.exe" --raw-command            # Executes: calc.exe (directly)
-    wmiexec dcom "powershell.exe -Command Get-Process" --raw-command  # Custom PowerShell
+    wmiexec dcom -c "whoami" --raw-command              # Executes: whoami (directly)
+    wmiexec dcom -c "calc.exe" --raw-command             # Executes: calc.exe (directly)
+
+  Output control:
+    wmiexec dcom -c "whoami" --no-output                 # Execute without capturing output
+    wmiexec dcom -c "whoami" --sp "C:\\Users\\Public"    # Custom save path for output file
+    wmiexec dcom -c "whoami" --sn myoutput.txt           # Custom output filename
 
 Interactive Mode:
-  wmiexec dcom --interactive           # Start interactive DCOM shell
-  wmiexec dcom --interactive --save-name session.txt  # Save session to file""",
+  wmiexec dcom -i                        # Start interactive DCOM shell
+  wmiexec dcom -i --output session.txt   # Save session log to local file
+  wmiexec dcom -i --sp "C:\\Users\\Public" --sn out.txt    # Custom remote output path/name per command
+  wmiexec dcom -i --shell powershell                       # Interactive PowerShell shell
+
+Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory before running commands.""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser_wmi_dcom.add_argument(
-        "command",
-        nargs="?",
+        "-c",
+        "--command",
         help="Command to execute (not required for --interactive mode)",
     )
     parser_wmi_dcom.add_argument(
@@ -1886,11 +1900,6 @@ Interactive Mode:
         "--interactive",
         action="store_true",
         help="Start interactive WMI DCOM shell session",
-    )
-    parser_wmi_dcom.add_argument(
-        "--working-dir",
-        help="Working directory for command execution (default: %(default)s)",
-        default="C:\\",
     )
     parser_wmi_dcom.add_argument(
         "--timeout",
@@ -1917,7 +1926,18 @@ Interactive Mode:
         help="Sleep time before capturing output in seconds (default: %(default)s)",
     )
     parser_wmi_dcom.add_argument(
+        "--sp",
+        "--save-path",
+        dest="save_path",
+        metavar="PATH",
+        help="Directory on target to save output file (default: auto-detect from share)",
+        default=None,
+    )
+    parser_wmi_dcom.add_argument(
+        "--sn",
         "--save-name",
+        dest="save_name",
+        metavar="NAME",
         help="Custom filename for remote output capture (default: auto-generated)",
         default=None,
     )

@@ -90,18 +90,18 @@ class wmiexec(WMIQuery):
 
         try:
             # Execute command via WMI DCOM with optimized parameters
-            # Use persisted WMI dir unless --working-dir explicitly set
-            effective_dir = getattr(args, "working_dir", None) or self.wmi_working_dir
+            # Working dir synced from SMB cd via self.wmi_working_dir
             result = self.execute_wmi_command(
                 command=args.command,
                 capture_output=not getattr(args, "no_output", False),
                 timeout=getattr(args, "timeout", 30),
                 output_file=getattr(args, "output", None),
-                working_dir=effective_dir,
+                working_dir=self.wmi_working_dir,
                 sleep_time=getattr(args, "sleep_time", 1.0),
                 save_name=getattr(args, "save_name", None),
                 raw_command=getattr(args, "raw_command", False),
                 shell=getattr(args, "shell", "cmd"),
+                temp_dir=getattr(args, "save_path", None),
             )
 
             if result["success"]:
@@ -331,7 +331,7 @@ class wmiexec(WMIQuery):
                         trigger_exe=getattr(args, "trigger_exe", "notepad.exe"),
                         system_mode=getattr(args, "system", False),  # --system flag
                         custom_remote_output=getattr(args, "output", None),  # -o/--output flag
-                        working_dir=getattr(args, "working_dir", "C:\\"),
+                        working_dir=self.wmi_working_dir,
                         shell=getattr(args, "shell", "cmd"),
                         use_batch=True,  # Always use batch approach
                         raw_command=raw_command_flag,  # --raw-command flag
@@ -1251,10 +1251,7 @@ class wmiexec(WMIQuery):
         else:
             prompt_prefix = "WMI"
 
-        # Initialize current working directory from persisted state or args
-        if getattr(args, "working_dir", None) and args.working_dir != "C:\\":
-            # Explicit --working-dir overrides persisted state
-            self.wmi_working_dir = args.working_dir
+        # Working directory synced from SMB cd via self.wmi_working_dir
         print_info(f"Starting directory: {self.wmi_working_dir}")
 
         print()
