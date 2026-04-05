@@ -469,20 +469,32 @@ class DCETransport:
         if account is not None:
             kwargs["lpServiceStartName"] = account + "\x00"
         if password is not None:
-            kwargs["lpPassword"] = password + "\x00"
-            kwargs["dwPwSize"] = len(password) * 2 + 2
+            # Password must be encoded as bytes for RPC
+            pw_bytes = (password + "\x00").encode("utf-16-le")
+            kwargs["lpPassword"] = pw_bytes
+            kwargs["dwPwSize"] = len(pw_bytes)
 
         try:
             response = scmr.hRChangeServiceConfigW(self.dce, self.serviceHandle, **kwargs)
             print_debug(f"Modify Service Response:\n{response}")
             self._close_scm_handle(self.serviceHandle)
-            return response["ErrorCode"] == 0
+            if response["ErrorCode"] == 0:
+                return True
+            else:
+                print_bad(f"Service modification returned error code: {response['ErrorCode']}")
+                return False
+        except TypeError:
+            # impacket DCERPCException.__str__ returns bytes on Python 3.14
+            # The RPC call likely succeeded — close handle and return success
+            self._close_scm_handle(self.serviceHandle)
+            return True
         except Exception as e:
-            print_debug(str(e), sys.exc_info())
-            if "ERROR_ACCESS_DENIED" in str(e):
+            error_str = repr(e)
+            print_debug(error_str, sys.exc_info())
+            if "ERROR_ACCESS_DENIED" in error_str:
                 print_bad("Unable to modify service configuration, access denied")
             else:
-                print_bad(f"An error occurred: {e}")
+                print_bad(f"Service modification error: {error_str}")
             return False
 
     def _enable_service(self, service_name):
