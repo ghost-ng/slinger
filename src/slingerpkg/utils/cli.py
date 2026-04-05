@@ -955,9 +955,15 @@ def setup_cli_parser(slingerClient):
         help="New start type for the service",
     )
     parser_svcmodify.add_argument(
-        "--account", help="Service account (e.g., LocalSystem, NT AUTHORITY\\\\NetworkService)"
+        "--account",
+        help="Account the service runs as on startup (e.g., LocalSystem, "
+        "NT AUTHORITY\\\\NetworkService, DOMAIN\\\\user)",
     )
-    parser_svcmodify.add_argument("--password", help="Password for the service account")
+    parser_svcmodify.add_argument(
+        "--password",
+        help="Password for --account (required for domain/local users, "
+        "not needed for built-in accounts like LocalSystem)",
+    )
     parser_svcmodify.set_defaults(func=slingerClient.modify_service_handler)
 
     # Subparser for 'enumtasks' command
