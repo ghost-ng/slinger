@@ -187,6 +187,7 @@ def print_all_commands_verbose(parser):
             "regdel",
             "regcreate",
             "regcheck",
+            "regsearch",
         ],
         "📊 Event Log Operations": ["eventlog"],
         "🔒 Security Operations": [
@@ -293,13 +294,25 @@ class CustomArgumentParser(argparse.ArgumentParser):
             self._custom_help = _format_help_text(super())
         return self._custom_help
 
+    def format_usage(self):
+        """Strip program name from usage line."""
+        usage = super().format_usage()
+        return usage.replace("usage: slinger", "usage:").replace("usage: slinger", "usage:")
+
     def error(self, message):
         if "invalid choice" in message:
             print_log("Invalid command entered. Type help for a list of commands.")
             raise InvalidParsing("Invalid command entered. Type help for a list of commands.")
+        elif "unrecognized arguments" in message:
+            # Don't dump the root parser usage — just show the error
+            print_warning(message)
+            print_info("Use '<command> --help' for valid options")
+            raise SystemExit(2)
         else:
             print_warning(message)
             self.print_usage(sys.stderr)
+            if self.epilog:
+                sys.stderr.write(f"\n{self.epilog}\n")
             raise SystemExit(2)
 
 
@@ -431,7 +444,7 @@ def setup_cli_parser(slingerClient):
         help="Show the version number and exit",
     )
 
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", parser_class=CustomArgumentParser)
 
     # Subparser for 'use' command
     parser_use = subparsers.add_parser(
@@ -1378,6 +1391,44 @@ def setup_cli_parser(slingerClient):
     parser_regcheck.add_argument("key", help="Specify the registry key to check")
     parser_regcheck.set_defaults(func=slingerClient.does_key_exist)
 
+    # Subparser for 'regsearch' command
+    parser_regsearch = subparsers.add_parser(
+        "regsearch",
+        help="Search registry keys and values by pattern",
+        description="Recursively search registry for keys and values matching a pattern",
+        epilog="""Examples:
+  regsearch "Python" -k "HKLM\\SOFTWARE"
+  regsearch "Spooler" -k "HKLM\\SYSTEM\\CurrentControlSet\\Services" --values
+  regsearch "Run" -k "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion" --maxdepth 3
+  regsearch "password" -k "HKLM\\SOFTWARE" --values --format json""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_regsearch.add_argument(
+        "pattern", help="Search pattern (case-insensitive substring match)"
+    )
+    parser_regsearch.add_argument(
+        "-k",
+        "--key",
+        default="HKLM\\SOFTWARE",
+        help="Root key to search from (default: %(default)s)",
+    )
+    parser_regsearch.add_argument(
+        "--maxdepth", type=int, default=5, help="Maximum recursion depth (default: %(default)s)"
+    )
+    parser_regsearch.add_argument(
+        "--values", action="store_true", help="Also search value names and data (slower)"
+    )
+    parser_regsearch.add_argument(
+        "--limit", type=int, default=100, help="Maximum results to return (default: %(default)s)"
+    )
+    parser_regsearch.add_argument(
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format (default: %(default)s)",
+    )
+    parser_regsearch.set_defaults(func=slingerClient.search_registry)
+
     parser_portfwd = subparsers.add_parser(
         "portfwd",
         help="Forward a local port to a remote port",
@@ -1701,7 +1752,9 @@ def setup_cli_parser(slingerClient):
         epilog="Example Usage: downloads list",
     )
     downloads_subparsers = parser_downloads.add_subparsers(
-        dest="downloads_action", help="Downloads management actions"
+        parser_class=CustomArgumentParser,
+        dest="downloads_action",
+        help="Downloads management actions",
     )
 
     # downloads list command
@@ -1737,29 +1790,50 @@ def setup_cli_parser(slingerClient):
         "eventlog",
         help="Windows Event Log operations",
         description="Query Windows Event Logs via RPC over SMB named pipe \\pipe\\eventlog",
-        epilog="Example Usage:\n"
-        "  eventlog list                    # List available event logs\n"
-        "  eventlog check --log 'System'    # Check if a specific log exists\n"
-        "  eventlog query --log System --level Error --count 50\n"
-        "  eventlog sources --log Application",
+        epilog="""Examples:
+  eventlog status                                                     # Check if eventlog pipe exists
+  eventlog list --method rpc                                          # List available event logs
+  eventlog check --method rpc --log System                            # Check if a log exists
+  eventlog query --method rpc --log System --last 30 --limit 10       # Query via RPC
+  eventlog query --method atexec --log System --limit 10              # Query via Task Scheduler
+  eventlog query --method rpc --log System --format json -o events.json  # Export to JSON
+  eventlog clear --method atexec --log Application --force            # Clear via Task Scheduler
+  eventlog clear --method wmiexec --log System --force                # Clear via WMI DCOM""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     # EventLog uses RPC via SMB named pipe only
     # No method selection needed - always uses \\pipe\\eventlog
 
     eventlog_subparsers = parser_eventlog.add_subparsers(
-        dest="eventlog_action", help="Event log actions"
+        parser_class=CustomArgumentParser, dest="eventlog_action", help="Event log actions"
     )
 
     # eventlog query command
     parser_eventlog_query = eventlog_subparsers.add_parser(
         "query",
         help="Query event log entries",
-        description="Query Windows Event Log entries via RPC over \\pipe\\eventlog with filtering",
-        epilog="Examples:\n"
-        "  eventlog query --log System --id 1000\n"
-        "  eventlog query --log Application --level error --last 60\n"
-        "  eventlog query --log Security --find 'failed logon' --count 20",
+        description="Query Windows Event Log entries with filtering and export",
+        epilog="""Examples:
+  eventlog query --method rpc --log System --last 30 --limit 10
+  eventlog query --method rpc --log Application --level error --limit 20
+  eventlog query --method rpc --log Security --find 'failed logon' --limit 20
+  eventlog query --method rpc --log System --format json -o events.json
+  eventlog query --method rpc --log System --format csv -o events.csv
+  eventlog query --method atexec --log Security --limit 50
+  eventlog query --method wmiexec --log System --limit 10
+
+Methods:
+  rpc      - Query via \\pipe\\eventlog RPC (default, fastest)
+  atexec   - Query via 'wevtutil qe' as SYSTEM through Task Scheduler
+  wmiexec  - Query via 'wevtutil qe' as SYSTEM through WMI DCOM""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_eventlog_query.add_argument(
+        "--method",
+        choices=["rpc", "atexec", "wmiexec"],
+        required=True,
+        help="Query method: rpc (\\pipe\\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)",
     )
     parser_eventlog_query.add_argument(
         "--log",
@@ -1781,7 +1855,10 @@ def setup_cli_parser(slingerClient):
         "--last", type=int, metavar="MINUTES", help="Events from the last X minutes"
     )
     parser_eventlog_query.add_argument(
-        "--limit", type=int, default=1000, help="Maximum number of events to return"
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of events to return (default: %(default)s)",
     )
     parser_eventlog_query.add_argument("--source", help="Filter by event source name")
     parser_eventlog_query.add_argument("--find", help="Search for string in event content")
@@ -1803,31 +1880,95 @@ def setup_cli_parser(slingerClient):
         default="newest",
         help="Order events by newest first (default) or oldest first",
     )
+    add_atexec_options(parser_eventlog_query, include_command=False)
     parser_eventlog_query.set_defaults(func=slingerClient.eventlog_handler)
 
     # eventlog list command
     parser_eventlog_list = eventlog_subparsers.add_parser(
         "list",
         help="List available event logs",
-        description="List all available event logs on the remote system "
-        "via RPC over \\pipe\\eventlog",
+        description="List all available event logs on the remote system",
+        epilog="""Examples:
+  eventlog list --method rpc                                 # List via RPC pipe
+  eventlog list --method atexec                              # List via Task Scheduler (wevtutil)
+  eventlog list --method wmiexec                             # List via WMI DCOM (wevtutil)""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser_eventlog_list.add_argument(
+        "--method",
+        choices=["rpc", "atexec", "wmiexec"],
+        required=True,
+        help="Method: rpc (\\pipe\\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)",
+    )
+    add_atexec_options(parser_eventlog_list, include_command=False)
     parser_eventlog_list.set_defaults(func=slingerClient.eventlog_handler)
+
     # eventlog check command
     parser_eventlog_check = eventlog_subparsers.add_parser(
         "check",
         help="Check if a specific event log exists",
         description="Check if a specific Windows Event Log exists and is accessible",
-        epilog="Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'",
+        epilog="""Examples:
+  eventlog check --method rpc --log System                   # Check via RPC pipe
+  eventlog check --method atexec --log Security              # Check via Task Scheduler (wevtutil)
+  eventlog check --method wmiexec --log Application          # Check via WMI DCOM (wevtutil)""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_eventlog_check.add_argument(
+        "--method",
+        choices=["rpc", "atexec", "wmiexec"],
+        required=True,
+        help="Method: rpc (\\pipe\\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)",
     )
     parser_eventlog_check.add_argument(
         "--log",
         required=True,
         help="Event log name to check (can include custom paths)",
     )
+    add_atexec_options(parser_eventlog_check, include_command=False)
     parser_eventlog_check.set_defaults(func=slingerClient.eventlog_handler)
 
-    # Only list, query, sources, and check commands are implemented
+    # eventlog clear command
+    parser_eventlog_clear = eventlog_subparsers.add_parser(
+        "clear",
+        help="Clear an event log",
+        description="Clear all events from a Windows Event Log (cannot be undone)",
+        epilog="""Examples:
+  eventlog clear --log System --method atexec --force        # wevtutil as SYSTEM via Task Scheduler
+  eventlog clear --log Application --method wmiexec --force  # wevtutil as SYSTEM via WMI DCOM
+  eventlog clear --log Security --method rpc --force         # RPC via \\pipe\\eventlog (needs elevated privs)
+
+Methods:
+  rpc      - Direct RPC via \\pipe\\eventlog. Requires SE_SECURITY_PRIVILEGE (fails with UAC filtering)
+  atexec   - Runs 'wevtutil cl' as SYSTEM via Task Scheduler. Requires share connection. Leaves Event ID 1102
+  wmiexec  - Runs 'wevtutil cl' as SYSTEM via WMI DCOM. Requires DCOM ports (135+dynamic). Leaves Event ID 1102""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_eventlog_clear.add_argument("--log", required=True, help="Event log name to clear")
+    parser_eventlog_clear.add_argument(
+        "--method",
+        choices=["rpc", "atexec", "wmiexec"],
+        required=True,
+        help="Clearing method: rpc, atexec (Task Scheduler), or wmiexec (WMI DCOM)",
+    )
+    parser_eventlog_clear.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+    add_atexec_options(parser_eventlog_clear, include_command=False)
+    parser_eventlog_clear.set_defaults(func=slingerClient.eventlog_handler)
+
+    # eventlog status command
+    parser_eventlog_status = eventlog_subparsers.add_parser(
+        "status",
+        help="Check if eventlog pipe is available on target",
+        description="Check IPC$ pipes for eventlog service availability",
+        epilog="""Examples:
+  eventlog status                  # Check if \\pipe\\eventlog exists in IPC$""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_eventlog_status.set_defaults(func=slingerClient.eventlog_handler)
 
     # Subparser for 'wmiexec' command with multiple execution methods
     parser_wmiexec = subparsers.add_parser(
@@ -1849,7 +1990,10 @@ Example Usage:
 
     # Create subparsers for different WMI methods
     wmiexec_subparsers = parser_wmiexec.add_subparsers(
-        dest="wmi_method", help="WMI execution method", metavar="METHOD"
+        parser_class=CustomArgumentParser,
+        dest="wmi_method",
+        help="WMI execution method",
+        metavar="METHOD",
     )
 
     # Traditional DCOM method
@@ -2211,7 +2355,9 @@ Examples:
     )
 
     # Agent subcommands (agent_handler will display help if no subcommand)
-    agent_subparsers = parser_agent.add_subparsers(dest="agent_command", required=False)
+    agent_subparsers = parser_agent.add_subparsers(
+        dest="agent_command", required=False, parser_class=CustomArgumentParser
+    )
 
     # Agent build subcommand
     parser_agent_build = agent_subparsers.add_parser(

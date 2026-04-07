@@ -184,6 +184,46 @@ class SlingerClient(
         # self.setup_remote_registry(args=None)
 
     # handle exit
+    def eventlog_status(self, args=None):
+        """Check if the eventlog named pipe is available on the target."""
+        print_info("Checking for eventlog pipe on target...")
+        try:
+            # Save current share state
+            saved_share = getattr(self, "share", None)
+            saved_tree_id = getattr(self, "tree_id", None)
+            saved_connected = getattr(self, "is_connected_to_share", False)
+
+            # Connect to IPC$ and list pipes
+            ipc_tid = self.conn.connectTree("IPC$")
+            pipes = self.conn.listPath("IPC$", "\\*")
+            pipe_names = [p.get_longname() for p in pipes if p.get_longname() not in (".", "..")]
+
+            eventlog_found = "eventlog" in pipe_names
+            print_info(f"IPC$ pipes ({len(pipe_names)} found):")
+
+            for name in sorted(pipe_names):
+                if name.lower() == "eventlog":
+                    print_good(f"  {name} <-- EventLog service pipe")
+                else:
+                    print_log(f"  {name}")
+
+            if eventlog_found:
+                print_good("EventLog pipe is available — RPC methods will work")
+            else:
+                print_bad("EventLog pipe NOT found — RPC methods will fail")
+                print_info(
+                    "Start the service: servicestart EventLog | "
+                    "Or use --method atexec/wmiexec for eventlog commands"
+                )
+
+            # Restore share state
+            if saved_connected and saved_share:
+                self.tree_id = saved_tree_id
+                self.share = saved_share
+
+        except Exception as e:
+            print_bad(f"Failed to check pipes: {e}")
+
     def show_changes(self, args=None):
         """Display audit trail of write operations this session."""
         if not self.change_tracker:
@@ -620,7 +660,13 @@ class SlingerClient(
                 self.query_event_log(args)
             elif args.eventlog_action == "check":
                 print_verbose("Checking Log: " + args.log)
-                self.check_event_log(args.log)
+                method = getattr(args, "method", "rpc")
+                self.check_event_log(args.log, method=method, parent_args=args)
+            elif args.eventlog_action == "clear":
+                print_verbose("Clearing Log: " + args.log)
+                self.clear_event_log(args)
+            elif args.eventlog_action == "status":
+                self.eventlog_status(args)
             else:
                 print_bad(f"Unknown eventlog action: {args.eventlog_action}")
 

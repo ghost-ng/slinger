@@ -1473,22 +1473,36 @@ class DCETransport:
                 print_debug(f"Error checking log existence: {e}")
                 return False
         else:
-            # Legacy Even interface
+            # Legacy Even interface — use regModuleName for read access (no UAC issues)
+            from impacket.dcerpc.v5.ndr import NULL
+
             try:
-                resp_handle = even.hElfrOpenELW(self.dce, moduleName=log_name)["LogHandle"]
+                resp_handle = even.hElfrOpenELW(self.dce, moduleName=NULL, regModuleName=log_name)[
+                    "LogHandle"
+                ]
                 log_resp = even.hElfrNumberOfRecords(self.dce, resp_handle)
                 log_count = int(log_resp["NumberOfRecords"])
-                app_handle = even.hElfrOpenELW(self.dce, moduleName="Application")["LogHandle"]
+                even.hElfrCloseEL(self.dce, logHandle=resp_handle)
+
+                app_handle = even.hElfrOpenELW(
+                    self.dce, moduleName=NULL, regModuleName="Application"
+                )["LogHandle"]
                 app_resp = even.hElfrNumberOfRecords(self.dce, app_handle)
-                # enum_struct(app_resp)
                 app_count = int(app_resp["NumberOfRecords"])
+                even.hElfrCloseEL(self.dce, logHandle=app_handle)
 
                 if log_name != "Application" and log_count == app_count:
                     return False, 0
                 else:
                     return True, log_count
             except Exception as e:
-                print_debug(f"Error checking log existence: {e}", e=sys.exc_info())
+                try:
+                    error_str = str(e)
+                except TypeError:
+                    error_str = repr(e)
+                print_debug(f"Error checking log existence: {error_str}", e=sys.exc_info())
+                if "access_denied" in error_str.lower():
+                    return "access_denied", 0
                 return False, 0
 
     def _eventlog_get_record_count(self, log_handle):
@@ -1532,6 +1546,20 @@ class DCETransport:
         except Exception as e:
             print_debug(f"Error reading events: {e}")
             raise
+
+    def _clear_event_log(self, log_name):
+        """Clear an event log via hElfrClearELFW.
+
+        Caller must have already connected via _connect("eventlog") + _bind().
+        """
+        log_handle = self._eventlog_open_log(log_name, use_even6=False)
+        try:
+            even.hElfrClearELFW(self.dce, logHandle=log_handle)
+        except TypeError:
+            # impacket DCERPCException.__str__ returns bytes on Python 3.14
+            pass
+        finally:
+            self._eventlog_close_log(log_handle, use_even6=False)
 
     def _connect_eventlog(self, use_even6=False):
         """Connect to EventLog service via \\pipe\\eventlog"""

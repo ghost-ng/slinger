@@ -79,7 +79,7 @@ class ChangeTracker:
     def save(self, filepath=None):
         """Save changes to JSON file. Returns the filepath."""
         if not filepath:
-            log_dir = os.path.expanduser("~/.slinger/logs")
+            log_dir = os.path.expanduser("~/.slinger/logs/changes")
             os.makedirs(log_dir, exist_ok=True)
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             filepath = os.path.join(log_dir, f"changes_{self.host}_{ts}.json")

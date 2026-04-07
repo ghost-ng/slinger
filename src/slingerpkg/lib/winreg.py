@@ -175,6 +175,88 @@ class winreg:
         else:
             return subkeys
 
+    def search_registry(self, args):
+        """Search registry keys and values by pattern."""
+        pattern = args.pattern.lower()
+        root_key = getattr(args, "key", "HKLM\\SOFTWARE")
+        max_depth = getattr(args, "maxdepth", 5)
+        search_values = getattr(args, "values", False)
+        limit = getattr(args, "limit", 100)
+
+        self.registry_used = True
+        self.setup_dce_transport()
+        self.dce_transport._connect("winreg")
+
+        print_info(
+            f"Searching '{root_key}' for '{args.pattern}' "
+            f"(depth={max_depth}, values={'yes' if search_values else 'no'})"
+        )
+
+        results = []
+        visited = 0
+        stack = [(root_key, 0)]
+        last_progress = 0
+
+        while stack and len(results) < limit:
+            key_path, depth = stack.pop()
+            if depth > max_depth:
+                continue
+            visited += 1
+
+            # Progress every 50 keys
+            if visited - last_progress >= 50:
+                print_debug(
+                    f"  Searched {visited} keys, {len(results)} matches, {len(stack)} remaining..."
+                )
+                last_progress = visited
+
+            # Check key name matches
+            if pattern in key_path.lower():
+                results.append({"type": "KEY", "path": key_path, "name": "", "data": ""})
+
+            # Search values if requested
+            if search_values:
+                try:
+                    values = self.dce_transport._get_key_values(key_path)
+                    if values:
+                        for val_name, val_data in values:
+                            if pattern in str(val_name).lower() or pattern in str(val_data).lower():
+                                results.append(
+                                    {
+                                        "type": "VALUE",
+                                        "path": key_path,
+                                        "name": val_name,
+                                        "data": str(val_data)[:100],
+                                    }
+                                )
+                except Exception:
+                    pass
+
+            # Enumerate subkeys and push to stack
+            if depth < max_depth:
+                try:
+                    subkeys = self.dce_transport._enum_subkeys(key_path)
+                    if subkeys:
+                        for sk in subkeys:
+                            stack.append((f"{key_path}\\{sk}", depth + 1))
+                except Exception:
+                    pass
+
+        # Display results
+        if results:
+            table = []
+            for r in results:
+                table.append([r["type"], r["path"], r["name"], r["data"][:60]])
+            headers = ["Type", "Path", "Name", "Data"]
+            output_fmt = getattr(args, "format", "table")
+            if output_fmt == "json":
+                print(json.dumps(results, indent=2))
+            else:
+                print_log(tabulate(table, headers=headers, tablefmt="grid"))
+            print_good(f"Found {len(results)} match(es) ({visited} keys searched)")
+        else:
+            print_warning(f"No matches for '{args.pattern}' ({visited} keys searched)")
+
     def ipconfig(self, args=None):
         """
         Retrieves and prints the IP configuration information for the current host.

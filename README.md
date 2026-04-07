@@ -47,7 +47,7 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.14.0
+    /#(-'             v1.15.0
     `-'                    a ghost-ng special
 
 usage: slinger.py [-h] [--host HOST] [-u USERNAME] [--pass PASSWORD | --ntlm NTLM | --kerberos]
@@ -91,7 +91,7 @@ python3 slinger.py --host 192.168.177.130 --user admin --pass admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.14.0
+    /#(-'             v1.15.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -115,7 +115,7 @@ python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :5E119EC7919CC3B
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.14.0
+    /#(-'             v1.15.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...
@@ -152,7 +152,7 @@ Profiles are stored in `~/.slinger/profiles/` with `chmod 600` permissions. Cred
 ### Available Commands
 
 ```bash
-Available commands (112):
+Available commands (116):
 ------------------------------------------
 !                     enumtransport         regcheck              showservice
 #shell                env                   regcreate             showtask

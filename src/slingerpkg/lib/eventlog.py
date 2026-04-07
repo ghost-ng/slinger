@@ -7,7 +7,12 @@ from datetime import datetime, timedelta
 from impacket.dcerpc.v5 import even
 from impacket.dcerpc.v5.rpcrt import DCERPCException
 from slingerpkg.utils.printlib import *
+from slingerpkg.utils.common import tee_output
 from tabulate import tabulate
+import json
+import csv
+import io
+import sys
 import traceback
 
 
@@ -19,14 +24,104 @@ class EventLog:
     def __init__(self):
         pass
 
+    def _connect_eventlog_fresh(self):
+        """Connect to eventlog pipe fresh — same pattern as other pipes.
+
+        Does setup_dce_transport() + _connect("eventlog") + _bind(EVEN).
+        Returns True on success, False on failure with user-facing error.
+        """
+        try:
+            self.setup_dce_transport()
+            self.dce_transport._connect("eventlog")
+            self.dce_transport._bind(even.MSRPC_UUID_EVEN)
+            return True
+        except Exception as e:
+            try:
+                error_str = str(e)
+            except TypeError:
+                error_str = repr(e)
+            if "STATUS_OBJECT_NAME_NOT_FOUND" in error_str:
+                print_bad("Event Log pipe not found on target")
+                print_info(
+                    "Run 'eventlog status' to check pipes. "
+                    "Start service with: servicestart EventLog"
+                )
+            else:
+                print_bad(f"Cannot connect to Event Log service: {error_str}")
+            return False
+
+    def _build_atexec_args(self, command, no_output=False, parent_args=None):
+        """Build atexec args namespace, inheriting user-provided atexec options from parent_args."""
+        import argparse as _argparse
+        from slingerpkg.utils.common import generate_random_string
+
+        # Use user-provided values from parent_args (eventlog CLI), fall back to defaults
+        tn = getattr(parent_args, "tn", None) if parent_args else None
+        if not tn:
+            tn = f"SlingerTask_{generate_random_string(6, 8)}"
+
+        return _argparse.Namespace(
+            command=command,
+            no_output=no_output,
+            tn=tn,
+            ta=getattr(parent_args, "ta", "SYSTEM") if parent_args else "SYSTEM",
+            td=(
+                getattr(parent_args, "td", "System Maintenance")
+                if parent_args
+                else "System Maintenance"
+            ),
+            tf=getattr(parent_args, "tf", "\\Windows") if parent_args else "\\Windows",
+            sp=(
+                getattr(parent_args, "sp", "\\Users\\Public\\Downloads\\")
+                if parent_args
+                else "\\Users\\Public\\Downloads\\"
+            ),
+            sn=getattr(parent_args, "sn", None) if parent_args else None,
+            sh=getattr(parent_args, "sh", None) or getattr(self, "share", "C$") or "C$",
+            wait=getattr(parent_args, "wait", 3) if parent_args else 3,
+            shell=False,
+        )
+
+    def _run_wevtutil(self, command, method, parent_args=None):
+        """Run a wevtutil command via atexec or wmiexec. Returns output string or None."""
+        if method == "atexec":
+            if not self.check_if_connected():
+                print_bad("Not connected to a share. Use 'use <sharename>' first.")
+                return None
+            atexec_args = self._build_atexec_args(command, parent_args=parent_args)
+            self.atexec(atexec_args)
+            return ""  # atexec prints output directly
+        elif method == "wmiexec":
+            result = self.execute_wmi_command(
+                command=command,
+                capture_output=True,
+                timeout=60,
+                working_dir=self.wmi_working_dir,
+                shell="cmd",
+            )
+            if result.get("success") and result.get("output"):
+                return result["output"]
+            elif not result.get("success"):
+                print_bad("WMI execution failed")
+            return None
+        return None
+
     def list_event_logs(self, args):
         """List available Windows Event Logs"""
+        method = getattr(args, "method", "rpc")
+
+        if method in ("atexec", "wmiexec"):
+            print_info(f"Listing event logs via {method} (wevtutil el)...")
+            output = self._run_wevtutil("wevtutil el", method, parent_args=args)
+            if output is not None and output:
+                print(output)
+            return
+
+        if not self._connect_eventlog_fresh():
+            return
         print_info("Listing available event logs...")
 
         try:
-            # Setup transport and connect to eventlog
-            self.setup_dce_transport()
-            self.dce_transport._connect_eventlog(use_even6=False)
 
             # Common Windows event logs to check
             common_logs = [
@@ -116,8 +211,55 @@ class EventLog:
             print_bad(f"Failed to list event logs: {e}")
             print_debug(f"Traceback: {traceback.format_exc()}")
 
+    def _query_via_wevtutil(self, args, method):
+        """Query event log via wevtutil qe running as SYSTEM."""
+        log_name = args.log
+        limit = getattr(args, "limit", 10)
+        output_file = getattr(args, "output", None)
+
+        # Build wevtutil command
+        cmd = f'wevtutil qe "{log_name}" /c:{limit} /f:text /rd:true'
+        event_id = getattr(args, "id", None)
+        if event_id:
+            cmd += f' /q:"*[System[EventID={event_id}]]"'
+
+        print_info(f"Querying '{log_name}' via {method} (wevtutil, limit={limit})...")
+
+        if method == "atexec":
+            if not self.check_if_connected():
+                print_bad("Not connected to a share. Use 'use <sharename>' first.")
+                return
+            atexec_args = self._build_atexec_args(cmd, parent_args=args)
+            self.atexec(atexec_args)
+        elif method == "wmiexec":
+            result = self.execute_wmi_command(
+                command=cmd,
+                capture_output=True,
+                timeout=60,
+                working_dir=self.wmi_working_dir,
+                shell="cmd",
+            )
+            if result.get("success") and result.get("output"):
+                if output_file:
+                    with tee_output(output_file):
+                        print(result["output"])
+                    print_good(f"Output saved to {output_file}")
+                else:
+                    print(result["output"])
+            elif not result.get("success"):
+                print_bad("WMI query execution failed")
+
     def query_event_log(self, args):
         """Query events from a specific Windows Event Log"""
+        method = getattr(args, "method", "rpc")
+
+        if method in ("atexec", "wmiexec"):
+            self._query_via_wevtutil(args, method)
+            return
+
+        # RPC method
+        if not self._connect_eventlog_fresh():
+            return
         log_name = args.log
         limit = getattr(args, "limit", 10)
         verbose = getattr(args, "verbose", False)
@@ -146,20 +288,14 @@ class EventLog:
         if find_string:
             filters.append(f"Contains '{find_string}'")
 
-        # check if the log exists
-        log_exist, _ = self.check_event_log(log_name, echo=True)
-        if not log_exist:
-            print_bad(f"Event log '{log_name}' does not exist or is not accessible.")
-            return
+        # Note: no separate check_event_log call here — it would consume the pipe
+        # connection. The query itself will fail with a clear error if the log doesn't exist.
 
         filter_desc = f" with filters: {', '.join(filters)}" if filters else ""
         print_info(f"Querying '{log_name}' event log for {limit} events{filter_desc}...")
 
         try:
-            # Setup transport and connect
-            self.setup_dce_transport()
-            self.dce_transport._connect_eventlog(use_even6=False)
-
+            # Already connected via _connect_eventlog_fresh() above
             # Open the log
             log_handle = self.dce_transport._eventlog_open_log(log_name, use_even6=False)
 
@@ -247,8 +383,37 @@ class EventLog:
 
                 # Display results
                 if events:
-                    self._display_events(events[:limit], verbose)
-                    print_good(f"Retrieved {len(events[:limit])} events from '{log_name}'")
+                    display_events = events[:limit]
+                    fmt = getattr(args, "format", "list")
+                    output_file = getattr(args, "output", None)
+
+                    # Format output
+                    if fmt == "table":
+                        formatted = self._format_events_table(display_events)
+                    elif fmt == "json":
+                        formatted = self._format_events_json(display_events)
+                    elif fmt == "csv":
+                        formatted = self._format_events_csv(display_events)
+                    else:
+                        # Default list format — use existing display
+                        if output_file:
+                            with tee_output(output_file):
+                                self._display_events(display_events, verbose)
+                        else:
+                            self._display_events(display_events, verbose)
+                        print_good(f"Retrieved {len(display_events)} events from '{log_name}'")
+                        if output_file:
+                            print_good(f"Output saved to {output_file}")
+                        return
+
+                    # Print formatted output (table/json/csv)
+                    if output_file:
+                        with tee_output(output_file):
+                            print(formatted)
+                        print_good(f"Output saved to {output_file}")
+                    else:
+                        print(formatted)
+                    print_good(f"Retrieved {len(display_events)} events from '{log_name}'")
                 else:
                     print_warning(f"No events found in '{log_name}'")
 
@@ -257,15 +422,28 @@ class EventLog:
                 self.dce_transport._eventlog_close_log(log_handle, use_even6=False)
 
         except DCERPCException as e:
-            if "ERROR_ACCESS_DENIED" in str(e) or "rpc_s_access_denied" in str(e):
-                print_bad(f"Access denied to '{log_name}' - insufficient privileges")
+            try:
+                error_str = str(e)
+            except TypeError:
+                error_str = repr(e)
+            if "ACCESS_DENIED" in error_str or "access_denied" in error_str:
+                print_bad(f"Access denied to '{log_name}'")
+                print_info(
+                    "Try --method atexec or --method wmiexec, " "or use a domain admin account"
+                )
+            elif "END_OF_FILE" in error_str:
+                pass  # Normal — just means we read all available events
+            elif "PIPE_CLOSING" in error_str or "PIPE_BROKEN" in error_str:
+                print_bad(f"RPC pipe closed while querying '{log_name}'")
+                print_info("Try --method atexec or --method wmiexec instead")
             else:
-                if "STATUS_END_OF_FILE" in str(e):
-                    print_warning(f"End of file reached for '{log_name}' - no more events")
-                else:
-                    print_bad(f"RPC error querying '{log_name}': {e}")
+                print_bad(f"RPC error querying '{log_name}': {error_str}")
         except Exception as e:
-            print_bad(f"Error querying '{log_name}': {e}")
+            try:
+                error_str = str(e)
+            except TypeError:
+                error_str = repr(e)
+            print_bad(f"Error querying '{log_name}': {error_str}")
             print_debug(f"Traceback: {traceback.format_exc()}")
 
     def _parse_event_buffer(self, buffer, max_events):
@@ -701,12 +879,68 @@ class EventLog:
 
         return True
 
+    def _format_events_table(self, events):
+        """Format events as a tabulate grid table."""
+        table = []
+        for e in events:
+            table.append(
+                [
+                    e.get("RecordNumber", ""),
+                    e.get("EventID", ""),
+                    e.get("EventTypeStr", ""),
+                    e.get("SourceName", ""),
+                    e.get("TimeGeneratedStr", ""),
+                    (e.get("Strings", [""])[0] or "")[:80] if e.get("Strings") else "",
+                ]
+            )
+        headers = ["Record", "ID", "Type", "Source", "Time", "Message"]
+        return tabulate(table, headers=headers, tablefmt="grid")
+
+    def _format_events_json(self, events):
+        """Format events as JSON array."""
+        clean = []
+        for e in events:
+            clean.append(
+                {
+                    "record_number": e.get("RecordNumber"),
+                    "event_id": e.get("EventID"),
+                    "type": e.get("EventTypeStr"),
+                    "source": e.get("SourceName"),
+                    "computer": e.get("ComputerName"),
+                    "time": e.get("TimeGeneratedStr"),
+                    "strings": e.get("Strings", []),
+                }
+            )
+        return json.dumps(clean, indent=2)
+
+    def _format_events_csv(self, events):
+        """Format events as CSV string."""
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(
+            ["RecordNumber", "EventID", "Type", "Source", "Computer", "Time", "Message"]
+        )
+        for e in events:
+            msg = "; ".join(e.get("Strings", [])) if e.get("Strings") else ""
+            writer.writerow(
+                [
+                    e.get("RecordNumber", ""),
+                    e.get("EventID", ""),
+                    e.get("EventTypeStr", ""),
+                    e.get("SourceName", ""),
+                    e.get("ComputerName", ""),
+                    e.get("TimeGeneratedStr", ""),
+                    msg,
+                ]
+            )
+        return output.getvalue()
+
     def _display_events(self, events, verbose=False):
         """Display events in readable format"""
         for i, event in enumerate(events, 1):
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"Event #{i}")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
             print(f"Record Number: {event.get('RecordNumber', 'N/A')}")
             print(f"Event ID: {event.get('EventID', 'N/A')}")
             print(f"Source: {event.get('SourceName', 'N/A')}")
@@ -714,22 +948,147 @@ class EventLog:
             print(f"Time: {event.get('TimeGeneratedStr', 'N/A')}")
             print(f"Type: {event.get('EventTypeStr', 'N/A')}")
 
-            if event.get("Strings") and verbose:
-                print(f"Event Data:")
-                for j, string in enumerate(event["Strings"]):
-                    print(f"  [{j}] {string}")
+            if event.get("Strings"):
+                # Always show first string as message summary
+                strings = event["Strings"]
+                msg = strings[0] if strings[0] else ""
+                if msg:
+                    print(f"Message: {msg[:200]}")
+                # Show all strings in verbose mode
+                if verbose and len(strings) > 1:
+                    print("Event Data:")
+                    for j, string in enumerate(strings):
+                        print(f"  [{j}] {string}")
 
-    def check_event_log(self, log_name, echo=True):
+    def _clear_via_rpc(self, log_name):
+        """Clear event log via RPC \\pipe\\eventlog.
+
+        WARNING: On some Windows versions, hElfrClearELFW crashes the
+        EventLog service. Prefer --method atexec or --method wmiexec.
+        """
+        print_warning("RPC clear may crash the EventLog service on some Windows versions")
+        if not self._connect_eventlog_fresh():
+            raise Exception("Event Log pipe not available")
+        self.dce_transport._clear_event_log(log_name)
+
+    def _clear_via_atexec(self, log_name, parent_args=None):
+        """Clear event log via wevtutil cl running as SYSTEM through Task Scheduler."""
+        if not self.check_if_connected():
+            print_bad("Not connected to a share. Use 'use <sharename>' first.")
+            return False
+        atexec_args = self._build_atexec_args(
+            f'wevtutil cl "{log_name}"', no_output=True, parent_args=parent_args
+        )
+        self.atexec(atexec_args)
+        return True
+
+    def _clear_via_wmiexec(self, log_name):
+        """Clear event log via wevtutil cl using WMI DCOM execution."""
+        import argparse
+
+        wmi_args = argparse.Namespace(
+            command=f'wevtutil cl "{log_name}"',
+            no_output=True,
+            timeout=30,
+            output=None,
+            save_name=None,
+            save_path=None,
+            raw_command=False,
+            shell="cmd",
+            sleep_time=1.0,
+        )
+        result = self.execute_wmi_command(
+            command=wmi_args.command,
+            capture_output=False,
+            timeout=wmi_args.timeout,
+            working_dir=self.wmi_working_dir,
+            raw_command=False,
+            shell="cmd",
+        )
+        return result.get("success", False)
+
+    def clear_event_log(self, args):
+        """Clear a Windows Event Log."""
+        log_name = args.log
+        force = getattr(args, "force", False)
+        method = args.method
+
+        # Confirm
+        if not force:
+            try:
+                ans = input(f"Clear event log '{log_name}'? This cannot be undone. [y/N]: ")
+                if ans.lower() != "y":
+                    print_info("Cancelled")
+                    return
+            except (EOFError, KeyboardInterrupt):
+                print_info("Cancelled")
+                return
+
+        print_info(f"Clearing event log '{log_name}' via {method}...")
+
+        try:
+            if method == "rpc":
+                self._clear_via_rpc(log_name)
+            elif method == "atexec":
+                if not self._clear_via_atexec(log_name, parent_args=args):
+                    return
+            elif method == "wmiexec":
+                if not self._clear_via_wmiexec(log_name):
+                    print_bad(f"WMI DCOM execution failed for '{log_name}'")
+                    print_info("Check DCOM connectivity (ports 135 + dynamic range)")
+                    return
+            print_good(f"Event log '{log_name}' cleared via {method}")
+            self._track("EXEC", "eventlog_clear", log_name, f"method={method}")
+        except TypeError:
+            # impacket bytes-in-__str__ on Python 3.14 — likely succeeded
+            print_good(f"Event log '{log_name}' cleared via {method}")
+            self._track("EXEC", "eventlog_clear", log_name, f"method={method}")
+        except Exception as e:
+            try:
+                error_str = str(e)
+            except TypeError:
+                error_str = repr(e)
+            print_bad(f"Failed to clear '{log_name}': {error_str}")
+            if method == "rpc":
+                if "access_denied" in error_str.lower():
+                    print_info(
+                        "RPC requires elevated privileges. Try --method atexec or --method wmiexec"
+                    )
+                elif "PIPE_CLOSING" in error_str or "PIPE_BROKEN" in error_str:
+                    print_info(
+                        "RPC clear crashed the EventLog service. "
+                        "Use --method atexec or --method wmiexec instead. "
+                        "Restart service with: servicestart EventLog"
+                    )
+
+    def check_event_log(self, log_name, echo=True, method="rpc", parent_args=None):
         """Check if a specific Windows Event Log exists and is accessible"""
-        self.setup_dce_transport()
-        self.dce_transport._connect_eventlog(use_even6=False)
-        print_info(f"Checking if event log '{log_name}' exists...")
+        if method in ("atexec", "wmiexec"):
+            cmd = f'wevtutil gli "{log_name}"'
+            print_debug(f"Checking event log '{log_name}' via {method}")
+            output = self._run_wevtutil(cmd, method, parent_args=parent_args)
+            if output is not None:
+                if echo and output:
+                    print(output)
+                return True, 0
+            return False, 0
+
+        if not self._connect_eventlog_fresh():
+            return False, 0
+        print_debug(f"Checking if event log '{log_name}' exists...")
         log_exist, count = self.dce_transport._does_eventlog_exist(log_name, use_even6=False)
-        if log_exist:
+        if log_exist == "access_denied":
+            if echo:
+                print_bad(f"Access denied to event log '{log_name}'")
+                print_info(
+                    "Try --method atexec or --method wmiexec, " "or use a domain admin account"
+                )
+            return False, 0
+        elif log_exist:
             if echo:
                 print_good(f"Event log '{log_name}' exists and is accessible ({count} records).")
             return True, count
         else:
             if echo:
-                print_bad(f"Event log '{log_name}' does not exist or is not accessible.")
+                print_bad(f"Event log '{log_name}' does not exist.")
             return False, 0
