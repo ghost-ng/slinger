@@ -2497,37 +2497,65 @@ Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"
 
 ---
 
-## `hashdump`
+## `secretsdump`
 
-**Description:** Dump hashes from the remote server
+**Description:** Extract credentials using the existing SMB session. Supports SAM hashes, LSA secrets (cached domain creds, service passwords), and NTDS.dit (domain controllers only via DRS replication).
 
 **Help:**
 ```
-usage: hashdump [-h]
-Dump hashes from the remote server
+usage: secretsdump [-h] [--sam] [--lsa] [--ntds] [--just-dc-ntlm]
+                           [--history] [-o OUTPUT]
+Extract credentials using the existing SMB session. Supports SAM hashes, LSA secrets (cached domain creds, service passwords), and NTDS.dit (domain controllers only via DRS replication).
 ```
 
 **Example Usage:**
 ```
-Example Usage: hashdump
+Examples:
+  secretsdump                          # Dump SAM + LSA (default)
+  secretsdump --sam                    # SAM hashes only
+  secretsdump --lsa                    # LSA secrets only (cached creds, service passwords)
+  secretsdump --ntds                   # NTDS.dit via DRS replication (DC only)
+  secretsdump --ntds --just-dc-ntlm   # NTDS NTLM hashes only (faster)
+  secretsdump --history                # Include password history
+  secretsdump -o /tmp/hashes.txt       # Save output to file
+  hashdump                             # Alias for secretsdump --sam
 ```
+
+### Arguments
+
+- **`output`**: Save extracted secrets to file
+  - Required: No
 
 ---
 
-## `secretsdump`
+## `hashdump`
 
-**Description:** Dump secrets from the remote server
+**Description:** Extract credentials using the existing SMB session. Supports SAM hashes, LSA secrets (cached domain creds, service passwords), and NTDS.dit (domain controllers only via DRS replication).
 
 **Help:**
 ```
-usage: secretsdump [-h]
-Dump secrets from the remote server
+usage: secretsdump [-h] [--sam] [--lsa] [--ntds] [--just-dc-ntlm]
+                           [--history] [-o OUTPUT]
+Extract credentials using the existing SMB session. Supports SAM hashes, LSA secrets (cached domain creds, service passwords), and NTDS.dit (domain controllers only via DRS replication).
 ```
 
 **Example Usage:**
 ```
-Example Usage: secretsdump
+Examples:
+  secretsdump                          # Dump SAM + LSA (default)
+  secretsdump --sam                    # SAM hashes only
+  secretsdump --lsa                    # LSA secrets only (cached creds, service passwords)
+  secretsdump --ntds                   # NTDS.dit via DRS replication (DC only)
+  secretsdump --ntds --just-dc-ntlm   # NTDS NTLM hashes only (faster)
+  secretsdump --history                # Include password history
+  secretsdump -o /tmp/hashes.txt       # Save output to file
+  hashdump                             # Alias for secretsdump --sam
 ```
+
+### Arguments
+
+- **`output`**: Save extracted secrets to file
+  - Required: No
 
 ---
 

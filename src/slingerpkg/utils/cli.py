@@ -1535,20 +1535,46 @@ def setup_cli_parser(slingerClient):
     parser_rungroup.add_argument("-c", "--cmd-chain", help="Specify a command sequence to run")
     parser_rungroup.add_argument("-f", "--file", help="Specify a script file to run")
 
-    parser_hashdump = subparsers.add_parser(
-        "hashdump",
-        help="Dump hashes from the remote server",
-        description="Dump hashes from the remote server",
-        epilog="Example Usage: hashdump",
-    )
-    parser_hashdump.set_defaults(func=slingerClient.hashdump)
-
     parser_secretsdump = subparsers.add_parser(
         "secretsdump",
-        help="Dump secrets from the remote server",
-        description="Dump secrets from the remote server",
-        epilog="Example Usage: secretsdump",
+        help="Dump SAM hashes, LSA secrets, and NTDS.dit from remote system",
+        description="Extract credentials using the existing SMB session. "
+        "Supports SAM hashes, LSA secrets (cached domain creds, service passwords), "
+        "and NTDS.dit (domain controllers only via DRS replication).",
+        aliases=["hashdump"],
+        epilog="""Examples:
+  secretsdump                          # Dump SAM + LSA (default)
+  secretsdump --sam                    # SAM hashes only
+  secretsdump --lsa                    # LSA secrets only (cached creds, service passwords)
+  secretsdump --ntds                   # NTDS.dit via DRS replication (DC only)
+  secretsdump --ntds --just-dc-ntlm   # NTDS NTLM hashes only (faster)
+  secretsdump --history                # Include password history
+  secretsdump -o /tmp/hashes.txt       # Save output to file
+  hashdump                             # Alias for secretsdump --sam""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser_secretsdump.add_argument(
+        "--sam", action="store_true", help="Dump SAM hashes (local accounts)"
+    )
+    parser_secretsdump.add_argument(
+        "--lsa",
+        action="store_true",
+        help="Dump LSA secrets (cached domain creds, service passwords)",
+    )
+    parser_secretsdump.add_argument(
+        "--ntds",
+        action="store_true",
+        help="Dump NTDS.dit via DRS replication (domain controller only)",
+    )
+    parser_secretsdump.add_argument(
+        "--just-dc-ntlm",
+        action="store_true",
+        help="NTDS: extract only NTLM hashes via DRS (faster, skips Kerberos keys)",
+    )
+    parser_secretsdump.add_argument(
+        "--history", action="store_true", help="Include password history in dump"
+    )
+    parser_secretsdump.add_argument("-o", "--output", help="Save extracted secrets to file")
     parser_secretsdump.set_defaults(func=slingerClient.secretsdump)
 
     parser_env = subparsers.add_parser(
