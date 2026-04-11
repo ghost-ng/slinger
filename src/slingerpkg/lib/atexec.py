@@ -12,6 +12,36 @@ class atexec:
     def __init__(self):
         print_debug("ATExec Module Loaded!")
 
+    def _get_default_output_path(self):
+        """Return a share-relative output directory appropriate for the current share.
+
+        The standard default (\\Users\\Public\\Downloads\\) only exists on C$.
+        Other shares need a path that actually exists on them.
+        """
+        share = getattr(self, "share", None)
+        if not share:
+            return "\\Users\\Public\\Downloads\\"
+        share_upper = share.upper()
+        if share_upper == "C$":
+            return "\\Users\\Public\\Downloads\\"
+        elif share_upper == "ADMIN$":
+            return "\\Temp\\"
+        else:
+            # Other drive shares (D$, E$) or custom shares — use root
+            return "\\"
+
+    def _resolve_output_path(self, sp):
+        """Return the output path to use, replacing the CLI default if on a non-C$ share.
+
+        If the user explicitly set --sp to something custom, honour it.
+        If it's None or the CLI default (\\Users\\Public\\Downloads\\), use a
+        share-appropriate path via _get_default_output_path().
+        """
+        cli_default = "\\Users\\Public\\Downloads\\"
+        if not sp or sp == cli_default:
+            return self._get_default_output_path()
+        return sp
+
     def _cmd_split(self, cmdline):
         cmdline = cmdline.split(" ", 1)
         cmd = cmdline[0]
@@ -60,22 +90,46 @@ class atexec:
 
         # Share path only needed when capturing output
         if not no_output:
+            # Always use the currently connected share
+            share_name = getattr(self, "share", None)
+            if not share_name:
+                print_bad("Not connected to a share. Use 'use <sharename>' first.")
+                return
+
+            # Look up the share's disk root path
             share_info_dict = self.list_shares(args=None, echo=False, ret=True)
-            share_exists = False
             if share_info_dict is None or len(share_info_dict) == 0:
                 print_bad("Failed to list shares")
                 return
+            share_root = None
             for share_info in share_info_dict:
-                if share_info["name"].upper() == (args.sh).upper():
-                    share_exists = True
+                if share_info["name"].upper() == share_name.upper():
                     share_root = share_info["path"].rstrip("\\")
-                    user_path = args.sp.lstrip("\\").rstrip("\\")
-                    args.share_path = f"{share_root}\\{user_path}"
-                    print_debug(f"Using share path: {args.share_path}")
                     break
 
-            if not share_exists:
-                print_bad(f"Share '{args.sh}' does not exist")
+            if share_root is None:
+                print_bad(f"Share '{share_name}' not found in share list")
+                return
+
+            user_path = args.sp.lstrip("\\").rstrip("\\")
+            args.share_path = f"{share_root}\\{user_path}"
+            args._read_path = user_path
+            print_debug(f"Using share path: {args.share_path}")
+
+            # Pre-flight: verify the output directory exists on the share
+            try:
+                check_path = user_path if user_path else ""
+                saved_rp = self.relative_path
+                self.relative_path = ""
+                self.conn.listPath(self.share, check_path + "\\*")
+                self.relative_path = saved_rp
+            except Exception:
+                self.relative_path = saved_rp
+                print_bad(
+                    f"Path '{args.sp}' does not exist on share '{share_name}'. "
+                    f"Output cannot be saved or retrieved. "
+                    f"Use --sp to specify a valid path on this share"
+                )
                 return
 
         # Connect to the pipe
@@ -139,16 +193,15 @@ class atexec:
             return
 
         try:
-            # Create relative path from share root (no leading backslashes)
-            relative_path = args.sp.lstrip("\\").rstrip("\\")
-            args.remote_path = f"{relative_path}\\{save_file_name}"
-            # Ensure we're connected to the share for file operations
-            print_debug(f"Current share: {getattr(self, 'share', 'None')}, needed: {args.sh}")
-            if not hasattr(self, "share") or (self.share or "").upper() != (args.sh or "").upper():
-                print_debug(f"Connecting to share: {args.sh}")
-                self.connect_share(args)
-            else:
-                print_debug(f"Already on correct share: {self.share}")
+            # Read the output file relative to the current share using _read_path
+            # _read_path is the share-relative directory (set during share resolution above)
+            read_dir = getattr(args, "_read_path", args.sp.lstrip("\\").rstrip("\\"))
+            args.remote_path = f"{read_dir}\\{save_file_name}"
+
+            # Temporarily reset relative_path so cat/delete use share root
+            saved_relative_path = self.relative_path
+            self.relative_path = ""
+
             print_debug(f"Retrieving output from: {args.remote_path}")
             sleep(args.wait)
             print_info("Command output:")
@@ -169,6 +222,9 @@ class atexec:
                 "atexec",
                 args.command[:100] if hasattr(args, "command") else "unknown",
             )
+
+            # Restore state
+            self.relative_path = saved_relative_path
         except Exception as e:
             print_debug(f"Exception: {e}", sys.exc_info())
             return
@@ -184,19 +240,14 @@ class atexec:
 
             args.tn = f"SlingerTask_{generate_random_string(6, 8)}"
 
-        # Update share to match currently connected share
-        if hasattr(self, "share") and self.share:
-            args.sh = self.share
-
-            # Adjust default path based on share type
-            if args.sp == "\\Users\\Public\\Downloads\\" and args.sh.upper() == "ADMIN$":
-                args.sp = "\\Temp\\"
-                print_debug(f"Using ADMIN$ appropriate path: {args.sp}")
+        # Adjust default output path based on connected share type
+        args.sp = self._resolve_output_path(args.sp)
+        print_debug(f"Using output path for {self.share}: {args.sp}")
 
         cmd = None
-        # handle mistakes in which the user specifies a full path
-        if ":" in args.sp:
-            print_bad("Invalid path name, please use a relative path")
+        # Reject absolute, UNC, and share-style paths — sp must be relative to connected share
+        if ":" in args.sp or args.sp.startswith("\\\\") or "$" in args.sp:
+            print_bad("--sp must be a path relative to the connected share (e.g., \\Temp\\)")
             return
         if args.shell:
             print_warning(
@@ -212,7 +263,7 @@ class atexec:
                     # Display current atexec configuration
                     print_info("Current atexec configuration:")
                     print_info(f"  Task Name (-tn): {args.tn}")
-                    print_info(f"  Share (-sh): {args.sh}")
+                    print_info(f"  Share: {self.share}")
                     print_info(f"  Path (-sp): {args.sp}")
                     print_info(f"  Author (-ta): {args.ta}")
                     print_info(f"  Description (-td): {args.td}")
@@ -238,7 +289,7 @@ class atexec:
                 print_info(f"Executing with arguments:")
                 print_info(f"  Command: {shell_args.command}")
                 print_info(f"  Task Name: {shell_args.tn}")
-                print_info(f"  Share: {shell_args.sh}")
+                print_info(f"  Share: {self.share}")
                 print_info(f"  Path: {shell_args.sp}")
                 print_info(f"  Author: {shell_args.ta}")
                 print_info(f"  Wait Time: {shell_args.wait}s")

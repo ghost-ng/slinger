@@ -41,9 +41,15 @@ def force_help(parser, command):
 
 
 def _format_help_text(parser):
-    """Base help text formatter"""
-    help_text = parser.format_help()
-    help_text = help_text.replace("usage: slinger", "usage:").strip()
+    """Base help text formatter — strips 'slinger' from usage in interactive session"""
+    # Temporarily strip 'slinger ' prefix from prog for clean interactive help
+    original_prog = parser.prog
+    if original_prog.startswith("slinger "):
+        parser.prog = original_prog[len("slinger ") :]
+    # Call argparse base class format_help to avoid recursion
+    help_text = argparse.ArgumentParser.format_help(parser)
+    parser.prog = original_prog
+    help_text = help_text.strip()
     help_text = "\n".join(line for line in help_text.splitlines() if line.strip())
     return help_text.rstrip() + "\n"
 
@@ -193,6 +199,8 @@ def print_all_commands_verbose(parser):
         "🔒 Security Operations": [
             "hashdump",
             "secretsdump",
+            "spnenum",
+            "ticket",
             "atexec",
             "wmiexec",
             "portfwd",
@@ -289,15 +297,18 @@ class CustomArgumentParser(argparse.ArgumentParser):
 
     def format_help(self):
         """This is invoked when the user types '<command> -h'"""
-        print_info("Help Menu:")
         if not self._custom_help:
-            self._custom_help = _format_help_text(super())
+            self._custom_help = _format_help_text(self)
         return self._custom_help
 
     def format_usage(self):
-        """Strip program name from usage line."""
+        """Strip 'slinger' from usage in interactive session."""
+        original_prog = self.prog
+        if self.prog.startswith("slinger "):
+            self.prog = self.prog[len("slinger ") :]
         usage = super().format_usage()
-        return usage.replace("usage: slinger", "usage:").replace("usage: slinger", "usage:")
+        self.prog = original_prog
+        return usage
 
     def error(self, message):
         if "invalid choice" in message:
@@ -348,14 +359,16 @@ def add_atexec_options(parser, include_command=False):
         --ta/--task-author: Task author metadata
         --td/--task-desc: Task description metadata
         --tf/--task-folder: Task folder in Task Scheduler
-        --sh/--task-share: SMB share for output file
         -w/--wait: Seconds to wait for task completion
     """
     # Create argument group for better help formatting
     atexec_group = parser.add_argument_group(
         "atexec options (only used with --method atexec, ignored otherwise)",
         "These options only apply when using --method atexec. "
-        "They have no effect with the default wmiexec method.",
+        "They have no effect with the default wmiexec method. "
+        "Note: Output is saved to a temp file on target and retrieved via SMB. "
+        "--sp should be reachable from the connected share "
+        "(e.g., \\Temp\\ on ADMIN$, not \\Users\\Public\\Downloads\\).",
     )
 
     if include_command:
@@ -370,7 +383,7 @@ def add_atexec_options(parser, include_command=False):
         "--save-path",
         dest="sp",
         metavar="PATH",
-        help="Directory on target to save command output (default: \\Users\\Public\\Downloads\\)",
+        help="Directory on target to save command output (default: auto per share). Should be reachable from the connected share",
         default="\\Users\\Public\\Downloads\\",
     )
     atexec_group.add_argument(
@@ -412,14 +425,6 @@ def add_atexec_options(parser, include_command=False):
         metavar="FOLDER",
         help="Task Scheduler folder (default: \\Windows)",
         default="\\Windows",
-    )
-    atexec_group.add_argument(
-        "--sh",
-        "--task-share",
-        dest="sh",
-        metavar="SHARE",
-        help="SMB share for output file (default: current share)",
-        default=None,
     )
     atexec_group.add_argument(
         "-w",
@@ -1575,7 +1580,150 @@ def setup_cli_parser(slingerClient):
         "--history", action="store_true", help="Include password history in dump"
     )
     parser_secretsdump.add_argument("-o", "--output", help="Save extracted secrets to file")
+    parser_secretsdump.add_argument(
+        "--tmp-path",
+        dest="tmp_path",
+        metavar="PATH",
+        help="Absolute disk path for temporary hive files (default: auto per share). "
+        "Must be writable by SYSTEM and accessible from the connected share",
+    )
     parser_secretsdump.set_defaults(func=slingerClient.secretsdump)
+
+    # Subparser for 'ticket' command — Golden/Silver ticket creation
+    # Subparser for 'spnenum' command — SPN enumeration
+    parser_spnenum = subparsers.add_parser(
+        "spnenum",
+        help="Enumerate Service Principal Names (SPNs)",
+        description="Query SPNs from the domain for Kerberoasting / silver ticket targets",
+        epilog="""Examples:
+  spnenum --method atexec                    # List all SPNs via Task Scheduler
+  spnenum --method atexec --query "*/FOREST" # SPNs matching pattern
+  spnenum --method wmiexec                   # List all SPNs via WMI DCOM
+  spnenum --method atexec --query "MSSQLSvc/*"  # Find SQL Server SPNs
+
+Methods:
+  atexec   - Runs 'setspn -Q' as SYSTEM via Task Scheduler. Requires share connection.
+  wmiexec  - Runs 'setspn -Q' as SYSTEM via WMI DCOM. Requires DCOM ports.
+
+Note: Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_spnenum.add_argument(
+        "--method",
+        choices=["atexec", "wmiexec"],
+        required=True,
+        help="Enumeration method: atexec (Task Scheduler) or wmiexec (WMI DCOM)",
+    )
+    parser_spnenum.add_argument(
+        "--query",
+        default="*/*",
+        help="SPN query pattern (default: */* for all SPNs)",
+    )
+    add_atexec_options(parser_spnenum, include_command=False)
+    parser_spnenum.set_defaults(func=slingerClient.spnenum)
+
+    # Subparser for 'ticket' command — Golden/Silver ticket creation
+    parser_ticket = subparsers.add_parser(
+        "ticket",
+        help="Create Kerberos golden/silver tickets",
+        description="Forge Kerberos tickets using extracted hashes. "
+        "Golden tickets use the krbtgt hash (full domain access). "
+        "Silver tickets use a service account hash (access to specific service).",
+        epilog="""Examples:
+  ticket golden --nthash <krbtgt_hash>                         # Golden ticket as Administrator
+  ticket golden --nthash <hash> --user svc_admin --user-id 1001
+  ticket golden --aesKey <aes256_key> --domain htb.local
+  ticket silver --nthash <machine_hash> --spn cifs/dc01.htb.local
+  ticket silver --nthash <hash> --spn http/web01.htb.local --user admin
+
+Note: Domain SID auto-fetched via SAMR if not provided.
+      Requires krbtgt hash (golden) or service account hash (silver) from secretsdump --ntds.""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ticket_subparsers = parser_ticket.add_subparsers(
+        dest="ticket_action",
+        parser_class=CustomArgumentParser,
+    )
+
+    # ticket golden
+    parser_ticket_golden = ticket_subparsers.add_parser(
+        "golden",
+        help="Create golden ticket (TGT) using krbtgt hash",
+        description="Forge a TGT using the krbtgt NTLM hash or AES key. "
+        "Grants full domain access as any user.",
+        epilog="""Examples:
+  ticket golden --nthash <krbtgt_hash>
+  ticket golden --nthash <hash> --user svc_admin --user-id 1001
+  ticket golden --aesKey <aes256> --groups "513, 512, 520, 518, 519"
+  ticket golden --nthash <hash> --extra-sid S-1-5-21-...-519 -o admin.ccache""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_ticket_golden.add_argument("--nthash", help="krbtgt NTLM hash for ticket signing")
+    parser_ticket_golden.add_argument(
+        "--aesKey", help="krbtgt AES key (128 or 256 bit) for ticket signing"
+    )
+    parser_ticket_golden.add_argument("--domain", help="Domain FQDN (default: session domain)")
+    parser_ticket_golden.add_argument(
+        "--domain-sid", help="Domain SID (auto-fetched if not provided)"
+    )
+    parser_ticket_golden.add_argument(
+        "--user", default="Administrator", help="User to impersonate (default: Administrator)"
+    )
+    parser_ticket_golden.add_argument(
+        "--user-id", type=int, default=500, help="User RID (default: 500)"
+    )
+    parser_ticket_golden.add_argument(
+        "--groups",
+        default="513, 512, 520, 518, 519",
+        help="Group RIDs (default: Domain Users, Domain Admins, etc.)",
+    )
+    parser_ticket_golden.add_argument(
+        "--extra-sid", help="Extra SID to add to ticket (for cross-domain)"
+    )
+    parser_ticket_golden.add_argument(
+        "--duration",
+        type=int,
+        default=87600,
+        help="Ticket duration in hours (default: 87600 = 10 years)",
+    )
+    parser_ticket_golden.add_argument(
+        "-o", "--output", help="Output ccache file path (default: ~/.slinger/<user>.ccache)"
+    )
+    parser_ticket_golden.set_defaults(func=slingerClient.ticket_handler)
+
+    # ticket silver
+    parser_ticket_silver = ticket_subparsers.add_parser(
+        "silver",
+        help="Create silver ticket (TGS) using service account hash",
+        description="Forge a TGS for a specific service using the service account's NTLM hash or AES key.",
+        epilog="""Examples:
+  ticket silver --nthash <machine_hash> --spn cifs/dc01.htb.local
+  ticket silver --nthash <hash> --spn http/web01.htb.local --user admin
+  ticket silver --aesKey <aes256> --spn ldap/dc01.htb.local""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_ticket_silver.add_argument(
+        "--nthash", help="Service account NTLM hash for ticket signing"
+    )
+    parser_ticket_silver.add_argument("--aesKey", help="Service account AES key (128 or 256 bit)")
+    parser_ticket_silver.add_argument(
+        "--spn", required=True, help="Target SPN (e.g., cifs/dc01.domain.com)"
+    )
+    parser_ticket_silver.add_argument("--domain", help="Domain FQDN (default: session domain)")
+    parser_ticket_silver.add_argument(
+        "--domain-sid", help="Domain SID (auto-fetched if not provided)"
+    )
+    parser_ticket_silver.add_argument(
+        "--user", default="Administrator", help="User to impersonate (default: Administrator)"
+    )
+    parser_ticket_silver.add_argument(
+        "--user-id", type=int, default=500, help="User RID (default: 500)"
+    )
+    parser_ticket_silver.add_argument(
+        "-o", "--output", help="Output ccache file path (default: ~/.slinger/<user>.ccache)"
+    )
+    parser_ticket_silver.set_defaults(func=slingerClient.ticket_handler)
 
     parser_env = subparsers.add_parser(
         "env",
@@ -1665,9 +1813,11 @@ def setup_cli_parser(slingerClient):
         "atexec",
         help="Execute a command at a specified time",
         description="Execute a command on the remote server",
-        epilog='Example Usage: atexec -tn "NetSvc" -sh C$ -sp \\\\Users\\\\Public\\\\'
+        epilog='Example Usage: atexec -tn "NetSvc" -sp \\\\Users\\\\Public\\\\'
         "Downloads\\\\ -c ipconfig\n"
-        'For multi-word commands: atexec -c "echo hello world" -tn MyTask',
+        'For multi-word commands: atexec -c "echo hello world" -tn MyTask\n\n'
+        "Note: Output is saved to a temp file on target and retrieved via SMB.\n"
+        "--sp should be reachable from the connected share (auto-adjusted per share type).",
     )
     parser_atexec.add_argument(
         "-c",
@@ -1679,7 +1829,7 @@ def setup_cli_parser(slingerClient):
     parser_atexec.add_argument(
         "--sp",
         "--path",
-        help="Specify the folder to save the output file (default: %(default)s)",
+        help="Folder to save output file (default: auto per share, e.g., \\Temp\\ on ADMIN$)",
         default="\\Users\\Public\\Downloads\\",
     )
     parser_atexec.add_argument(
@@ -1711,12 +1861,6 @@ def setup_cli_parser(slingerClient):
         "--folder",
         help="Specify the folder to run the task in (default: %(default)s)",
         default="\\Windows",
-    )
-    parser_atexec.add_argument(
-        "--sh",
-        "--share",
-        help="Specify the share name to connect to (default: %(default)s)",
-        default="C$",
     )
     parser_atexec.add_argument(
         "--no-output",
@@ -1967,7 +2111,10 @@ Methods:
 Methods:
   rpc      - Direct RPC via \\pipe\\eventlog. Requires SE_SECURITY_PRIVILEGE (fails with UAC filtering)
   atexec   - Runs 'wevtutil cl' as SYSTEM via Task Scheduler. Requires share connection. Leaves Event ID 1102
-  wmiexec  - Runs 'wevtutil cl' as SYSTEM via WMI DCOM. Requires DCOM ports (135+dynamic). Leaves Event ID 1102""",
+  wmiexec  - Runs 'wevtutil cl' as SYSTEM via WMI DCOM. Requires DCOM ports (135+dynamic). Leaves Event ID 1102
+
+Note: atexec/wmiexec save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_eventlog_clear.add_argument("--log", required=True, help="Event log name to clear")
@@ -2056,7 +2203,9 @@ Interactive Mode:
   wmiexec dcom -i --sp "C:\\Users\\Public" --sn out.txt    # Custom remote output path/name per command
   wmiexec dcom -i --shell powershell                       # Interactive PowerShell shell
 
-Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory before running commands.""",
+Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory before running commands.
+      Output is saved to a temp file on target and retrieved via SMB.
+      --sp must be a path reachable from the connected share (e.g., \\Temp\\ on ADMIN$).""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -2100,7 +2249,7 @@ Note: WMI working directory syncs with SMB 'cd'. Use 'cd' to change directory be
         "--save-path",
         dest="save_path",
         metavar="PATH",
-        help="Directory on target to save output file (default: auto-detect from share)",
+        help="Directory on target to save output file (default: auto per share). Should be reachable from the connected share",
         default=None,
     )
     parser_wmi_dcom.add_argument(
@@ -2653,6 +2802,8 @@ INTERACTIVE SHELL COMMANDS:
 
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
+      Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2685,6 +2836,8 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
+      Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -2730,6 +2883,8 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
+      Both methods save output to a temp file on target and retrieve it via SMB.
+      --sp should be reachable from the connected share.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

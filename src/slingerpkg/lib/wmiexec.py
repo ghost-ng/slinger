@@ -594,9 +594,11 @@ class wmiexec(WMIQuery):
                                             )
                                         else:
                                             cross_share_path = f"{temp_dir}\\{output_filename}"
-                                    elif share_name.endswith("$"):
-                                        # File was written to C:\Windows\Temp\filename.txt
-                                        # Use share-root path (starts with \) for SMB operations
+                                    elif share_name.upper() == "ADMIN$":
+                                        # ADMIN$ maps to C:\Windows — file is at C:\Windows\Temp\
+                                        cross_share_path = f"\\Temp\\{output_filename}"
+                                    elif share_name.endswith("$") and len(share_name) == 2:
+                                        # Drive share (C$, D$) — file at \Windows\Temp\
                                         cross_share_path = f"\\Windows\\Temp\\{output_filename}"
                                     else:
                                         cross_share_path = output_filename
@@ -673,9 +675,12 @@ class wmiexec(WMIQuery):
                                         print_verbose(
                                             f"SMB download path (custom): {smb_output_path}"
                                         )
-                                elif share_name.endswith("$"):
-                                    # File was written to C:\Windows\Temp\filename.txt
-                                    # SMB path should be \Windows\Temp\filename.txt (from share root)
+                                elif share_name.upper() == "ADMIN$":
+                                    # ADMIN$ maps to C:\Windows — relative path is \Temp\
+                                    smb_output_path = f"\\Temp\\{output_filename}"
+                                    print_verbose(f"SMB download path: {smb_output_path}")
+                                elif share_name.endswith("$") and len(share_name) == 2:
+                                    # Drive share (C$, D$) — relative path is \Windows\Temp\
                                     smb_output_path = f"\\Windows\\Temp\\{output_filename}"
                                     print_verbose(f"SMB download path: {smb_output_path}")
                                 else:

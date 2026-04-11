@@ -71,13 +71,8 @@ class EventLog:
                 else "System Maintenance"
             ),
             tf=getattr(parent_args, "tf", "\\Windows") if parent_args else "\\Windows",
-            sp=(
-                getattr(parent_args, "sp", "\\Users\\Public\\Downloads\\")
-                if parent_args
-                else "\\Users\\Public\\Downloads\\"
-            ),
+            sp=self._resolve_output_path(getattr(parent_args, "sp", None)),
             sn=getattr(parent_args, "sn", None) if parent_args else None,
-            sh=getattr(parent_args, "sh", None) or getattr(self, "share", "C$") or "C$",
             wait=getattr(parent_args, "wait", 3) if parent_args else 3,
             shell=False,
         )

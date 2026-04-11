@@ -196,6 +196,17 @@ def main():
     auth_group.add_argument(
         "--kerberos", action="store_true", help="Use Kerberos for authentication"
     )
+    parser.add_argument(
+        "--dc-ip",
+        dest="dc_ip",
+        help="IP of the domain controller (KDC) for Kerberos authentication",
+    )
+    parser.add_argument(
+        "--sync-clock",
+        action="store_true",
+        dest="sync_clock",
+        help="Sync Kerberos timestamps with DC via NTP to fix clock skew",
+    )
     parser.add_argument("--debug", action="store_true", help="Turn on debug output")
     parser.add_argument("--gen-ntlm-hash", help="Generate NTLM hash from password", nargs=1)
     parser.add_argument("-v", "--version", action="version", help="Show version information")
@@ -266,6 +277,8 @@ def main():
         prgm_args.port,
         prgm_args.ntlm,
         prgm_args.kerberos,
+        dc_ip=getattr(prgm_args, "dc_ip", None),
+        sync_clock=getattr(prgm_args, "sync_clock", False),
     )
 
     slinger_parser = setup_cli_parser(slingerClient)
