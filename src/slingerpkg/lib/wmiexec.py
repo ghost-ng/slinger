@@ -110,7 +110,6 @@ class wmiexec(WMIQuery):
                     print(result["output"])
                 if getattr(args, "output", None):
                     print_good(f"Output saved to: {args.output}")
-                self._track("EXEC", "wmiexec_dcom", args.command[:100])
             else:
                 print_bad("WMI execution failed")
                 print_info(f"Error: {result.get('error')}")
@@ -519,9 +518,17 @@ class wmiexec(WMIQuery):
                     else:  # shell == 'cmd' (default)
                         full_command = f"cmd.exe /Q /c {command}"
 
-                # Execute via WMI Win32_Process.Create
+                # Execute via WMI Win32_Process.Create with hidden window
                 print_debug(f"Executing WMI command: {full_command}")
-                result = win32Process.Create(full_command, working_dir, None)
+                # Create ProcessStartupInformation with ShowWindow=0 (SW_HIDE)
+                try:
+                    startup_class = self.wmi_connection.GetObject("Win32_ProcessStartup")
+                    startup = startup_class.SpawnInstance_()
+                    startup.ShowWindow = 0  # SW_HIDE
+                except Exception:
+                    startup = None
+                    print_debug("Could not create ProcessStartupInformation, window may be visible")
+                result = win32Process.Create(full_command, working_dir, startup)
                 process_id = result.ProcessId
                 return_value = result.ReturnValue
 
@@ -529,6 +536,13 @@ class wmiexec(WMIQuery):
                 print_debug(f"WMI execution result: ReturnValue={return_value}, PID={process_id}")
 
                 if return_value == 0:
+                    # Track the WMI execution
+                    cmd_preview = (command[:80] + "...") if len(command) > 80 else command
+                    self._track("EXEC", "wmiexec_dcom", cmd_preview, f"PID={process_id}")
+                    if output_filename:
+                        self._track(
+                            "FILE", "wmiexec_dcom", output_path, "temp output (created+deleted)"
+                        )
 
                     # Capture output if enabled (but not for raw commands)
                     output_text = None
@@ -1896,12 +1910,18 @@ class wmiexec(WMIQuery):
 
             print_debug(f"Using full path for trigger: {full_path}")
 
-            # Create the process using Win32_Process.Create
+            # Create the process using Win32_Process.Create with hidden window
             win32_process, _ = iWbemServices.GetObject("Win32_Process")
+            try:
+                startup_class, _ = iWbemServices.GetObject("Win32_ProcessStartup")
+                startup = startup_class.SpawnInstance_()
+                startup.ShowWindow = 0  # SW_HIDE
+            except Exception:
+                startup = None
             result, process_id = win32_process.Create(
                 CommandLine=full_path,
                 CurrentDirectory=None,
-                ProcessStartupInformation=None,
+                ProcessStartupInformation=startup,
             )
 
             print_debug(f"Win32_Process.Create result: {result}, PID: {process_id}")
@@ -1989,12 +2009,18 @@ class wmiexec(WMIQuery):
             win32Process, _ = iWbemServices.GetObject("Win32_Process")
             print_debug("✓ Retrieved Win32_Process class (simplified method)")
 
-            # Very basic trigger - just spawn cmd.exe
-            trigger_command = "cmd.exe"
+            # Very basic trigger - just spawn cmd.exe (hidden)
+            trigger_command = "cmd.exe /Q /c echo trigger"
             print_debug(f"Simplified trigger command: {trigger_command}")
 
-            # Call Create method with minimal parameters
-            result = win32Process.Create(trigger_command)
+            # Call Create method with hidden window
+            try:
+                startup_class, _ = iWbemServices.GetObject("Win32_ProcessStartup")
+                startup = startup_class.SpawnInstance_()
+                startup.ShowWindow = 0  # SW_HIDE
+            except Exception:
+                startup = None
+            result = win32Process.Create(trigger_command, None, startup)
 
             return_value = result.ReturnValue if hasattr(result, "ReturnValue") else -1
             process_id = result.ProcessId if hasattr(result, "ProcessId") else None

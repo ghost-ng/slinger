@@ -52,7 +52,6 @@ class smblib:
                 print_bad(f"Failed to connect to share {share}: Invalid share name.")
             else:
                 print_bad(f"Failed to connect to share {share}: {e}")
-            raise e
 
     # https://learn.microsoft.com/en-us/windows/win32/api/lmshare/ns-lmshare-share_info_0
     # SYSTEM\CurrentControlSet\Services\LanmanServer\Shares

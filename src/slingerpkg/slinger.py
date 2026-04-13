@@ -372,6 +372,25 @@ def main():
                         complete_style="readline",
                     )
 
+                # Handle !<number> history re-execution
+                if user_input.strip().startswith("!") and user_input.strip()[1:].isdigit():
+                    hist_num = int(user_input.strip()[1:])
+                    hist_file = os.path.expanduser(get_config_value("History_File"))
+                    if os.path.exists(hist_file):
+                        with open(hist_file, "r") as f:
+                            hist_lines = [ln[1:].rstrip() for ln in f if ln.startswith("+")]
+                        if 1 <= hist_num <= len(hist_lines):
+                            user_input = hist_lines[hist_num - 1]
+                            print_info(f"Re-running: {user_input}")
+                        else:
+                            print_bad(
+                                f"History entry {hist_num} not found (max: {len(hist_lines)})"
+                            )
+                            continue
+                    else:
+                        print_bad("No history file found")
+                        continue
+
                 logwriter.info(user_input)
                 try:
                     split = shlex.split(user_input)

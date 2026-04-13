@@ -91,6 +91,13 @@ public:
     void cleanup();
     bool is_pipe_connected() const { return is_connected; }
     bool is_pipe_authenticated() const { return is_authenticated; }
+
+    // Raw handle access — used by proxy for direct I/O after auth handshake
+#ifdef _WIN32
+    HANDLE get_pipe_handle() const { return pipe_handle; }
+#else
+    int get_pipe_handle() const { return client_fd; }
+#endif
 };
 
 // Implementation
@@ -203,7 +210,8 @@ bool PipeCore::initialize(const std::string& base_name) {
 
     // Use custom pipe name if defined, otherwise generate unique pipe name
     #ifdef CUSTOM_PIPE_NAME
-        pipe_name = std::string(CUSTOM_PIPE_NAME);
+        constexpr auto _obf_pipe = OBF_STRING(CUSTOM_PIPE_NAME);
+        pipe_name = _obf_pipe.decrypt();
     #else
         // Generate unique pipe name with timestamp and suffix
         #ifdef _WIN32

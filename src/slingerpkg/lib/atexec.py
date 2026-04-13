@@ -56,7 +56,7 @@ class atexec:
         cmd = "cmd.exe"
         no_output = getattr(args, "no_output", False)
         if no_output:
-            arguments = f"/C {args.command}"
+            arguments = f"/C start /B {args.command}"
             random_save_name = None
         else:
             share_path = args.share_path.rstrip("\\")
@@ -65,7 +65,7 @@ class atexec:
             else:
                 random_save_name = args.sn
             save_file_path = ntpath.join(share_path, random_save_name)
-            arguments = f"/C {args.command} > {save_file_path} 2>&1"
+            arguments = f"/C start /B {args.command} > {save_file_path} 2>&1"
             print_debug(f"Task '{args.tn}' will save output to: {save_file_path}")
         xml = build_task_xml(
             command=cmd,
@@ -142,6 +142,7 @@ class atexec:
             response, save_file_name = self._create_task(args)
             if response["ErrorCode"] == 0:
                 print_good(f"Task '{args.tn}' created successfully")
+                self._track("TASK", "atexec_create", args.tn, "created+deleted")
             else:
                 print_bad(f"Failed to create task '{args.tn}'")
                 return
@@ -191,6 +192,15 @@ class atexec:
                 args.command[:100] if hasattr(args, "command") else "unknown",
             )
             return
+
+        # Track the temp output file
+        if hasattr(args, "share_path") and save_file_name:
+            self._track(
+                "FILE",
+                "atexec",
+                f"{args.share_path}\\{save_file_name}",
+                "temp output (created+deleted)",
+            )
 
         try:
             # Read the output file relative to the current share using _read_path

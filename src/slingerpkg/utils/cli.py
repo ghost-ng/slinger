@@ -205,6 +205,7 @@ def print_all_commands_verbose(parser):
             "wmiexec",
             "portfwd",
             "agent",
+            "proxy",
         ],
         "💾 Download Management": ["downloads"],
         "🖥️  Session Management": [
@@ -1290,7 +1291,15 @@ def setup_cli_parser(slingerClient):
         "history",
         help="Show command history",
         description="Display recent command history from the slinger history file",
-        epilog="Example Usage: history, history -n 20",
+        epilog="""Examples:
+  history                     # Show last 15 commands
+  history -n 50               # Show last 50 commands
+  history --search whoami     # Search history for 'whoami'
+  history --search atexec -n 100  # Search last 100 entries for 'atexec'
+  !42                         # Re-run command #42 from history
+
+Tip: Press Ctrl+R for interactive reverse search while typing""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_history.add_argument(
         "-n",
@@ -1298,6 +1307,13 @@ def setup_cli_parser(slingerClient):
         default=15,
         metavar="NUM",
         help="Number of history lines to display (default: 15)",
+    )
+    parser_history.add_argument(
+        "--search",
+        "--grep",
+        dest="search",
+        metavar="TERM",
+        help="Search history for commands matching TERM",
     )
     parser_history.set_defaults(func=slingerClient.history_handler)
 
@@ -2800,6 +2816,11 @@ INTERACTIVE SHELL COMMANDS:
   agent start slinger_abc123 --method atexec        # Start using Task Scheduler
   agent start slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
 
+Execution details:
+  wmiexec  - Win32_Process.Create with ShowWindow=0 (hidden window)
+  atexec   - Task Scheduler with cmd.exe /C start /B (no new window)
+             Task runs as SYSTEM in session 0 (non-interactive)
+
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
       Both methods save output to a temp file on target and retrieve it via SMB.
@@ -2921,6 +2942,268 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
 
     # Set handler for agent commands
     parser_agent.set_defaults(func=slingerClient.agent_handler)
+
+    # ── SOCKS5 Proxy ─────────────────────────────────────────────────────────
+    parser_proxy = subparsers.add_parser(
+        "proxy",
+        help="Build and manage SOCKS5 proxy tunnels over named pipes",
+        description="Build, deploy, and connect to SOCKS5 proxy binaries that tunnel "
+        "traffic through SMB named pipes. No new ports opened on target.",
+        epilog="""Examples:
+  proxy build --arch x64 --pipe myproxy --pass s3cret   # Build proxy binary
+  proxy deploy ./proxy.exe --name myproxy --start       # Upload and start
+  proxy connect myproxy --port 1080                     # Start local SOCKS5 listener
+  proxy stop myproxy                                    # Kill proxy process
+  proxy rm myproxy                                      # Delete proxy file
+  proxy list                                            # List deployed proxies
+
+Usage with proxychains:
+  1. proxy connect myproxy --port 1080
+  2. Edit /etc/proxychains.conf: socks5 127.0.0.1 1080
+  3. proxychains nmap -sT 10.10.10.0/24
+
+Note: Proxy binary communicates over existing SMB connection (port 445).
+      No additional ports are opened on the target.""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    proxy_subparsers = parser_proxy.add_subparsers(
+        parser_class=CustomArgumentParser,
+        dest="proxy_command",
+        help="Proxy actions",
+        metavar="ACTION",
+    )
+
+    # proxy build
+    parser_proxy_build = proxy_subparsers.add_parser(
+        "build",
+        help="Build SOCKS5 proxy binary",
+        description="Cross-compile a SOCKS5 proxy binary for Windows targets. "
+        "Uses the same polymorphic obfuscation as the agent build system.",
+        epilog="""Examples:
+  proxy build --arch x64                                # Basic x64 proxy
+  proxy build --arch x64 --pipe myproxy --pass s3cret   # With auth
+  proxy build --arch x64 --obfuscate                    # Maximum obfuscation
+  proxy build --arch both --pipe tunnel                 # Build x86 + x64""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_build.add_argument(
+        "--arch",
+        choices=["x86", "x64", "both"],
+        default="x64",
+        help="Target architecture (default: x64)",
+    )
+    parser_proxy_build.add_argument(
+        "--pipe",
+        default="slingproxy",
+        help="Named pipe name on target (default: slingproxy)",
+    )
+    parser_proxy_build.add_argument(
+        "--pass",
+        dest="passphrase",
+        help="Passphrase for encrypted pipe communication",
+    )
+    parser_proxy_build.add_argument(
+        "--obfuscate",
+        action="store_true",
+        help="Enable maximum obfuscation (strip symbols, hide exports)",
+    )
+    parser_proxy_build.add_argument(
+        "--upx",
+        help="Path to UPX binary for compression",
+    )
+    parser_proxy_build.add_argument(
+        "--name",
+        dest="custom_name",
+        help="Custom output binary name",
+    )
+    parser_proxy_build.add_argument(
+        "--debug",
+        action="store_true",
+        dest="proxy_debug",
+        help="Enable debug logging in proxy binary",
+    )
+    parser_proxy_build.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Check build dependencies without compiling",
+    )
+    parser_proxy_build.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy deploy
+    parser_proxy_deploy = proxy_subparsers.add_parser(
+        "deploy",
+        help="Deploy proxy binary to target",
+        description="Upload proxy binary to the remote target via SMB.",
+        epilog="""Examples:
+  proxy deploy ./proxy.exe --name myproxy                   # Upload only
+  proxy deploy ./proxy.exe --name myproxy --start           # Upload and start
+  proxy deploy ./proxy.exe --path "\\Temp\\" --name myproxy   # Custom path
+  proxy deploy ./proxy.exe --name myproxy --start --method atexec  # Start via Task Scheduler
+
+Execution details (--start):
+  wmiexec  - Win32_Process.Create with ShowWindow=0 (hidden window)
+  atexec   - Task Scheduler with cmd.exe /C start /B (no new window)""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_deploy.add_argument(
+        "proxy_file",
+        help="Path to proxy binary file",
+    )
+    parser_proxy_deploy.add_argument(
+        "--name",
+        required=True,
+        help="Name for deployed proxy on target",
+    )
+    parser_proxy_deploy.add_argument(
+        "--path",
+        default=None,
+        help="Remote directory to upload to (default: auto per share)",
+    )
+    parser_proxy_deploy.add_argument(
+        "--start",
+        action="store_true",
+        help="Start the proxy after deployment",
+    )
+    parser_proxy_deploy.add_argument(
+        "--method",
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method to start proxy (default: wmiexec)",
+    )
+    parser_proxy_deploy.add_argument(
+        "--pipe",
+        help="Pipe name (must match build-time pipe name)",
+    )
+    add_atexec_options(parser_proxy_deploy, include_command=False)
+    parser_proxy_deploy.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy connect
+    parser_proxy_connect = proxy_subparsers.add_parser(
+        "connect",
+        help="Connect to running proxy and start local SOCKS5 listener",
+        description="Connect to a deployed proxy via named pipe and start "
+        "a local SOCKS5 server for tunneling traffic.",
+        epilog="""Examples:
+  proxy connect myproxy                          # Default port 1080
+  proxy connect myproxy --port 9050              # Custom port
+  proxy connect myproxy --pass s3cret            # Auth (must match build --pass)
+  proxy connect myproxy --bind 0.0.0.0           # Listen on all interfaces""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_connect.add_argument(
+        "proxy_id",
+        help="Proxy name or ID to connect to",
+    )
+    parser_proxy_connect.add_argument(
+        "--pass",
+        dest="passphrase",
+        help="Passphrase for authentication (must match build --pass)",
+    )
+    parser_proxy_connect.add_argument(
+        "--port",
+        type=int,
+        default=1080,
+        help="Local SOCKS5 port (default: 1080)",
+    )
+    parser_proxy_connect.add_argument(
+        "--bind",
+        default="127.0.0.1",
+        help="Local bind address (default: 127.0.0.1)",
+    )
+    parser_proxy_connect.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy use
+    parser_proxy_use = proxy_subparsers.add_parser(
+        "use",
+        help="Re-enter proxy subshell for a backgrounded proxy",
+        description="Return to the proxy interactive shell after using 'back'.",
+        epilog="""Examples:
+  proxy use myproxy                              # Re-enter proxy subshell""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_use.add_argument(
+        "proxy_id",
+        help="Proxy name to re-enter",
+    )
+    parser_proxy_use.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy start
+    parser_proxy_start = proxy_subparsers.add_parser(
+        "start",
+        help="Start a deployed proxy process",
+        description="Start a previously deployed proxy using its deployment information.",
+        epilog="""Examples:
+  proxy start myproxy                          # Start using wmiexec (default)
+  proxy start myproxy --method atexec          # Start using Task Scheduler
+
+Execution details:
+  wmiexec  - Win32_Process.Create with ShowWindow=0 (hidden window)
+  atexec   - Task Scheduler with cmd.exe /C start /B (no new window)
+             Task runs as SYSTEM in session 0 (non-interactive)
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_start.add_argument(
+        "proxy_id",
+        help="Proxy name or ID to start",
+    )
+    parser_proxy_start.add_argument(
+        "--method",
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method to start proxy (default: wmiexec)",
+    )
+    add_atexec_options(parser_proxy_start, include_command=False)
+    parser_proxy_start.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy stop
+    parser_proxy_stop = proxy_subparsers.add_parser(
+        "stop",
+        help="Stop a running proxy process",
+        description="Kill the proxy process on the remote target using taskkill.",
+        epilog="""Execution details:
+  wmiexec  - taskkill /F /IM via Win32_Process.Create (ShowWindow=0)
+  atexec   - taskkill /F /IM via Task Scheduler (cmd.exe /C start /B)""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_stop.add_argument("proxy_id", help="Proxy name or ID to stop")
+    parser_proxy_stop.add_argument(
+        "--method",
+        choices=["wmiexec", "atexec"],
+        default="wmiexec",
+        help="Execution method for taskkill (default: wmiexec)",
+    )
+    add_atexec_options(parser_proxy_stop, include_command=False)
+    parser_proxy_stop.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy rm
+    parser_proxy_rm = proxy_subparsers.add_parser(
+        "rm",
+        help="Remove proxy file from target",
+        description="Delete the proxy binary file from the remote target.",
+    )
+    parser_proxy_rm.add_argument("proxy_id", help="Proxy name or ID to remove")
+    parser_proxy_rm.set_defaults(func=slingerClient.proxy_handler)
+
+    # proxy list
+    parser_proxy_list = proxy_subparsers.add_parser(
+        "list",
+        help="List deployed proxies",
+        description="Show all deployed proxies and their status.",
+    )
+    parser_proxy_list.add_argument(
+        "-f",
+        "--format",
+        choices=["table", "json"],
+        default="table",
+        help="Output format (default: table)",
+    )
+    parser_proxy_list.set_defaults(func=slingerClient.proxy_handler)
+
+    parser_proxy.set_defaults(func=slingerClient.proxy_handler)
 
     return parser
 

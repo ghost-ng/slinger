@@ -2030,19 +2030,29 @@ Example Usage: info
 
 **Help:**
 ```
-usage: history [-h] [-n NUM]
+usage: history [-h] [-n NUM] [--search TERM]
 Display recent command history from the slinger history file
 ```
 
 **Example Usage:**
 ```
-Example Usage: history, history -n 20
+Examples:
+  history                     # Show last 15 commands
+  history -n 50               # Show last 50 commands
+  history --search whoami     # Search history for 'whoami'
+  history --search atexec -n 100  # Search last 100 entries for 'atexec'
+  !42                         # Re-run command #42 from history
+
+Tip: Press Ctrl+R for interactive reverse search while typing
 ```
 
 ### Arguments
 
 - **`n`**: Number of history lines to display (default: 15)
   - Default: `15`
+  - Required: No
+
+- **`search`**: Search history for commands matching TERM
   - Required: No
 
 ---
@@ -3724,6 +3734,11 @@ Examples:
   agent start slinger_abc123 --method atexec        # Start using Task Scheduler
   agent start slinger_abc123 --method atexec --ta "SYSTEM" --td "Maintenance Task"
 
+Execution details:
+  wmiexec  - Win32_Process.Create with ShowWindow=0 (hidden window)
+  atexec   - Task Scheduler with cmd.exe /C start /B (no new window)
+             Task runs as SYSTEM in session 0 (non-interactive)
+
 Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
       They are ignored when using the default wmiexec method.
       Both methods save output to a temp file on target and retrieve it via SMB.
@@ -3892,5 +3907,306 @@ Example: agent update slinger_abc123 --path c:\new\path\agent.exe
 - **`agent_id`**: Agent ID to update
 - **`path`**: New file path for the agent
   - Required: Yes
+
+---
+
+## `proxy`
+
+**Description:** Build, deploy, and connect to SOCKS5 proxy binaries that tunnel traffic through SMB named pipes. No new ports opened on target.
+
+**Help:**
+```
+usage: proxy [-h] ACTION ...
+Build, deploy, and connect to SOCKS5 proxy binaries that tunnel traffic through SMB named pipes. No new ports opened on target.
+```
+
+**Example Usage:**
+```
+Examples:
+  proxy build --arch x64 --pipe myproxy --pass s3cret   # Build proxy binary
+  proxy deploy ./proxy.exe --name myproxy --start       # Upload and start
+  proxy connect myproxy --port 1080                     # Start local SOCKS5 listener
+  proxy stop myproxy                                    # Kill proxy process
+  proxy rm myproxy                                      # Delete proxy file
+  proxy list                                            # List deployed proxies
+
+Usage with proxychains:
+  1. proxy connect myproxy --port 1080
+  2. Edit /etc/proxychains.conf: socks5 127.0.0.1 1080
+  3. proxychains nmap -sT 10.10.10.0/24
+
+Note: Proxy binary communicates over existing SMB connection (port 445).
+      No additional ports are opened on the target.
+```
+
+### Subcommands
+
+#### `proxy build`
+
+**Description:** Cross-compile a SOCKS5 proxy binary for Windows targets. Uses the same polymorphic obfuscation as the agent build system.
+
+**Help:**
+```
+usage: proxy build [-h] [--arch {x86,x64,both}] [--pipe PIPE]
+                   [--pass PASSPHRASE] [--obfuscate] [--upx UPX]
+                   [--name CUSTOM_NAME] [--debug] [--dry-run]
+Cross-compile a SOCKS5 proxy binary for Windows targets. Uses the same polymorphic obfuscation as the agent build system.
+```
+
+**Example Usage:**
+```
+Examples:
+  proxy build --arch x64                                # Basic x64 proxy
+  proxy build --arch x64 --pipe myproxy --pass s3cret   # With auth
+  proxy build --arch x64 --obfuscate                    # Maximum obfuscation
+  proxy build --arch both --pipe tunnel                 # Build x86 + x64
+```
+
+##### Arguments
+
+- **`arch`**: Target architecture (default: x64)
+  - Choices: x86, x64, both
+  - Default: `x64`
+- **`pipe`**: Named pipe name on target (default: slingproxy)
+  - Default: `slingproxy`
+- **`passphrase`**: Passphrase for encrypted pipe communication
+- **`upx`**: Path to UPX binary for compression
+- **`custom_name`**: Custom output binary name
+  - Required: No
+
+---
+
+#### `proxy deploy`
+
+**Description:** Upload proxy binary to the remote target via SMB.
+
+**Help:**
+```
+usage: proxy deploy [-h] --name NAME [--path PATH] [--start]
+                    [--method {wmiexec,atexec}] [--pipe PIPE] [--sp PATH]
+                    [--sn NAME] [--tn NAME] [--ta AUTHOR] [--td DESC]
+                    [--tf FOLDER] [-w SECS]
+                    proxy_file
+Upload proxy binary to the remote target via SMB.
+```
+
+**Example Usage:**
+```
+Examples:
+  proxy deploy ./proxy.exe --name myproxy                   # Upload only
+  proxy deploy ./proxy.exe --name myproxy --start           # Upload and start
+  proxy deploy ./proxy.exe --path "\Temp\" --name myproxy   # Custom path
+  proxy deploy ./proxy.exe --name myproxy --start --method atexec  # Start via Task Scheduler
+
+Execution details (--start):
+  wmiexec  - Win32_Process.Create with ShowWindow=0 (hidden window)
+  atexec   - Task Scheduler with cmd.exe /C start /B (no new window)
+```
+
+##### Arguments
+
+- **`proxy_file`**: Path to proxy binary file
+- **`name`**: Name for deployed proxy on target
+- **`path`**: Remote directory to upload to (default: auto per share)
+- **`method`**: Execution method to start proxy (default: wmiexec)
+  - Choices: wmiexec, atexec
+  - Default: `wmiexec`
+- **`pipe`**: Pipe name (must match build-time pipe name)
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
+  - Required: No
+
+---
+
+#### `proxy connect`
+
+**Description:** Connect to a deployed proxy via named pipe and start a local SOCKS5 server for tunneling traffic.
+
+**Help:**
+```
+usage: proxy connect [-h] [--pass PASSPHRASE] [--port PORT] [--bind BIND]
+                     proxy_id
+Connect to a deployed proxy via named pipe and start a local SOCKS5 server for tunneling traffic.
+```
+
+**Example Usage:**
+```
+Examples:
+  proxy connect myproxy                          # Default port 1080
+  proxy connect myproxy --port 9050              # Custom port
+  proxy connect myproxy --pass s3cret            # Auth (must match build --pass)
+  proxy connect myproxy --bind 0.0.0.0           # Listen on all interfaces
+```
+
+##### Arguments
+
+- **`proxy_id`**: Proxy name or ID to connect to
+- **`passphrase`**: Passphrase for authentication (must match build --pass)
+- **`port`**: Local SOCKS5 port (default: 1080)
+  - Default: `1080`
+- **`bind`**: Local bind address (default: 127.0.0.1)
+  - Default: `127.0.0.1`
+  - Required: No
+
+---
+
+#### `proxy use`
+
+**Description:** Return to the proxy interactive shell after using 'back'.
+
+**Help:**
+```
+usage: proxy use [-h] proxy_id
+Return to the proxy interactive shell after using 'back'.
+```
+
+**Example Usage:**
+```
+Examples:
+  proxy use myproxy                              # Re-enter proxy subshell
+```
+
+##### Arguments
+
+- **`proxy_id`**: Proxy name to re-enter
+  - Required: Yes
+
+---
+
+#### `proxy start`
+
+**Description:** Start a previously deployed proxy using its deployment information.
+
+**Help:**
+```
+usage: proxy start [-h] [--method {wmiexec,atexec}] [--sp PATH] [--sn NAME]
+                   [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                   [-w SECS]
+                   proxy_id
+Start a previously deployed proxy using its deployment information.
+```
+
+**Example Usage:**
+```
+Examples:
+  proxy start myproxy                          # Start using wmiexec (default)
+  proxy start myproxy --method atexec          # Start using Task Scheduler
+
+Execution details:
+  wmiexec  - Win32_Process.Create with ShowWindow=0 (hidden window)
+  atexec   - Task Scheduler with cmd.exe /C start /B (no new window)
+             Task runs as SYSTEM in session 0 (non-interactive)
+
+Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
+      They are ignored when using the default wmiexec method.
+```
+
+##### Arguments
+
+- **`proxy_id`**: Proxy name or ID to start
+- **`method`**: Execution method to start proxy (default: wmiexec)
+  - Choices: wmiexec, atexec
+  - Default: `wmiexec`
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
+  - Required: No
+
+---
+
+#### `proxy stop`
+
+**Description:** Kill the proxy process on the remote target using taskkill.
+
+**Help:**
+```
+usage: proxy stop [-h] [--method {wmiexec,atexec}] [--sp PATH] [--sn NAME]
+                  [--tn NAME] [--ta AUTHOR] [--td DESC] [--tf FOLDER]
+                  [-w SECS]
+                  proxy_id
+Kill the proxy process on the remote target using taskkill.
+```
+
+**Example Usage:**
+```
+Execution details:
+  wmiexec  - taskkill /F /IM via Win32_Process.Create (ShowWindow=0)
+  atexec   - taskkill /F /IM via Task Scheduler (cmd.exe /C start /B)
+```
+
+##### Arguments
+
+- **`proxy_id`**: Proxy name or ID to stop
+- **`method`**: Execution method for taskkill (default: wmiexec)
+  - Choices: wmiexec, atexec
+  - Default: `wmiexec`
+- **`sp`**: Directory on target to save command output (default: auto per share). Should be reachable from the connected share
+  - Default: `\Users\Public\Downloads\`
+- **`sn`**: Filename for command output (default: random)
+- **`tn`**: Scheduled task name (default: auto-generated)
+- **`ta`**: Task author for OPSEC (default: Slinger)
+  - Default: `Slinger`
+- **`td`**: Task description for OPSEC (default: Slinger Task)
+  - Default: `Slinger Task`
+- **`tf`**: Task Scheduler folder (default: \Windows)
+  - Default: `\Windows`
+- **`wait`**: Seconds to wait for task completion (default: 2)
+  - Default: `2`
+  - Required: No
+
+---
+
+#### `proxy rm`
+
+**Description:** Delete the proxy binary file from the remote target.
+
+**Help:**
+```
+usage: proxy rm [-h] proxy_id
+Delete the proxy binary file from the remote target.
+```
+
+##### Arguments
+
+- **`proxy_id`**: Proxy name or ID to remove
+  - Required: Yes
+
+---
+
+#### `proxy list`
+
+**Description:** Show all deployed proxies and their status.
+
+**Help:**
+```
+usage: proxy list [-h] [-f {table,json}]
+Show all deployed proxies and their status.
+```
+
+##### Arguments
+
+- **`format`**: Output format (default: table)
+  - Choices: table, json
+  - Default: `table`
+  - Required: No
 
 ---

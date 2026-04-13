@@ -209,6 +209,7 @@ def build_task_xml(
   <Principals>
     <Principal id="{xml_escape(principal_id)}">
       <UserId>S-1-5-18</UserId>
+      <LogonType>Password</LogonType>
       <RunLevel>HighestAvailable</RunLevel>
     </Principal>
   </Principals>

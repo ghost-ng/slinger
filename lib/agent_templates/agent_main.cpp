@@ -134,8 +134,9 @@ private:
         DEBUG_LOG_CAT("INIT", "Generating pipe name");
         // Use custom pipe name if defined at build time, otherwise use time-based random
         #ifdef CUSTOM_PIPE_NAME
-            // Return the exact custom pipe name without any modifications
-            std::string name = std::string(CUSTOM_PIPE_NAME);
+            // Return the custom pipe name (decrypted at runtime via OBF_STRING)
+            constexpr auto _obf_custom = OBF_STRING(CUSTOM_PIPE_NAME);
+            std::string name = _obf_custom.decrypt();
             DEBUG_LOG_CAT("INIT", "Using custom pipe name: " + name);
             return name;
         #else
@@ -211,7 +212,9 @@ public:
         DEBUG_LOG_CAT("PIPE", "Initializing pipe communication");
         #ifdef AGENT_PASSPHRASE
             DEBUG_LOG_CAT("AUTH", "Passphrase authentication enabled");
-            if (!pipe_handler.initialize_with_passphrase(pipe_name, AGENT_PASSPHRASE, pipe_name.c_str())) {
+            constexpr auto _obf_pass = OBF_STRING(AGENT_PASSPHRASE);
+            auto _dec_pass = _obf_pass.decrypt();
+            if (!pipe_handler.initialize_with_passphrase(pipe_name, _dec_pass.c_str(), pipe_name.c_str())) {
                 DEBUG_LOG_CAT("ERROR", "Failed to initialize pipe with authentication");
                 return 1;
             }

@@ -135,7 +135,7 @@ endif()
 
 # MinGW cross-compilation settings for Windows
 set(CMAKE_CXX_FLAGS "${{CMAKE_CXX_FLAGS}} -O3 -ffunction-sections -fdata-sections -fno-stack-protector")
-set(CMAKE_EXE_LINKER_FLAGS "${{CMAKE_EXE_LINKER_FLAGS}} -Wl,--gc-sections -s -static -static-libgcc -static-libstdc++")"""
+set(CMAKE_EXE_LINKER_FLAGS "${{CMAKE_EXE_LINKER_FLAGS}} -Wl,--gc-sections -s -static -static-libgcc -static-libstdc++ -mwindows")"""
 
         # Add obfuscation flags if enabled
         if config.get("obfuscate"):
