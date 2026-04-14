@@ -847,8 +847,9 @@ class SlingerClient(
             print_log("  start    - Start a deployed proxy process")
             print_log("  connect  - Connect to proxy and start local SOCKS5 listener")
             print_log("  use      - Re-enter proxy subshell (after 'back')")
-            print_log("  stop     - Kill proxy process on target")
-            print_log("  rm       - Remove proxy file from target")
+            print_log("  kill     - Find and kill proxy process by PID")
+            print_log("  stop     - Disconnect + kill proxy process")
+            print_log("  rm       - Kill process + delete file from target")
             print_log("  list     - List deployed proxies")
             print_log("")
             print_info("Use 'proxy <command> --help' for detailed help")
@@ -864,6 +865,8 @@ class SlingerClient(
             self._proxy_connect(args)
         elif proxy_cmd == "use":
             self._proxy_use(args)
+        elif proxy_cmd == "kill":
+            self._proxy_kill(args)
         elif proxy_cmd == "stop":
             self._proxy_stop(args)
         elif proxy_cmd == "rm":
@@ -1297,6 +1300,115 @@ class SlingerClient(
             self._active_proxy_pipe = None
             self._active_proxy_id = None
 
+    def _proxy_kill(self, args):
+        """Find and kill proxy process by PID (same pattern as agent kill)."""
+        if not self.check_if_connected():
+            return
+
+        import re
+
+        proxy_id = args.proxy_id
+        registry = self._load_proxy_registry()
+        proxy_info = registry.get(proxy_id)
+
+        if not proxy_info:
+            print_bad(f"Proxy '{proxy_id}' not found in registry")
+            return
+
+        remote_path = proxy_info.get("remote_path", "")
+        exe_name = remote_path.split("\\")[-1] if "\\" in remote_path else remote_path
+        if not exe_name:
+            exe_name = f"{proxy_id}.exe"
+
+        method = getattr(args, "method", None) or proxy_info.get("start_method", "wmiexec")
+        print_info(f"Searching for process: {exe_name} (via {method})")
+
+        process_ids = []
+
+        try:
+            if method == "wmiexec":
+                process_query = (
+                    f"SELECT ProcessId, Name FROM Win32_Process WHERE Name = '{exe_name}'"
+                )
+                print_debug(f"WMI query: {process_query}")
+
+                def _find_procs():
+                    pids = []
+                    iWbemServices = self.setup_wmi(namespace="root/cimv2", operation_type="query")
+                    iEnum = iWbemServices.ExecQuery(process_query)
+                    while True:
+                        try:
+                            pEnum = iEnum.Next(0xFFFFFFFF, 1)[0]
+                            props = pEnum.getProperties()
+                            if "ProcessId" in props and props["ProcessId"]["value"]:
+                                pids.append(props["ProcessId"]["value"])
+                        except Exception:
+                            break
+                    return pids
+
+                found, timed_out = self._run_with_timeout(
+                    _find_procs, timeout=30, description="Process search via WMI"
+                )
+                if timed_out:
+                    print_warning("WMI query timed out — try --method atexec")
+                    return
+                process_ids = found or []
+
+            elif method == "atexec":
+                exe_base = exe_name.rsplit(".", 1)[0] if "." in exe_name else exe_name
+                tasklist_cmd = f'tasklist /FO CSV /NH | findstr /I "{exe_base}"'
+                result = self._execute_via_atexec(tasklist_cmd, args)
+                if result.get("success"):
+                    for line in result.get("output", "").strip().split("\n"):
+                        line = line.strip()
+                        if not line or "INFO:" in line.upper():
+                            continue
+                        match = re.match(r'"[^"]+","(\d+)"', line)
+                        if match:
+                            process_ids.append(int(match.group(1)))
+                else:
+                    print_bad(f"Failed to get process list: {result.get('error')}")
+                    return
+
+        except Exception as e:
+            print_bad(f"Failed to find processes: {e}")
+            return
+
+        if not process_ids:
+            print_warning(f"No running processes found for '{exe_name}'")
+            return
+
+        print_good(f"Found {len(process_ids)} process(es): {process_ids}")
+
+        for pid in process_ids:
+            print_info(f"Killing PID {pid}...")
+            try:
+                if method == "wmiexec":
+                    result, timed_out = self._run_with_timeout(
+                        lambda p=pid: self.execute_wmi_command(
+                            command=f"taskkill /F /PID {p}",
+                            capture_output=True,
+                            timeout=10,
+                            shell="cmd",
+                        ),
+                        timeout=15,
+                        description=f"Kill PID {pid}",
+                    )
+                    if not timed_out and result and result.get("success"):
+                        print_good(f"Killed PID {pid}")
+                    else:
+                        print_bad(f"Failed to kill PID {pid}")
+                elif method == "atexec":
+                    kill_result = self._execute_via_atexec(f"taskkill /F /PID {pid}", args)
+                    if kill_result.get("success"):
+                        print_good(f"Killed PID {pid}")
+                    else:
+                        print_bad(f"Failed to kill PID {pid}")
+            except Exception as e:
+                print_bad(f"Error killing PID {pid}: {e}")
+
+        self._track("EXEC", "proxy_kill", proxy_id, f"PIDs={process_ids}")
+
     def _update_proxy_registry(self, proxy_id, updates):
         """Update fields in the proxy deployment registry."""
         registry = self._load_proxy_registry()
@@ -1304,7 +1416,7 @@ class SlingerClient(
             registry[proxy_id].update(updates)
             self._save_proxy_registry(registry)
 
-    def _kill_proxy_process(self, proxy_id):
+    def _kill_proxy_process(self, proxy_id, method_override=None):
         """Kill proxy process on target using the same method it was started with."""
         registry = self._load_proxy_registry()
         proxy_info = registry.get(proxy_id)
@@ -1316,8 +1428,10 @@ class SlingerClient(
         if not exe_name:
             exe_name = f"{proxy_id}.exe"
 
-        # Use the same method the proxy was started with
-        method = proxy_info.get("start_method", "wmiexec") if proxy_info else "wmiexec"
+        # Use override, saved method, or default to wmiexec
+        method = method_override or (
+            proxy_info.get("start_method", "wmiexec") if proxy_info else "wmiexec"
+        )
 
         print_info(f"Killing proxy process: {exe_name} (via {method})")
         cmd = f"taskkill /F /IM {exe_name}"
@@ -1382,10 +1496,11 @@ class SlingerClient(
             self._active_proxy_pipe = None
             self._active_proxy_id = None
 
-        self._kill_proxy_process(proxy_id)
+        method_override = getattr(args, "method", None)
+        self._kill_proxy_process(proxy_id, method_override=method_override)
 
     def _proxy_rm(self, args):
-        """Remove proxy file from target."""
+        """Kill proxy process and remove file from target."""
         if not self.check_if_connected():
             return
 
@@ -1397,6 +1512,10 @@ class SlingerClient(
             print_bad(f"Proxy '{proxy_id}' not found in registry")
             return
 
+        # Kill the process first so the file isn't locked
+        method_override = getattr(args, "method", None)
+        self._kill_proxy_process(proxy_id, method_override=method_override)
+
         remote_path = proxy_info.get("remote_path")
         if remote_path:
             try:
@@ -1407,7 +1526,12 @@ class SlingerClient(
                 print_good(f"Deleted {remote_path}")
                 self._track("FILE", "proxy_rm", f"{self.share}\\{remote_path}")
             except Exception as e:
-                print_bad(f"Failed to delete: {e}")
+                err_str = str(e)
+                if "STATUS_CANNOT_DELETE" in err_str or "STATUS_SHARING_VIOLATION" in err_str:
+                    print_warning("File is locked — process may still be running")
+                    print_info(f"Try 'proxy stop {proxy_id}' then 'proxy rm {proxy_id}'")
+                else:
+                    print_bad(f"Failed to delete: {e}")
 
         # Remove from registry
         del registry[proxy_id]

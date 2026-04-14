@@ -3159,6 +3159,30 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
     add_atexec_options(parser_proxy_start, include_command=False)
     parser_proxy_start.set_defaults(func=slingerClient.proxy_handler)
 
+    # proxy kill
+    parser_proxy_kill = proxy_subparsers.add_parser(
+        "kill",
+        help="Find and kill proxy process by PID",
+        description="Search for the proxy process by name and terminate by PID.",
+        epilog="""Examples:
+  proxy kill myproxy                          # Find + kill using wmiexec
+  proxy kill myproxy --method atexec          # Find + kill using Task Scheduler
+
+Execution details:
+  wmiexec  - WMI query to find PIDs, then taskkill /F /PID
+  atexec   - tasklist + taskkill via Task Scheduler""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser_proxy_kill.add_argument("proxy_id", help="Proxy name or ID to kill")
+    parser_proxy_kill.add_argument(
+        "--method",
+        choices=["wmiexec", "atexec"],
+        default=None,
+        help="Execution method (default: uses saved start method)",
+    )
+    add_atexec_options(parser_proxy_kill, include_command=False)
+    parser_proxy_kill.set_defaults(func=slingerClient.proxy_handler)
+
     # proxy stop
     parser_proxy_stop = proxy_subparsers.add_parser(
         "stop",
@@ -3182,10 +3206,21 @@ Note: --ta, --td, --tf and other atexec options only apply with --method atexec.
     # proxy rm
     parser_proxy_rm = proxy_subparsers.add_parser(
         "rm",
-        help="Remove proxy file from target",
-        description="Delete the proxy binary file from the remote target.",
+        help="Kill process and remove proxy file from target",
+        description="Kill the proxy process and delete the binary from the remote target.",
+        epilog="""Examples:
+  proxy rm myproxy                          # Kill + delete (uses saved start method)
+  proxy rm myproxy --method atexec          # Force atexec for the kill step""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_proxy_rm.add_argument("proxy_id", help="Proxy name or ID to remove")
+    parser_proxy_rm.add_argument(
+        "--method",
+        choices=["wmiexec", "atexec"],
+        default=None,
+        help="Execution method for process kill (default: uses saved start method)",
+    )
+    add_atexec_options(parser_proxy_rm, include_command=False)
     parser_proxy_rm.set_defaults(func=slingerClient.proxy_handler)
 
     # proxy list
