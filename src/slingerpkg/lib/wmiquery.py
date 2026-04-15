@@ -550,6 +550,26 @@ class WMIQuery:
         100: "BOUND",
     }
 
+    def _resolve_pids_to_names(self, pids, timeout=30):
+        """Query Win32_Process to map PIDs to process names."""
+        if not pids:
+            return {}
+        try:
+            pid_list = ",".join(str(p) for p in pids)
+            query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
+            results = self._run_wql_query(query, "root/cimv2", timeout)
+            pid_map = {}
+            if results:
+                for r in results:
+                    p = r.get("ProcessId", {}).get("value")
+                    n = r.get("Name", {}).get("value", "")
+                    if p is not None:
+                        pid_map[int(p)] = n
+            return pid_map
+        except Exception as e:
+            print_debug(f"PID resolution failed: {e}")
+            return {}
+
     def _execute_netstat_query(self, query, namespace, args):
         """Execute a netstat template and format output as a connection table."""
         try:
@@ -559,18 +579,34 @@ class WMIQuery:
                 print_warning("No connections found")
                 return
 
+            # Collect all PIDs for batch resolution
+            all_pids = set()
+            is_udp = "UDPEndpoint" in query
+
+            for r in results:
+                pid = r.get("OwningProcess", {}).get("value", 0)
+                if pid:
+                    all_pids.add(int(pid))
+
+            # Resolve PIDs to process names
+            pid_map = {}
+            if all_pids:
+                print_info("Resolving process names...")
+                pid_map = self._resolve_pids_to_names(all_pids)
+
             # Build rows
             rows = []
-            is_udp = "UDPEndpoint" in query
             for r in results:
                 local_addr = r.get("LocalAddress", {}).get("value", "")
                 local_port = r.get("LocalPort", {}).get("value", "")
-                pid = r.get("OwningProcess", {}).get("value", "")
+                pid = r.get("OwningProcess", {}).get("value", 0)
+                pid_int = int(pid) if pid else 0
+                proc_name = pid_map.get(pid_int, "")
 
                 local = f"{local_addr}:{local_port}"
 
                 if is_udp:
-                    rows.append(["UDP", local, "*:*", "", str(pid)])
+                    rows.append(["UDP", local, "*:*", "", str(pid_int), proc_name])
                 else:
                     remote_addr = r.get("RemoteAddress", {}).get("value", "")
                     remote_port = r.get("RemotePort", {}).get("value", "")
@@ -578,13 +614,18 @@ class WMIQuery:
                     state = self._TCP_STATES.get(int(state_num), str(state_num))
 
                     remote = f"{remote_addr}:{remote_port}"
-                    rows.append(["TCP", local, remote, state, str(pid)])
+                    rows.append(["TCP", local, remote, state, str(pid_int), proc_name])
 
             # Sort: ESTABLISHED first, then LISTENING, then rest
-            state_order = {"ESTABLISHED": 0, "LISTENING": 1, "CLOSE_WAIT": 2, "TIME_WAIT": 3}
+            state_order = {
+                "ESTABLISHED": 0,
+                "LISTENING": 1,
+                "CLOSE_WAIT": 2,
+                "TIME_WAIT": 3,
+            }
             rows.sort(key=lambda r: (state_order.get(r[3], 99), r[1]))
 
-            headers = ["Proto", "Local Address", "Foreign Address", "State", "PID"]
+            headers = ["Proto", "Local Address", "Foreign Address", "State", "PID", "Process"]
             print(tabulate(rows, headers=headers, tablefmt="grid"))
             print_info(f"{len(rows)} connection(s)")
 
