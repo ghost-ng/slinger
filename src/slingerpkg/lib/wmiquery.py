@@ -525,13 +525,9 @@ class WMIQuery:
                     self._execute_single_query(query, args)
                     args.namespace = saved_ns
 
-                # Rebind to default namespace so subsequent commands work
+                # Tear down DCOM after non-default namespace to prevent stale state
                 if namespace != "root/cimv2":
-                    try:
-                        # Remove the non-default namespace cache so next query reconnects fresh
-                        self._wmi_services.pop(namespace, None)
-                    except Exception:
-                        pass
+                    self._cleanup_stale_connection()
             else:
                 query = entry
                 print_info(f"Executing template '{template_name}': {query}")
@@ -558,78 +554,86 @@ class WMIQuery:
         100: "BOUND",
     }
 
-    def _resolve_pids_to_names(self, pids, timeout=30):
-        """Query Win32_Process to map PIDs to process names using a standalone DCOM connection."""
+    def _resolve_pids_to_names(self, pids):
+        """Query Win32_Process to map PIDs to process names."""
         if not pids:
             return {}
         try:
-            from impacket.dcerpc.v5.dcomrt import DCOMConnection
-            from impacket.dcerpc.v5.dcom import wmi
-            from impacket.dcerpc.v5.dtypes import NULL
-
-            host = getattr(self, "host", None)
-            username = getattr(self, "username", None)
-            password = getattr(self, "password", "")
-            domain = getattr(self, "domain", "")
-            lm_hash, nt_hash = "", ""
-            if hasattr(self, "ntlm_hash") and self.ntlm_hash:
-                if ":" in self.ntlm_hash:
-                    lm_hash, nt_hash = self.ntlm_hash.split(":")
-                else:
-                    nt_hash = self.ntlm_hash
-
-            # Use a separate DCOM connection to avoid corrupting the main one
-            dcom = DCOMConnection(
-                host,
-                username,
-                password,
-                domain,
-                lm_hash,
-                nt_hash,
-                aesKey="",
-                oxidResolver=True,
-                doKerberos=getattr(self, "use_kerberos", False),
-            )
-            try:
-                iInterface = dcom.CoCreateInstanceEx(
-                    wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
-                )
-                iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
-                iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/cimv2", NULL, NULL)
-                iWbemLevel1Login.RemRelease()
-
-                pid_list = ",".join(str(p) for p in pids)
-                query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
-                iEnum = iWbemServices.ExecQuery(query)
-
-                pid_map = {}
-                while True:
-                    try:
-                        pEnum = iEnum.Next(0xFFFFFFFF, 1)[0]
-                        props = pEnum.getProperties()
-                        p = props.get("ProcessId", {}).get("value")
-                        n = props.get("Name", {}).get("value", "")
-                        if p is not None:
-                            pid_map[int(p)] = n
-                    except Exception:
-                        break
-
-                return pid_map
-            finally:
-                try:
-                    dcom.disconnect()
-                except Exception:
-                    pass
+            pid_list = ",".join(str(p) for p in pids)
+            query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
+            raw = self._standalone_wmi_query(query, "root/cimv2")
+            pid_map = {}
+            for r in raw or []:
+                p = r.get("ProcessId", {}).get("value")
+                n = r.get("Name", {}).get("value", "")
+                if p is not None:
+                    pid_map[int(p)] = n
+            return pid_map
         except Exception as e:
             print_debug(f"PID resolution failed: {e}")
             return {}
 
+    def _standalone_wmi_query(self, wql_query, namespace):
+        """Run a WMI query using a standalone DCOM connection (won't corrupt shared state)."""
+        from impacket.dcerpc.v5.dcomrt import DCOMConnection
+        from impacket.dcerpc.v5.dcom import wmi
+        from impacket.dcerpc.v5.dtypes import NULL
+
+        host = getattr(self, "host", None)
+        username = getattr(self, "username", None)
+        password = getattr(self, "password", "")
+        domain = getattr(self, "domain", "")
+        lm_hash, nt_hash = "", ""
+        if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+            if ":" in self.ntlm_hash:
+                lm_hash, nt_hash = self.ntlm_hash.split(":")
+            else:
+                nt_hash = self.ntlm_hash
+
+        dcom = DCOMConnection(
+            host,
+            username,
+            password,
+            domain,
+            lm_hash,
+            nt_hash,
+            aesKey="",
+            oxidResolver=True,
+            doKerberos=getattr(self, "use_kerberos", False),
+        )
+        try:
+            iInterface = dcom.CoCreateInstanceEx(
+                wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+            )
+            iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+            ns_path = (
+                f"//./{namespace}" if namespace.startswith("root/") else f"//./root/{namespace}"
+            )
+            iWbemServices = iWbemLevel1Login.NTLMLogin(ns_path, NULL, NULL)
+            iWbemLevel1Login.RemRelease()
+
+            iEnum = iWbemServices.ExecQuery(wql_query)
+            results = []
+            while True:
+                try:
+                    pEnum = iEnum.Next(0xFFFFFFFF, 1)[0]
+                    results.append(pEnum.getProperties())
+                except Exception:
+                    break
+            return results
+        finally:
+            try:
+                dcom.disconnect()
+            except Exception:
+                pass
+
     def _execute_netstat_query(self, query, namespace, args):
         """Execute a netstat template and format output as a connection table."""
         try:
-            timeout = getattr(args, "timeout", 120)
-            results = self._run_wql_query(query, namespace, timeout)
-            if not results:
+            # Use standalone DCOM to avoid corrupting shared WMI connection
+            print_info("Querying connections...")
+            raw_results = self._standalone_wmi_query(query, namespace)
+            if not raw_results:
                 print_warning("No connections found")
                 return
 
@@ -637,7 +641,7 @@ class WMIQuery:
             all_pids = set()
             is_udp = "UDPEndpoint" in query
 
-            for r in results:
+            for r in raw_results:
                 pid = r.get("OwningProcess", {}).get("value", 0)
                 if pid:
                     all_pids.add(int(pid))
@@ -650,7 +654,7 @@ class WMIQuery:
 
             # Build rows
             rows = []
-            for r in results:
+            for r in raw_results:
                 local_addr = r.get("LocalAddress", {}).get("value", "")
                 local_port = r.get("LocalPort", {}).get("value", "")
                 pid = r.get("OwningProcess", {}).get("value", 0)
