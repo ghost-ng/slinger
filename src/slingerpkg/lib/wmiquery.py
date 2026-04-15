@@ -524,6 +524,14 @@ class WMIQuery:
                     args.namespace = namespace
                     self._execute_single_query(query, args)
                     args.namespace = saved_ns
+
+                # Rebind to default namespace so subsequent commands work
+                if namespace != "root/cimv2":
+                    try:
+                        # Remove the non-default namespace cache so next query reconnects fresh
+                        self._wmi_services.pop(namespace, None)
+                    except Exception:
+                        pass
             else:
                 query = entry
                 print_info(f"Executing template '{template_name}': {query}")
@@ -551,25 +559,67 @@ class WMIQuery:
     }
 
     def _resolve_pids_to_names(self, pids, timeout=30):
-        """Query Win32_Process to map PIDs to process names."""
+        """Query Win32_Process to map PIDs to process names using a standalone DCOM connection."""
         if not pids:
             return {}
         try:
-            # Force fresh DCOM connection — the previous namespace query
-            # may have left the connection in a bad state
-            self._cleanup_stale_connection()
+            from impacket.dcerpc.v5.dcomrt import DCOMConnection
+            from impacket.dcerpc.v5.dcom import wmi
+            from impacket.dcerpc.v5.dtypes import NULL
 
-            pid_list = ",".join(str(p) for p in pids)
-            query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
-            results = self._run_wql_query(query, "root/cimv2", timeout)
-            pid_map = {}
-            if results:
-                for r in results:
-                    p = r.get("ProcessId", {}).get("value")
-                    n = r.get("Name", {}).get("value", "")
-                    if p is not None:
-                        pid_map[int(p)] = n
-            return pid_map
+            host = getattr(self, "host", None)
+            username = getattr(self, "username", None)
+            password = getattr(self, "password", "")
+            domain = getattr(self, "domain", "")
+            lm_hash, nt_hash = "", ""
+            if hasattr(self, "ntlm_hash") and self.ntlm_hash:
+                if ":" in self.ntlm_hash:
+                    lm_hash, nt_hash = self.ntlm_hash.split(":")
+                else:
+                    nt_hash = self.ntlm_hash
+
+            # Use a separate DCOM connection to avoid corrupting the main one
+            dcom = DCOMConnection(
+                host,
+                username,
+                password,
+                domain,
+                lm_hash,
+                nt_hash,
+                aesKey="",
+                oxidResolver=True,
+                doKerberos=getattr(self, "use_kerberos", False),
+            )
+            try:
+                iInterface = dcom.CoCreateInstanceEx(
+                    wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
+                )
+                iWbemLevel1Login = wmi.IWbemLevel1Login(iInterface)
+                iWbemServices = iWbemLevel1Login.NTLMLogin("//./root/cimv2", NULL, NULL)
+                iWbemLevel1Login.RemRelease()
+
+                pid_list = ",".join(str(p) for p in pids)
+                query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
+                iEnum = iWbemServices.ExecQuery(query)
+
+                pid_map = {}
+                while True:
+                    try:
+                        pEnum = iEnum.Next(0xFFFFFFFF, 1)[0]
+                        props = pEnum.getProperties()
+                        p = props.get("ProcessId", {}).get("value")
+                        n = props.get("Name", {}).get("value", "")
+                        if p is not None:
+                            pid_map[int(p)] = n
+                    except Exception:
+                        break
+
+                return pid_map
+            finally:
+                try:
+                    dcom.disconnect()
+                except Exception:
+                    pass
         except Exception as e:
             print_debug(f"PID resolution failed: {e}")
             return {}
