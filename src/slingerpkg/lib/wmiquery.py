@@ -510,9 +510,20 @@ class WMIQuery:
         template_name = template_name.lower()
 
         if template_name in templates:
-            query = templates[template_name]
-            print_info(f"Executing template '{template_name}': {query}")
-            self._execute_single_query(query, args)
+            entry = templates[template_name]
+            if isinstance(entry, tuple):
+                # Namespace-aware template: (query, namespace)
+                query, namespace = entry
+                saved_ns = getattr(args, "namespace", self.current_namespace)
+                args.namespace = namespace
+                print_info(f"Executing template '{template_name}' (namespace: {namespace})")
+                print_debug(f"Query: {query}")
+                self._execute_single_query(query, args)
+                args.namespace = saved_ns
+            else:
+                query = entry
+                print_info(f"Executing template '{template_name}': {query}")
+                self._execute_single_query(query, args)
         else:
             print_bad(f"Template '{template_name}' not found")
             print_info("Available templates:")
@@ -586,6 +597,13 @@ class WMIQuery:
                 "privileged_groups",
                 "system_accounts",
             ],
+            "🔌 Network Connections (netstat)": [
+                "netstat",
+                "netstat_tcp",
+                "netstat_udp",
+                "netstat_listening",
+                "netstat_established",
+            ],
         }
 
         print_good("Available WMI query templates:")
@@ -595,15 +613,20 @@ class WMIQuery:
             print_info(f"{category}")
             for name in template_names:
                 if name in templates:
-                    query = templates[name]
+                    entry = templates[name]
+                    query = entry[0] if isinstance(entry, tuple) else entry
                     # Show performance warnings
                     warning = ""
                     if "SLOW" in str(query) or "win32_product" in query.lower():
                         warning = " ⚠️ "
                     elif "Can be slow" in str(query):
                         warning = " ⏳ "
+                    # Show namespace hint for non-default namespaces
+                    ns_hint = ""
+                    if isinstance(entry, tuple):
+                        ns_hint = f"  ({entry[1]})"
 
-                    print(f"  {name:<20}{warning}")
+                    print(f"  {name:<25}{warning}{ns_hint}")
             print()
 
         # Show any templates not in categories
@@ -818,6 +841,28 @@ class WMIQuery:
             "admin_shares": "SELECT Name, Path, Description FROM Win32_Share WHERE Name LIKE '%$'",
             "privileged_groups": "SELECT Name, Description FROM Win32_Group WHERE Name LIKE '%admin%' OR Name = 'Power Users'",
             "system_accounts": "SELECT Name, Description, Disabled FROM Win32_UserAccount WHERE Name = 'SYSTEM' OR Name = 'LOCAL SERVICE' OR Name = 'NETWORK SERVICE'",
+            # === NETWORK CONNECTIONS (root/StandardCimv2 — Windows 8+/Server 2012+) ===
+            # Tuple format: (query, namespace) for non-default namespaces
+            "netstat": (
+                "SELECT LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess FROM MSFT_NetTCPConnection",
+                "root/StandardCimv2",
+            ),
+            "netstat_tcp": (
+                "SELECT LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess FROM MSFT_NetTCPConnection",
+                "root/StandardCimv2",
+            ),
+            "netstat_udp": (
+                "SELECT LocalAddress, LocalPort, OwningProcess FROM MSFT_NetUDPEndpoint",
+                "root/StandardCimv2",
+            ),
+            "netstat_listening": (
+                "SELECT LocalAddress, LocalPort, OwningProcess FROM MSFT_NetTCPConnection WHERE State = 2",
+                "root/StandardCimv2",
+            ),
+            "netstat_established": (
+                "SELECT LocalAddress, LocalPort, RemoteAddress, RemotePort, OwningProcess FROM MSFT_NetTCPConnection WHERE State = 5",
+                "root/StandardCimv2",
+            ),
         }
 
 
