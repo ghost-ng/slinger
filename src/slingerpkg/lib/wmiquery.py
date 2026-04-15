@@ -504,8 +504,9 @@ class WMIQuery:
         if not pids:
             return {}
         try:
-            pid_list = ",".join(str(p) for p in pids)
-            query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
+            # WQL doesn't support IN clause — build OR chain instead
+            conditions = " OR ".join(f"ProcessId = {p}" for p in pids)
+            query = f"SELECT ProcessId, Name FROM Win32_Process WHERE {conditions}"
             raw = self._standalone_wmi_query(query, "root/cimv2")
             pid_map = {}
             for r in raw or []:
@@ -515,7 +516,7 @@ class WMIQuery:
                     pid_map[int(p)] = n
             return pid_map
         except Exception as e:
-            print_debug(f"PID resolution failed: {e}")
+            print_warning(f"Process name resolution failed: {e}")
             return {}
 
     def _create_dcom(self):
