@@ -555,6 +555,10 @@ class WMIQuery:
         if not pids:
             return {}
         try:
+            # Force fresh DCOM connection — the previous namespace query
+            # may have left the connection in a bad state
+            self._cleanup_stale_connection()
+
             pid_list = ",".join(str(p) for p in pids)
             query = f"SELECT ProcessId, Name FROM Win32_Process WHERE ProcessId IN ({pid_list})"
             results = self._run_wql_query(query, "root/cimv2", timeout)
@@ -626,7 +630,7 @@ class WMIQuery:
             rows.sort(key=lambda r: (state_order.get(r[3], 99), r[1]))
 
             headers = ["Proto", "Local Address", "Foreign Address", "State", "PID", "Process"]
-            print(tabulate(rows, headers=headers, tablefmt="grid"))
+            print(tabulate(rows, headers=headers, tablefmt="simple"))
             print_info(f"{len(rows)} connection(s)")
 
         except Exception as e:
