@@ -1,0 +1,71 @@
+name: Traffic Stats
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout stats branch (create if missing)
+        run: |
+          set -euo pipefail
+          git init stats-repo
+          cd stats-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads origin stats >/dev/null 2>&1; then
+            git fetch origin stats --depth=1
+            git checkout stats
+          else
+            git checkout --orphan stats
+            git rm -rf . >/dev/null 2>&1 || true
+            echo "# Traffic Stats" > README.md
+            git add README.md
+            git commit -m "init stats branch"
+          fi
+
+      - name: Fetch traffic data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd stats-repo
+          DATE=$(date -u +%Y-%m-%d)
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          OUT="data/${YEAR}/${MONTH}"
+          mkdir -p "$OUT"
+
+          for ep in views clones popular/paths popular/referrers; do
+            name=$(echo "$ep" | tr '/' '_')
+            gh api "repos/${REPO}/traffic/${ep}" > "${OUT}/${DATE}_${name}.json"
+          done
+
+          # PyPI downloads (optional, ignore failure)
+          curl -sf "https://pypistats.org/api/packages/slingerpkg/recent" \
+            > "${OUT}/${DATE}_pypi_recent.json" || true
+
+          # Release asset download counts
+          gh api "repos/${REPO}/releases" \
+            --jq '[.[] | {tag: .tag_name, assets: [.assets[] | {name, downloads: .download_count}]}]' \
+            > "${OUT}/${DATE}_releases.json" || true
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          cd stats-repo
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "traffic: $(date -u +%Y-%m-%d)"
+          git push origin stats
