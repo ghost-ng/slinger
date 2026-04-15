@@ -514,12 +514,16 @@ class WMIQuery:
             if isinstance(entry, tuple):
                 # Namespace-aware template: (query, namespace)
                 query, namespace = entry
-                saved_ns = getattr(args, "namespace", self.current_namespace)
-                args.namespace = namespace
                 print_info(f"Executing template '{template_name}' (namespace: {namespace})")
                 print_debug(f"Query: {query}")
-                self._execute_single_query(query, args)
-                args.namespace = saved_ns
+
+                if template_name.startswith("netstat"):
+                    self._execute_netstat_query(query, namespace, args)
+                else:
+                    saved_ns = getattr(args, "namespace", self.current_namespace)
+                    args.namespace = namespace
+                    self._execute_single_query(query, args)
+                    args.namespace = saved_ns
             else:
                 query = entry
                 print_info(f"Executing template '{template_name}': {query}")
@@ -528,6 +532,65 @@ class WMIQuery:
             print_bad(f"Template '{template_name}' not found")
             print_info("Available templates:")
             self._list_templates(args)
+
+    # TCP connection state mapping (MSFT_NetTCPConnection)
+    _TCP_STATES = {
+        1: "CLOSED",
+        2: "LISTENING",
+        3: "SYN_SENT",
+        4: "SYN_RECV",
+        5: "ESTABLISHED",
+        6: "FIN_WAIT_1",
+        7: "FIN_WAIT_2",
+        8: "CLOSE_WAIT",
+        9: "CLOSING",
+        10: "LAST_ACK",
+        11: "TIME_WAIT",
+        12: "DELETE_TCB",
+        100: "BOUND",
+    }
+
+    def _execute_netstat_query(self, query, namespace, args):
+        """Execute a netstat template and format output as a connection table."""
+        try:
+            timeout = getattr(args, "timeout", 120)
+            results = self._run_wql_query(query, namespace, timeout)
+            if not results:
+                print_warning("No connections found")
+                return
+
+            # Build rows
+            rows = []
+            is_udp = "UDPEndpoint" in query
+            for r in results:
+                local_addr = r.get("LocalAddress", {}).get("value", "")
+                local_port = r.get("LocalPort", {}).get("value", "")
+                pid = r.get("OwningProcess", {}).get("value", "")
+
+                local = f"{local_addr}:{local_port}"
+
+                if is_udp:
+                    rows.append(["UDP", local, "*:*", "", str(pid)])
+                else:
+                    remote_addr = r.get("RemoteAddress", {}).get("value", "")
+                    remote_port = r.get("RemotePort", {}).get("value", "")
+                    state_num = r.get("State", {}).get("value", 0)
+                    state = self._TCP_STATES.get(int(state_num), str(state_num))
+
+                    remote = f"{remote_addr}:{remote_port}"
+                    rows.append(["TCP", local, remote, state, str(pid)])
+
+            # Sort: ESTABLISHED first, then LISTENING, then rest
+            state_order = {"ESTABLISHED": 0, "LISTENING": 1, "CLOSE_WAIT": 2, "TIME_WAIT": 3}
+            rows.sort(key=lambda r: (state_order.get(r[3], 99), r[1]))
+
+            headers = ["Proto", "Local Address", "Foreign Address", "State", "PID"]
+            print(tabulate(rows, headers=headers, tablefmt="grid"))
+            print_info(f"{len(rows)} connection(s)")
+
+        except Exception as e:
+            print_bad(f"Netstat query failed: {e}")
+            print_debug(f"Exception: {e}")
 
     def _list_templates(self, args):
         """List available query templates organized by category"""
