@@ -95,7 +95,6 @@ class WMIQuery:
                         self._cleanup_stale_connection(namespace)
 
                 # Import WMI components
-                from impacket.dcerpc.v5.dcomrt import DCOMConnection
                 from impacket.dcerpc.v5.dcom import wmi
                 from impacket.dcerpc.v5.dtypes import NULL
 
@@ -109,37 +108,7 @@ class WMIQuery:
                         time.sleep(1.0)
 
                     print_debug("Creating new DCOM connection for WMI")
-
-                    # Use existing connection credentials (following wmiexec patterns)
-                    host = getattr(self, "host", None)
-                    username = getattr(self, "username", None)
-                    password = getattr(self, "password", "")
-                    domain = getattr(self, "domain", "")
-
-                    if not host:
-                        raise Exception("No host connection available")
-
-                    # Handle NTLM hash parsing (following existing wmiexec patterns)
-                    lm_hash = ""
-                    nt_hash = ""
-                    if hasattr(self, "ntlm_hash") and self.ntlm_hash:
-                        if ":" in self.ntlm_hash:
-                            lm_hash, nt_hash = self.ntlm_hash.split(":")
-                        else:
-                            nt_hash = self.ntlm_hash
-
-                    # Create DCOM connection with full options (reused for all operations)
-                    self._dcom_connection = DCOMConnection(
-                        host,
-                        username,
-                        password,
-                        domain,
-                        lm_hash,
-                        nt_hash,
-                        aesKey="",
-                        oxidResolver=True,
-                        doKerberos=getattr(self, "use_kerberos", False),
-                    )
+                    self._dcom_connection = self._create_dcom()
                     print_debug("DCOM connection established for WMI session")
                 else:
                     print_debug("Reusing existing DCOM connection")
@@ -159,31 +128,7 @@ class WMIQuery:
                         self._dcom_connection = None
                         self._wmi_services.clear()
 
-                        # Recreate DCOM connection
-                        if not host:
-                            host = getattr(self, "host", None)
-                        if not host:
-                            raise Exception("No host connection available")
-
-                        lm_hash = ""
-                        nt_hash = ""
-                        if hasattr(self, "ntlm_hash") and self.ntlm_hash:
-                            if ":" in self.ntlm_hash:
-                                lm_hash, nt_hash = self.ntlm_hash.split(":")
-                            else:
-                                nt_hash = self.ntlm_hash
-
-                        self._dcom_connection = DCOMConnection(
-                            host,
-                            username,
-                            password,
-                            domain,
-                            lm_hash,
-                            nt_hash,
-                            aesKey="",
-                            oxidResolver=True,
-                            doKerberos=getattr(self, "use_kerberos", False),
-                        )
+                        self._dcom_connection = self._create_dcom()
                         print_debug("DCOM connection re-established after broken pipe")
 
                         # Retry the CoCreateInstanceEx
@@ -573,13 +518,13 @@ class WMIQuery:
             print_debug(f"PID resolution failed: {e}")
             return {}
 
-    def _standalone_wmi_query(self, wql_query, namespace):
-        """Run a WMI query using a standalone DCOM connection (won't corrupt shared state)."""
+    def _create_dcom(self):
+        """Create a new DCOM connection using stored credentials. Caller must disconnect."""
         from impacket.dcerpc.v5.dcomrt import DCOMConnection
-        from impacket.dcerpc.v5.dcom import wmi
-        from impacket.dcerpc.v5.dtypes import NULL
 
         host = getattr(self, "host", None)
+        if not host:
+            raise Exception("No host connection available")
         username = getattr(self, "username", None)
         password = getattr(self, "password", "")
         domain = getattr(self, "domain", "")
@@ -590,7 +535,7 @@ class WMIQuery:
             else:
                 nt_hash = self.ntlm_hash
 
-        dcom = DCOMConnection(
+        return DCOMConnection(
             host,
             username,
             password,
@@ -601,6 +546,13 @@ class WMIQuery:
             oxidResolver=True,
             doKerberos=getattr(self, "use_kerberos", False),
         )
+
+    def _standalone_wmi_query(self, wql_query, namespace):
+        """Run a WMI query using a standalone DCOM connection (won't corrupt shared state)."""
+        from impacket.dcerpc.v5.dcom import wmi
+        from impacket.dcerpc.v5.dtypes import NULL
+
+        dcom = self._create_dcom()
         try:
             iInterface = dcom.CoCreateInstanceEx(
                 wmi.CLSID_WbemLevel1Login, wmi.IID_IWbemLevel1Login
