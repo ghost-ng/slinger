@@ -58,6 +58,25 @@ jobs:
             --jq '[.[] | {tag: .tag_name, assets: [.assets[] | {name, downloads: .download_count}]}]' \
             > "${OUT}/${DATE}_releases.json" || true
 
+      - name: Checkout main (for render script)
+        uses: actions/checkout@v4
+        with:
+          path: main-repo
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Render charts
+        run: |
+          set -euo pipefail
+          pip install --quiet matplotlib
+          cp main-repo/scripts/render_stats.py stats-repo/render_stats.py
+          cd stats-repo
+          python render_stats.py
+          rm render_stats.py
+
       - name: Commit and push
         run: |
           set -euo pipefail
