@@ -1714,10 +1714,10 @@ class SlingerClient(
                     print_log(f"Debug mode: {'Enabled' if args.debug else 'Disabled'}")
 
                     if deps.get("cmake", False) and deps.get("cpp_compiler", False):
-                        print_good("\n✓ All dependencies available - ready to build")
+                        print_good("✓ All dependencies available - ready to build")
                         print_info("Run without --dry-run to actually build the agent")
                     else:
-                        print_bad("\n✗ Missing dependencies:")
+                        print_bad("✗ Missing dependencies:")
                         if not deps.get("cmake", False):
                             print_log("  ✗ CMake not found")
                         if not deps.get("cpp_compiler", False):
@@ -1794,13 +1794,13 @@ class SlingerClient(
 
                     # Show pipe name guidance
                     if getattr(args, "pipe", None):
-                        print_info(f"\n💡 Agents built with custom pipe name: {args.pipe}")
+                        print_info(f"💡 Agents built with custom pipe name: {args.pipe}")
                         print_info(f"   Pipe name automatically used during deployment")
                         print_info(
                             f"   Deploy with: agent deploy <agent.exe> --path \\\\ --name <name> --start"
                         )
                     else:
-                        print_info("\n💡 These agents use time-based random pipe names")
+                        print_info("💡 These agents use time-based random pipe names")
                         print_info("   The actual pipe name will be determined when the agent runs")
                         print_info(
                             "   Deploy with: agent deploy <agent.exe> --path \\\\ --name <name> --start"
@@ -3248,7 +3248,7 @@ class SlingerClient(
             print_info(f"Using {method} method for kill operations")
 
             for agent_id in agent_ids:
-                print_info(f"\n[*] Processing agent: {agent_id}")
+                print_info(f"[*] Processing agent: {agent_id}")
 
                 # Try to kill the agent process
                 try:
@@ -3266,7 +3266,7 @@ class SlingerClient(
                 except Exception as e:
                     print_warning(f"  Remove failed: {e}")
 
-            print_good(f"\n✓ Reset complete - processed {len(agent_ids)} agent(s)")
+            print_good(f"✓ Reset complete - processed {len(agent_ids)} agent(s)")
             self._track("AGENT", "reset", "all")
 
         except Exception as e:
