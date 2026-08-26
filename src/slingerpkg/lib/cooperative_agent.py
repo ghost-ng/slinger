@@ -184,7 +184,7 @@ add_definitions(-DAGENT_PASSPHRASE="{config['passphrase']}")"""
 
 # Source files
 add_executable(slinger_agent_{build_id}
-    agent_main.cpp
+    ${{CMAKE_SOURCE_DIR}}/agent_main.cpp
 )
 
 # Link libraries
@@ -346,6 +346,7 @@ add_custom_command(TARGET slinger_agent_{build_id} POST_BUILD
                 "auth_protocol.h",
             ]
 
+            missing_templates = []
             for template_file in template_files:
                 template_path = self.template_dir / template_file
                 if template_path.exists():
@@ -353,6 +354,15 @@ add_custom_command(TARGET slinger_agent_{build_id} POST_BUILD
                     output_path = build_path / template_file
                     with open(output_path, "w") as f:
                         f.write(obfuscated_content)
+                else:
+                    missing_templates.append(str(template_path))
+
+            if missing_templates:
+                print(f"ERROR: Missing template files:")
+                for path in missing_templates:
+                    print(f"  - {path}")
+                print(f"\nExpected template directory: {self.template_dir}")
+                return None
 
             # Generate CMake configuration
             self.generate_cmake_config(build_path, arch, config)
