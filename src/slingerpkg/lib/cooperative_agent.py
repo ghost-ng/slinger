@@ -184,7 +184,7 @@ add_definitions(-DAGENT_PASSPHRASE="{config['passphrase']}")"""
 
 # Source files
 add_executable(slinger_agent_{build_id}
-    ${{CMAKE_SOURCE_DIR}}/agent_main.cpp
+    agent_main.cpp
 )
 
 # Link libraries
