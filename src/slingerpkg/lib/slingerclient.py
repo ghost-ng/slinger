@@ -1854,9 +1854,9 @@ class SlingerClient(
 
                 # Show build readiness
                 if deps["cmake_available"] and deps["cpp_compiler_available"]:
-                    print_good("\n✓ System ready for agent building")
+                    print_good("✓ System ready for agent building")
                 else:
-                    print_warning("\n⚠ Missing build dependencies - install CMake and C++ compiler")
+                    print_warning("⚠ Missing build dependencies - install CMake and C++ compiler")
 
             elif args.agent_command == "deploy":
                 self.agent_deploy_handler(args)
